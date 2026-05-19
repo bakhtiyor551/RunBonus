@@ -1,0 +1,19 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #f4f6f8; }
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: #1a1a2e; color: #fff; padding: 20px; }
+.sidebar button { display: block; width: 100%; margin: 8px 0; padding: 10px; border: 0; border-radius: 8px; background: #2d2d44; color: #fff; cursor: pointer; }
+.sidebar button.active { background: #1a7f4b; }
+.main { flex: 1; padding: 24px; }
+.card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+input, select { padding: 8px; margin: 4px 8px 4px 0; border: 1px solid #ccc; border-radius: 6px; }
+button.primary { background: #1a7f4b; color: #fff; border: 0; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+.login-wrap { max-width: 360px; margin: 80px auto; }
+.hint { color: #555; font-size: 14px; margin-bottom: 16px; }
+.sub-card { margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; }
+.inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.selected-row { background: #f0faf4; }
+.points-scroll { max-height: 320px; overflow: auto; }
+.workout-detail h4 { margin-top: 16px; }

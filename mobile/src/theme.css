@@ -1,0 +1,60 @@
+:root {
+  --ion-color-primary: #1a7f4b;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+.bonus-card {
+  background: linear-gradient(135deg, #1a7f4b, #2cb36a);
+  color: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  margin: 16px;
+}
+
+.bonus-card h1 {
+  margin: 4px 0 0;
+  font-size: 32px;
+}
+
+.bonus-card .label {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.home-screen .start-btn {
+  margin: 24px 0 12px;
+}
+
+.workout-active .status-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a7f4b;
+}
+
+.workout-active .stat {
+  font-size: 20px;
+  margin: 16px 0;
+}
+
+.workout-active .hint {
+  color: #666;
+  font-size: 14px;
+}
+
+.workout-result h2 {
+  margin-top: 0;
+}
+
+.workout-result .bonus {
+  color: #1a7f4b;
+  font-size: 18px;
+}
+
+.workout-result .muted {
+  color: #666;
+}
