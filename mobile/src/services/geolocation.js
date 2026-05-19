@@ -1,13 +1,32 @@
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
+
 const GPS_INTERVAL_MS = 7000;
 
+function isNative() {
+  return Capacitor.isNativePlatform();
+}
+
+function permissionOk(status) {
+  return status.location === 'granted' || status.location === 'prompt';
+}
+
 export async function requestLocationPermission() {
-  if (window.Capacitor?.Plugins?.Geolocation) {
-    const { Geolocation } = window.Capacitor.Plugins;
-    const perm = await Geolocation.requestPermissions();
-    if (perm.location === 'denied' || perm.location === 'prompt-with-rationale') {
+  if (isNative()) {
+    try {
+      let status = await Geolocation.checkPermissions();
+      if (!permissionOk(status)) {
+        status = await Geolocation.requestPermissions();
+      }
+      if (!permissionOk(status)) {
+        throw new Error('Включите геолокацию для начала тренировки');
+      }
+      await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000 });
+      return true;
+    } catch (err) {
+      if (err.message?.includes('геолокацию')) throw err;
       throw new Error('Включите геолокацию для начала тренировки');
     }
-    return true;
   }
 
   if (!navigator.geolocation) {
@@ -35,9 +54,11 @@ function normalizePosition(pos) {
 }
 
 export async function getCurrentPosition() {
-  if (window.Capacitor?.Plugins?.Geolocation) {
-    const { Geolocation } = window.Capacitor.Plugins;
-    const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+  if (isNative()) {
+    const pos = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 15000,
+    });
     return normalizePosition(pos);
   }
 
@@ -51,13 +72,11 @@ export async function getCurrentPosition() {
 }
 
 /**
- * Фоновое отслеживание: watchPosition (браузер / Capacitor).
- * @returns {() => void} stop
+ * @returns {Promise<() => void>} stop
  */
-export function startBackgroundTracking(onPosition) {
-  if (window.Capacitor?.Plugins?.Geolocation) {
-    const { Geolocation } = window.Capacitor.Plugins;
-    const watchId = Geolocation.watchPosition(
+export async function startBackgroundTracking(onPosition) {
+  if (isNative()) {
+    const watchId = await Geolocation.watchPosition(
       { enableHighAccuracy: true, timeout: 20000 },
       (pos, err) => {
         if (err || !pos) return;
@@ -81,7 +100,7 @@ export function startBackgroundTracking(onPosition) {
       const pos = await getCurrentPosition();
       onPosition(pos);
     } catch {
-      /* retry on next tick */
+      /* retry */
     }
   }, GPS_INTERVAL_MS);
 

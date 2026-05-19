@@ -55,6 +55,17 @@ async function seed() {
     );
   }
 
+  const [bonusSettings] = await pool.query('SELECT id FROM bonus_settings LIMIT 1');
+  if (!bonusSettings.length) {
+    await pool.query(
+      `INSERT INTO bonus_settings (
+         price_per_km, daily_limit, total_limit_per_shoe,
+         min_distance_km, min_duration_minutes, max_speed_kmh, status
+       ) VALUES (3, 10, 200, 0.5, 5, 18, 'active')`
+    );
+    console.log('Настройки бонусов: 3 сомони/км');
+  }
+
   const [shoes] = await pool.query('SELECT id FROM shoes LIMIT 1');
   if (!shoes.length) {
     await pool.query(

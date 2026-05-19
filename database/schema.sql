@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS workouts (
   finished_at TIMESTAMP NULL,
   status ENUM('in_progress', 'approved', 'rejected', 'suspicious', 'rejected_no_fund') NOT NULL DEFAULT 'in_progress',
   reject_reason VARCHAR(500) NULL,
+  price_per_km DECIMAL(10, 2) NULL,
+  calculated_bonus DECIMAL(10, 2) NULL,
   client_visible_map BOOLEAN NOT NULL DEFAULT FALSE,
   client_visible_limits BOOLEAN NOT NULL DEFAULT FALSE,
   background_tracking BOOLEAN NOT NULL DEFAULT TRUE,
@@ -171,4 +173,31 @@ CREATE TABLE IF NOT EXISTS user_bonus_transactions (
   FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE SET NULL,
   FOREIGN KEY (account_transaction_id) REFERENCES account_transactions(id) ON DELETE SET NULL,
   INDEX idx_user_bonus_tx_user (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS bonus_settings (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  price_per_km DECIMAL(10, 2) NOT NULL DEFAULT 3.00,
+  daily_limit DECIMAL(10, 2) NOT NULL DEFAULT 10.00,
+  total_limit_per_shoe DECIMAL(10, 2) NOT NULL DEFAULT 200.00,
+  min_distance_km DECIMAL(10, 2) NOT NULL DEFAULT 0.50,
+  min_duration_minutes INT NOT NULL DEFAULT 5,
+  max_speed_kmh DECIMAL(10, 2) NOT NULL DEFAULT 18.00,
+  status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  created_by INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS bonus_settings_log (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  admin_id INT NOT NULL,
+  field_name VARCHAR(64) NOT NULL,
+  field_label VARCHAR(120) NOT NULL,
+  old_value VARCHAR(255) NULL,
+  new_value VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (admin_id) REFERENCES admin_users(id) ON DELETE CASCADE,
+  INDEX idx_bonus_settings_log_created (created_at)
 );

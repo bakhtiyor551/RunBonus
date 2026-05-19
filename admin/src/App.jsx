@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { adminApi } from './api';
 import AccountsTab from './AccountsTab';
 import WorkoutDetail from './WorkoutDetail';
+import BonusSettingsTab from './BonusSettingsTab';
 
-const TABS = ['Клиенты', 'QR / Кроссовки', 'Тренировки', 'Бонусные счета', 'Списание бонусов'];
+const TABS = ['Клиенты', 'QR / Кроссовки', 'Тренировки', 'Бонусные счета', 'Настройки бонусов', 'Списание бонусов'];
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('adminToken'));
@@ -26,6 +27,7 @@ export default function App() {
         body: JSON.stringify(loginForm),
       });
       localStorage.setItem('adminToken', data.token);
+      localStorage.setItem('adminRole', data.admin.role);
       setToken(data.token);
     } catch (err) {
       setError(err.message);
@@ -92,7 +94,7 @@ export default function App() {
         {TABS.map((t, i) => (
           <button key={t} className={tab === i ? 'active' : ''} onClick={() => load(i)}>{t}</button>
         ))}
-        <button onClick={() => { localStorage.removeItem('adminToken'); setToken(null); }}>Выход</button>
+        <button onClick={() => { localStorage.removeItem('adminToken'); localStorage.removeItem('adminRole'); setToken(null); }}>Выход</button>
       </aside>
       <main className="main">
         {tab === 0 && (
@@ -160,7 +162,8 @@ export default function App() {
           </div>
         )}
         {tab === 3 && <AccountsTab />}
-        {tab === 4 && (
+        {tab === 4 && <BonusSettingsTab />}
+        {tab === 5 && (
           <div className="card">
             <h2>Списание бонусов (скидка в магазине)</h2>
             <form onSubmit={spendBonus}>

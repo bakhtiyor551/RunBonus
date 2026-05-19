@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { config } from '../config.js';
 import { authUser, requireActiveUser } from '../middleware/auth.js';
 import { validateWorkout } from '../services/workoutValidation.js';
 import {
   getDailyEarned,
   getShoeTotalEarned,
   calcBonusAmount,
+  calcRawBonus,
   applyBonus,
 } from '../services/bonusService.js';
+import { getActiveBonusSettings } from '../services/bonusSettingsService.js';
 import { getActiveBonusFund } from '../services/accountService.js';
 import {
   buildClientFinishResponse,
@@ -34,18 +35,20 @@ async function assertWorkoutOwner(workoutId, userId) {
   return rows[0] || null;
 }
 
-async function canStartWorkout(userId, shoeId) {
-  const shoeTotal = await getShoeTotalEarned(userId, shoeId);
-  if (shoeTotal >= config.shoeBonusLimit) return false;
-
-  const today = new Date().toISOString().slice(0, 10);
-  const dailyEarned = await getDailyEarned(userId, shoeId, today);
-  if (dailyEarned >= config.dailyBonusLimit) return false;
-
-  return true;
+/** Закрыть зависшие тренировки (приложение закрыли без «Завершить»). */
+async function closeStaleWorkouts(conn, userId) {
+  await conn.query(
+    `UPDATE workouts SET
+       status = 'rejected',
+       reject_reason = 'Тренировка отменена (не завершена)',
+       finished_at = NOW()
+     WHERE user_id = ? AND status = 'in_progress'`,
+    [userId]
+  );
 }
 
 router.post('/start', authUser, requireActiveUser, async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const shoe = await getActiveShoe(req.userId);
     if (!shoe) {
@@ -55,25 +58,27 @@ router.post('/start', authUser, requireActiveUser, async (req, res) => {
       return res.status(400).json({ error: CLIENT_START_ERRORS.SHOE_INACTIVE });
     }
 
-    if (!(await canStartWorkout(req.userId, shoe.id))) {
-      return res.status(400).json({ error: CLIENT_START_ERRORS.CANNOT_START });
-    }
+    await conn.beginTransaction();
+    await closeStaleWorkouts(conn, req.userId);
 
-    const [result] = await pool.query(
-      `INSERT INTO workouts (
-         user_id, shoe_id, started_at, status,
-         client_visible_map, client_visible_limits, background_tracking
-       ) VALUES (?, ?, NOW(), 'in_progress', FALSE, FALSE, TRUE)`,
+    const [result] = await conn.query(
+      `INSERT INTO workouts (user_id, shoe_id, started_at, status, background_tracking)
+       VALUES (?, ?, NOW(), 'in_progress', TRUE)`,
       [req.userId, shoe.id]
     );
+
+    await conn.commit();
 
     res.status(201).json({
       workoutId: result.insertId,
       id: result.insertId,
     });
   } catch (err) {
+    await conn.rollback();
     console.error(err);
     res.status(500).json({ error: CLIENT_START_ERRORS.GENERIC });
+  } finally {
+    conn.release();
   }
 });
 
@@ -180,7 +185,12 @@ async function finishWorkout(workoutId, userId, clientPoints) {
     const finishedAt = new Date();
     const durationSeconds = Math.floor((finishedAt - startedAt) / 1000);
 
-    const validation = validateWorkout(dbPoints, durationSeconds);
+    const settings = await getActiveBonusSettings(conn);
+    const validation = validateWorkout(dbPoints, durationSeconds, settings);
+
+    const distanceKm = validation.distanceKm ?? 0;
+    const pricePerKm = settings.price_per_km;
+    const rawCalculatedBonus = calcRawBonus(distanceKm, pricePerKm);
 
     let bonusAmount = 0;
     let finalStatus = validation.status;
@@ -191,17 +201,17 @@ async function finishWorkout(workoutId, userId, clientPoints) {
       const dailyEarned = await getDailyEarned(userId, workout.shoe_id, today);
       const shoeTotal = await getShoeTotalEarned(userId, workout.shoe_id);
 
-      if (dailyEarned >= config.dailyBonusLimit) {
+      if (dailyEarned >= settings.daily_limit) {
         finalStatus = 'rejected';
         rejectReason = 'Дневной лимит уже достигнут';
-      } else if (shoeTotal >= config.shoeBonusLimit) {
+      } else if (shoeTotal >= settings.total_limit_per_shoe) {
         finalStatus = 'rejected';
-        rejectReason = 'Общий лимит 200 сомони достигнут';
+        rejectReason = 'Общий лимит по кроссовкам достигнут';
       } else if (workout.shoe_status === 'blocked') {
         finalStatus = 'rejected';
         rejectReason = 'Кроссовки заблокированы';
       } else {
-        bonusAmount = calcBonusAmount(validation.distanceKm, dailyEarned, shoeTotal);
+        bonusAmount = calcBonusAmount(distanceKm, dailyEarned, shoeTotal, settings);
         if (bonusAmount <= 0) {
           finalStatus = 'rejected';
           rejectReason = 'Лимит бонусов исчерпан';
@@ -219,16 +229,19 @@ async function finishWorkout(workoutId, userId, clientPoints) {
     await conn.query(
       `UPDATE workouts SET
         distance_km = ?, duration_seconds = ?, avg_speed = ?, max_speed = ?,
-        finished_at = ?, status = ?, reject_reason = ?
+        finished_at = ?, status = ?, reject_reason = ?,
+        price_per_km = ?, calculated_bonus = ?
        WHERE id = ?`,
       [
-        validation.distanceKm ?? 0,
+        distanceKm,
         durationSeconds,
         validation.avgSpeed ?? null,
         validation.maxSpeed ?? null,
         finishedAt,
         finalStatus,
         rejectReason,
+        pricePerKm,
+        rawCalculatedBonus,
         workoutId,
       ]
     );
@@ -249,7 +262,7 @@ async function finishWorkout(workoutId, userId, clientPoints) {
           rejectReason = 'Бонус не начислен — недостаточно средств в бонусном фонде';
           bonusAmount = 0;
           await conn.query(
-            'UPDATE workouts SET status = ?, reject_reason = ? WHERE id = ?',
+            `UPDATE workouts SET status = ?, reject_reason = ?, calculated_bonus = 0 WHERE id = ?`,
             [finalStatus, rejectReason, workoutId]
           );
         } else {

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
+import { config } from '../config.js';
 import { authUser } from '../middleware/auth.js';
 import { getUserBalance } from '../services/bonusService.js';
 

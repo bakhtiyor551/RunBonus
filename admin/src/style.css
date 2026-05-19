@@ -17,3 +17,6 @@ button.primary { background: #1a7f4b; color: #fff; border: 0; padding: 10px 16px
 .selected-row { background: #f0faf4; }
 .points-scroll { max-height: 320px; overflow: auto; }
 .workout-detail h4 { margin-top: 16px; }
+.settings-form { display: grid; gap: 12px; max-width: 420px; margin-bottom: 24px; }
+.settings-form label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.settings-form input { margin: 0; width: 100%; }

@@ -3,28 +3,39 @@ import { calcDistanceFromPoints } from '../utils/geo.js';
 const WALK_MIN = 3;
 const WALK_MAX = 7;
 const RUN_MIN = 7;
-const RUN_MAX = 18;
-const SUSPICIOUS_MAX = 25;
-const REJECT_MAX = 40;
-const MIN_DISTANCE_KM = 0.5;
-const MIN_DURATION_SEC = 300;
 const MAX_JUMP_KM = 0.15;
 const MAX_JUMP_SEC = 5;
 const STALE_COORD_SEC = 120;
 const MIN_ACCURACY_METERS = 80;
+const SUSPICIOUS_MARGIN = 7;
 
-export function validateWorkout(points, durationSeconds) {
+export function validateWorkout(points, durationSeconds, settings) {
+  const minDurationSec = (settings?.min_duration_minutes ?? 5) * 60;
+  const minDistanceKm = settings?.min_distance_km ?? 0.5;
+  const maxSpeedKmh = settings?.max_speed_kmh ?? 18;
+  const runMax = maxSpeedKmh;
+  const suspiciousMax = maxSpeedKmh + SUSPICIOUS_MARGIN;
+  const rejectMax = maxSpeedKmh + 22;
+
   if (!points || points.length < 2) {
     return { ok: false, status: 'rejected', reason: 'Недостаточно GPS-точек' };
   }
 
-  if (durationSeconds < MIN_DURATION_SEC) {
-    return { ok: false, status: 'rejected', reason: 'Тренировка меньше 5 минут' };
+  if (durationSeconds < minDurationSec) {
+    return {
+      ok: false,
+      status: 'rejected',
+      reason: `Тренировка меньше ${settings?.min_duration_minutes ?? 5} минут`,
+    };
   }
 
   const distanceKm = calcDistanceFromPoints(points);
-  if (distanceKm < MIN_DISTANCE_KM) {
-    return { ok: false, status: 'rejected', reason: 'Минимум 500 метров' };
+  if (distanceKm < minDistanceKm) {
+    return {
+      ok: false,
+      status: 'rejected',
+      reason: `Минимум ${minDistanceKm} км`,
+    };
   }
 
   let maxSpeed = 0;
@@ -43,13 +54,13 @@ export function validateWorkout(points, durationSeconds) {
     const speed = Number(p.speed || 0);
     if (speed > maxSpeed) maxSpeed = speed;
 
-    if (speed > REJECT_MAX) invalidSpeedCount++;
-    else if (speed > SUSPICIOUS_MAX) suspiciousCount++;
+    if (speed > rejectMax) invalidSpeedCount++;
+    else if (speed > suspiciousMax) suspiciousCount++;
 
     const inWalk = speed >= WALK_MIN && speed <= WALK_MAX;
-    const inRun = speed >= RUN_MIN && speed <= RUN_MAX;
+    const inRun = speed >= RUN_MIN && speed <= runMax;
     if (speed > 0 && speed < WALK_MIN) invalidSpeedCount++;
-    if (speed > RUN_MAX && speed <= SUSPICIOUS_MAX) suspiciousCount++;
+    if (speed > runMax && speed <= suspiciousMax) suspiciousCount++;
 
     if (p.accuracy != null && Number(p.accuracy) > MIN_ACCURACY_METERS) {
       badAccuracyCount++;
@@ -139,8 +150,8 @@ export function validateWorkout(points, durationSeconds) {
 
   const validPace =
     (avgSpeed >= WALK_MIN && avgSpeed <= WALK_MAX) ||
-    (avgSpeed >= RUN_MIN && avgSpeed <= RUN_MAX);
-  if (!validPace && avgSpeed > RUN_MAX) {
+    (avgSpeed >= RUN_MIN && avgSpeed <= runMax);
+  if (!validPace && avgSpeed > runMax) {
     return {
       ok: false,
       status: 'suspicious',

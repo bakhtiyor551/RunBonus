@@ -1,5 +1,4 @@
 import { pool } from '../db.js';
-import { config } from '../config.js';
 import {
   getActiveBonusFund,
   ensureUserWallet,
@@ -43,12 +42,17 @@ export async function getUserBalance(userId) {
   return rows.length ? Number(rows[0].balance_after) : 0;
 }
 
-export function calcBonusAmount(distanceKm, dailyEarned, shoeTotalEarned) {
-  let bonus = distanceKm * config.bonusPerKm;
-  const dailyRemaining = Math.max(0, config.dailyBonusLimit - dailyEarned);
+export function calcRawBonus(distanceKm, pricePerKm) {
+  return Math.round(distanceKm * pricePerKm * 100) / 100;
+}
+
+export function calcBonusAmount(distanceKm, dailyEarned, shoeTotalEarned, settings) {
+  const pricePerKm = settings.price_per_km;
+  let bonus = calcRawBonus(distanceKm, pricePerKm);
+  const dailyRemaining = Math.max(0, settings.daily_limit - dailyEarned);
   if (bonus > dailyRemaining) bonus = dailyRemaining;
 
-  const shoeRemaining = Math.max(0, config.shoeBonusLimit - shoeTotalEarned);
+  const shoeRemaining = Math.max(0, settings.total_limit_per_shoe - shoeTotalEarned);
   if (bonus > shoeRemaining) bonus = shoeRemaining;
 
   return Math.max(0, Math.round(bonus * 100) / 100);

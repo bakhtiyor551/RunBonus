@@ -32,7 +32,11 @@ export default function WorkoutDetail({ workoutId, onClose }) {
         <strong>{w.distance_km} км</strong> · {w.duration_seconds} с ·
         ср. {w.avg_speed ?? '—'} км/ч · макс. {w.max_speed ?? '—'} км/ч
       </p>
-      <p>Бонус: <strong>{data.bonus_earned}</strong> сомони · Статус: {w.status}</p>
+      <p>
+        Цена за км на момент тренировки: <strong>{w.price_per_km ?? '—'}</strong> сомони ·
+        Расчёт: <strong>{w.calculated_bonus ?? '—'}</strong> сомони ·
+        Начислено: <strong>{data.bonus_earned}</strong> сомони · Статус: {w.status}
+      </p>
       {w.reject_reason && <p style={{ color: 'crimson' }}>Причина: {w.reject_reason}</p>}
       <p>
         Дневной лимит: {lim.daily_earned} / {lim.daily_limit} сомони ·

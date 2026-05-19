@@ -11,6 +11,7 @@ import {
   saveWorkoutLocal,
   loadWorkoutLocal,
   clearWorkoutLocal,
+  requestLocationPermission,
 } from '../services/geolocation';
 
 const SYNC_INTERVAL_MS = 7000;
@@ -24,11 +25,35 @@ export default function WorkoutPage({ user, setUser }) {
   const [seconds, setSeconds] = useState(0);
   const [result, setResult] = useState(null);
   const [finishing, setFinishing] = useState(false);
+  const [gpsError, setGpsError] = useState('');
+  const [gpsReady, setGpsReady] = useState(false);
   const timerRef = useRef(null);
   const syncRef = useRef(null);
   const stopGpsRef = useRef(null);
   const secondsRef = useRef(0);
   const startedAtRef = useRef(Date.now());
+
+  const persistLocal = (pts) => {
+    if (!workoutId) return;
+    saveWorkoutLocal(workoutId, {
+      points: pts ?? pointsRef.current,
+      startedAt: startedAtRef.current,
+      seconds: secondsRef.current,
+    });
+  };
+
+  const flushPointsToServer = async () => {
+    if (!pointsRef.current.length || !navigator.onLine || !workoutId) return;
+    const last = pointsRef.current[pointsRef.current.length - 1];
+    try {
+      await api(`/api/workouts/${workoutId}/points`, {
+        method: 'POST',
+        body: JSON.stringify(last),
+      });
+    } catch {
+      /* отправим при завершении */
+    }
+  };
 
   useEffect(() => {
     if (!workoutId) {
@@ -47,70 +72,60 @@ export default function WorkoutPage({ user, setUser }) {
       }
     }
 
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await requestLocationPermission();
+        if (cancelled) return;
+
+        const onPosition = (pos) => {
+          const last = pointsRef.current[pointsRef.current.length - 1];
+          if (
+            last &&
+            Math.abs(last.latitude - pos.latitude) < 0.00001 &&
+            Math.abs(last.longitude - pos.longitude) < 0.00001
+          ) {
+            return;
+          }
+          pointsRef.current = [...pointsRef.current, pos];
+          setDistance(haversineKm(pointsRef.current));
+          persistLocal(pointsRef.current);
+          setGpsError('');
+        };
+
+        stopGpsRef.current = await startBackgroundTracking(onPosition);
+        setGpsReady(true);
+        await flushPointsToServer();
+      } catch (err) {
+        if (!cancelled) setGpsError(err.message);
+      }
+    })();
+
     timerRef.current = setInterval(() => {
       secondsRef.current += 1;
       setSeconds(secondsRef.current);
       persistLocal();
     }, 1000);
 
-    const onPosition = (pos) => {
-      const last = pointsRef.current[pointsRef.current.length - 1];
-      if (
-        last &&
-        Math.abs(last.latitude - pos.latitude) < 0.00001 &&
-        Math.abs(last.longitude - pos.longitude) < 0.00001
-      ) {
-        return;
-      }
-      pointsRef.current = [...pointsRef.current, pos];
-      const dist = haversineKm(pointsRef.current);
-      setDistance(dist);
-      persistLocal(pointsRef.current);
-    };
-
-    stopGpsRef.current = startBackgroundTracking(onPosition);
-
     syncRef.current = setInterval(() => {
       flushPointsToServer();
     }, SYNC_INTERVAL_MS);
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        flushPointsToServer();
-      } else {
-        persistLocal();
-      }
+      if (document.visibilityState === 'visible') flushPointsToServer();
+      else persistLocal();
     };
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
+      cancelled = true;
       clearInterval(timerRef.current);
       clearInterval(syncRef.current);
       stopGpsRef.current?.();
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [workoutId, navigate]);
-
-  const persistLocal = (pts) => {
-    saveWorkoutLocal(workoutId, {
-      points: pts ?? pointsRef.current,
-      startedAt: startedAtRef.current,
-      seconds: secondsRef.current,
-    });
-  };
-
-  const flushPointsToServer = async () => {
-    if (!pointsRef.current.length || !navigator.onLine) return;
-    const last = pointsRef.current[pointsRef.current.length - 1];
-    try {
-      await api(`/api/workouts/${workoutId}/points`, {
-        method: 'POST',
-        body: JSON.stringify(last),
-      });
-    } catch {
-      /* offline — отправим при завершении */
-    }
-  };
 
   const finish = async () => {
     if (finishing) return;
@@ -171,6 +186,8 @@ export default function WorkoutPage({ user, setUser }) {
       </IonHeader>
       <IonContent className="ion-padding workout-active">
         <p className="status-label">Тренировка идёт</p>
+        {gpsError && <p style={{ color: 'crimson' }}>{gpsError}</p>}
+        {!gpsReady && !gpsError && <p className="hint">Подключение GPS…</p>}
         <p className="stat">Время: <strong>{formatDuration(seconds)}</strong></p>
         <p className="stat">Расстояние: <strong>{distance.toFixed(1)} км</strong></p>
         <p className="hint">Можно свернуть приложение — GPS продолжит работать</p>

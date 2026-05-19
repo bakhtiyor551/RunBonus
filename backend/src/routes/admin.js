@@ -7,6 +7,7 @@ import { config } from '../config.js';
 import { authAdmin } from '../middleware/auth.js';
 import { getUserBalance, spendBonus, manualAdjustBonus } from '../services/bonusService.js';
 import adminAccountsRoutes from './adminAccounts.js';
+import adminBonusSettingsRoutes from './adminBonusSettings.js';
 
 const router = Router();
 const genId = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 8);
@@ -146,8 +147,8 @@ router.get('/workouts', authAdmin, async (_req, res) => {
 
 router.get('/workouts/:id', authAdmin, async (req, res) => {
   try {
-    const { config } = await import('../config.js');
     const { getDailyEarned, getShoeTotalEarned } = await import('../services/bonusService.js');
+    const { getActiveBonusSettings } = await import('../services/bonusSettingsService.js');
 
     const [workouts] = await pool.query(
       `SELECT w.*, u.name AS client_name, u.phone,
@@ -176,10 +177,14 @@ router.get('/workouts/:id', authAdmin, async (req, res) => {
       [req.params.id]
     );
 
+    const settings = await getActiveBonusSettings();
+
     res.json({
       workout: {
         ...w,
         distance_km: Number(w.distance_km),
+        price_per_km: w.price_per_km != null ? Number(w.price_per_km) : null,
+        calculated_bonus: w.calculated_bonus != null ? Number(w.calculated_bonus) : null,
         avg_speed: w.avg_speed != null ? Number(w.avg_speed) : null,
         max_speed: w.max_speed != null ? Number(w.max_speed) : null,
       },
@@ -193,9 +198,10 @@ router.get('/workouts/:id', authAdmin, async (req, res) => {
       bonus_earned: bonusRow.length ? Number(bonusRow[0].amount) : 0,
       limits: {
         daily_earned: dailyEarned,
-        daily_limit: config.dailyBonusLimit,
+        daily_limit: settings.daily_limit,
         shoe_total_earned: shoeTotalEarned,
-        shoe_limit: config.shoeBonusLimit,
+        shoe_limit: settings.total_limit_per_shoe,
+        current_price_per_km: settings.price_per_km,
       },
     });
   } catch (err) {
@@ -286,5 +292,6 @@ router.post('/bonus/manual', authAdmin, async (req, res) => {
 });
 
 router.use(adminAccountsRoutes);
+router.use(adminBonusSettingsRoutes);
 
 export default router;
