@@ -57,7 +57,7 @@ export default function BonusSettingsTab() {
   };
 
   return (
-    <div className="card">
+    <div className="glass-card card">
       <h2>Настройки бонусов</h2>
       <p className="hint">
         Бонус = расстояние × цена за 1 км. Новая цена применяется только к новым тренировкам.

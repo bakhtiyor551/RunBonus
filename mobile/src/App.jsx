@@ -2,12 +2,18 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { IonApp } from '@ionic/react';
 import { useEffect, useState } from 'react';
 import { api, setToken } from './api';
+import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
 import WorkoutPage from './pages/WorkoutPage';
+import WalletPage from './pages/WalletPage';
+import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
+import { initWorkoutLifecycle } from './services/workoutLifecycle';
+import { getActiveWorkoutId } from './services/geolocation';
+import { startWorkoutSession } from './services/workoutTracker';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -25,6 +31,15 @@ function App() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!user || user.needsActivation) return;
+    initWorkoutLifecycle();
+    const activeId = getActiveWorkoutId();
+    if (activeId) {
+      startWorkoutSession(activeId, api).catch(() => {});
+    }
+  }, [user]);
+
   const onAuth = (data) => {
     setToken(data.token);
     setUser(data.user);
@@ -38,7 +53,7 @@ function App() {
   if (loading) {
     return (
       <IonApp>
-        <div style={{ padding: 24, textAlign: 'center' }}>Загрузка…</div>
+        <SplashScreen />
       </IonApp>
     );
   }
@@ -74,8 +89,11 @@ function App() {
     <IonApp>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<HomePage user={user} setUser={setUser} onLogout={logout} />} />
+          <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
+          <Route path="/wallet" element={<WalletPage user={user} />} />
+          <Route path="/profile" element={<ProfilePage user={user} onLogout={logout} />} />
           <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
+          <Route path="/activate" element={<ActivatePage onActivated={async () => setUser(await api('/api/auth/me'))} />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -98,7 +98,7 @@ export default function AccountsTab() {
   };
 
   return (
-    <div className="card">
+    <div className="glass-card card">
       <h2>Бонусные счета</h2>
       <p className="hint">
         Бонусы клиентам списываются с бонусного фонда компании. Если на счёте нет средств — начисление не выполняется.

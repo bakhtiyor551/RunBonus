@@ -1,145 +1,69 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton,
-} from '@ionic/react';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
+import { IonPage, IonContent } from '@ionic/react';
+import AppHeader from '../components/AppHeader';
+import Icon from '../components/Icon';
 import { api } from '../api';
 import {
-  startBackgroundTracking,
-  haversineKm,
   formatDuration,
-  saveWorkoutLocal,
-  loadWorkoutLocal,
   clearWorkoutLocal,
-  requestLocationPermission,
+  setActiveWorkoutId,
+  getActiveWorkoutId,
+  filterTrackPoints,
 } from '../services/geolocation';
-
-const SYNC_INTERVAL_MS = 7000;
+import {
+  startWorkoutSession,
+  stopWorkoutSession,
+  getWorkoutPoints,
+  subscribeWorkoutSession,
+} from '../services/workoutTracker';
 
 export default function WorkoutPage({ user, setUser }) {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const workoutId = state?.workoutId;
-  const pointsRef = useRef([]);
-  const [distance, setDistance] = useState(0);
-  const [seconds, setSeconds] = useState(0);
+  const workoutId = state?.workoutId ?? getActiveWorkoutId();
+  const [live, setLive] = useState({
+    distance: 0,
+    seconds: 0,
+    gpsReady: false,
+    gpsError: '',
+  });
   const [result, setResult] = useState(null);
   const [finishing, setFinishing] = useState(false);
-  const [gpsError, setGpsError] = useState('');
-  const [gpsReady, setGpsReady] = useState(false);
-  const timerRef = useRef(null);
-  const syncRef = useRef(null);
-  const stopGpsRef = useRef(null);
-  const secondsRef = useRef(0);
-  const startedAtRef = useRef(Date.now());
-
-  const persistLocal = (pts) => {
-    if (!workoutId) return;
-    saveWorkoutLocal(workoutId, {
-      points: pts ?? pointsRef.current,
-      startedAt: startedAtRef.current,
-      seconds: secondsRef.current,
-    });
-  };
-
-  const flushPointsToServer = async () => {
-    if (!pointsRef.current.length || !navigator.onLine || !workoutId) return;
-    const last = pointsRef.current[pointsRef.current.length - 1];
-    try {
-      await api(`/api/workouts/${workoutId}/points`, {
-        method: 'POST',
-        body: JSON.stringify(last),
-      });
-    } catch {
-      /* отправим при завершении */
-    }
-  };
 
   useEffect(() => {
     if (!workoutId) {
       navigate('/');
       return;
     }
-
-    const saved = loadWorkoutLocal(workoutId);
-    if (saved?.points?.length) {
-      pointsRef.current = saved.points;
-      setDistance(haversineKm(saved.points));
-      if (saved.startedAt) startedAtRef.current = saved.startedAt;
-      if (saved.seconds) {
-        secondsRef.current = saved.seconds;
-        setSeconds(saved.seconds);
-      }
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        await requestLocationPermission();
-        if (cancelled) return;
-
-        const onPosition = (pos) => {
-          const last = pointsRef.current[pointsRef.current.length - 1];
-          if (
-            last &&
-            Math.abs(last.latitude - pos.latitude) < 0.00001 &&
-            Math.abs(last.longitude - pos.longitude) < 0.00001
-          ) {
-            return;
-          }
-          pointsRef.current = [...pointsRef.current, pos];
-          setDistance(haversineKm(pointsRef.current));
-          persistLocal(pointsRef.current);
-          setGpsError('');
-        };
-
-        stopGpsRef.current = await startBackgroundTracking(onPosition);
-        setGpsReady(true);
-        await flushPointsToServer();
-      } catch (err) {
-        if (!cancelled) setGpsError(err.message);
-      }
-    })();
-
-    timerRef.current = setInterval(() => {
-      secondsRef.current += 1;
-      setSeconds(secondsRef.current);
-      persistLocal();
-    }, 1000);
-
-    syncRef.current = setInterval(() => {
-      flushPointsToServer();
-    }, SYNC_INTERVAL_MS);
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') flushPointsToServer();
-      else persistLocal();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      cancelled = true;
-      clearInterval(timerRef.current);
-      clearInterval(syncRef.current);
-      stopGpsRef.current?.();
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
+    setActiveWorkoutId(workoutId);
+    startWorkoutSession(workoutId, api).catch(() => {});
+    return subscribeWorkoutSession(setLive);
   }, [workoutId, navigate]);
 
+  const minimizeOrHome = () => {
+    if (Capacitor.isNativePlatform()) {
+      App.minimizeApp();
+    } else {
+      navigate('/');
+    }
+  };
+
   const finish = async () => {
-    if (finishing) return;
+    if (finishing || !workoutId) return;
     setFinishing(true);
-    clearInterval(timerRef.current);
-    clearInterval(syncRef.current);
-    stopGpsRef.current?.();
+    const points = filterTrackPoints(getWorkoutPoints());
+    stopWorkoutSession();
 
     try {
       const data = await api(`/api/workouts/${workoutId}/finish`, {
         method: 'POST',
-        body: JSON.stringify({ points: pointsRef.current }),
+        body: JSON.stringify({ points }),
       });
       clearWorkoutLocal(workoutId);
+      setActiveWorkoutId(null);
       setResult(data);
       if (setUser && data.balance_after != null) {
         setUser({ ...user, balance: data.balance_after });
@@ -150,58 +74,130 @@ export default function WorkoutPage({ user, setUser }) {
     } catch (err) {
       alert(err.message);
       setFinishing(false);
+      startWorkoutSession(workoutId, api).catch(() => {});
     }
   };
 
   if (result) {
     return (
       <IonPage>
-        <IonHeader>
-          <IonToolbar color="primary">
-            <IonTitle>Результат</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent className="ion-padding workout-result">
-          <h2>{result.title || 'Тренировка завершена'}</h2>
-          <p className="stat">Расстояние: <strong>{Number(result.distance_km).toFixed(1)} км</strong></p>
-          {result.bonus_credited ? (
-            <p className="stat bonus">Начислено: <strong>{Number(result.bonus_earned).toFixed(1)} сомони</strong></p>
-          ) : (
-            <p className="stat muted">{result.message || 'Бонус не начислен по правилам программы'}</p>
-          )}
-          <IonButton expand="block" className="ion-margin-top" onClick={() => navigate('/')}>
-            На главную
-          </IonButton>
+        <AppHeader showAvatar={false} />
+        <IonContent>
+          <main className="rb-main" style={{ paddingTop: 48 }}>
+            <CelebrateBlock result={result} />
+            <ResultCards result={result} />
+            <button type="button" className="rb-btn-pill" style={{ width: '100%', marginTop: 32 }} onClick={() => navigate('/')}>
+              Готово
+              <Icon name="arrow_forward" />
+            </button>
+          </main>
         </IonContent>
       </IonPage>
     );
   }
 
+  const liveBadge = (
+    <div className="rb-badge-live">
+      <span className="rb-badge-live__dot" />
+      <span>Активна</span>
+    </div>
+  );
+
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar color="primary">
-          <IonTitle>Тренировка</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent className="ion-padding workout-active">
-        <p className="status-label">Тренировка идёт</p>
-        {gpsError && <p style={{ color: 'crimson' }}>{gpsError}</p>}
-        {!gpsReady && !gpsError && <p className="hint">Подключение GPS…</p>}
-        <p className="stat">Время: <strong>{formatDuration(seconds)}</strong></p>
-        <p className="stat">Расстояние: <strong>{distance.toFixed(1)} км</strong></p>
-        <p className="hint">Можно свернуть приложение — GPS продолжит работать</p>
-        <IonButton
-          expand="block"
-          color="danger"
-          size="large"
-          className="ion-margin-top"
-          disabled={finishing}
-          onClick={finish}
-        >
-          {finishing ? 'Завершение…' : 'Завершить'}
-        </IonButton>
+      <AppHeader
+        showAvatar={false}
+        badge={liveBadge}
+        onBack={minimizeOrHome}
+      />
+      <IonContent>
+        <div className="rb-atmosphere">
+          <div className="rb-atmosphere__blob" style={{ top: '20%', left: '10%', width: 300, height: 300 }} />
+          <div className="rb-atmosphere__blob" style={{ bottom: '20%', right: '10%', width: 300, height: 300 }} />
+        </div>
+        <main className="rb-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', paddingBottom: 40 }}>
+          <div style={{ position: 'relative', width: 256, height: 256, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 48 }}>
+            <div className="workout-pulse-ring" />
+            <div className="workout-pulse-ring workout-pulse-ring--inner" style={{ position: 'absolute' }} />
+            <div style={{ zIndex: 10, background: 'var(--rb-surface-container-lowest)', padding: 24, borderRadius: '50%', border: '1px solid rgba(195,244,0,0.3)', boxShadow: '0 0 30px rgba(171,214,0,0.15)' }}>
+              <Icon name="directions_run" filled style={{ fontSize: 56, color: 'var(--rb-neon)' }} />
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div className="rb-display font-display font-tabular" style={{ fontSize: 48, color: '#fff' }}>
+              {formatDuration(live.seconds)}
+            </div>
+            <p className="rb-label" style={{ marginTop: 8 }}>Время</p>
+          </div>
+
+          <div className="glass-panel" style={{ width: '100%', padding: 'var(--rb-card-padding)', textAlign: 'center', marginBottom: 24 }}>
+            <DistanceBlock distance={live.distance} />
+          </div>
+
+          {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
+          {!live.gpsReady && !live.gpsError && <p className="rb-text-muted">Подключение GPS…</p>}
+          <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 24 }}>
+            Кнопка «Назад» сворачивает приложение — тренировка и GPS продолжаются. Остановка только через «Завершить тренировку».
+          </p>
+
+          <button type="button" className="rb-btn-pill" style={{ width: '100%' }} disabled={finishing} onClick={finish}>
+            <Icon name="stop_circle" filled />
+            {finishing ? 'Завершение…' : 'Завершить тренировку'}
+          </button>
+        </main>
       </IonContent>
     </IonPage>
+  );
+}
+
+function CelebrateBlock({ result }) {
+  return (
+    <div className="rb-celebrate" style={{ textAlign: 'center', marginBottom: 32 }}>
+      <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'var(--rb-neon)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 0 20px rgba(195,244,0,0.3)' }}>
+        <Icon name="check_circle" style={{ fontSize: 48, color: 'var(--rb-on-neon)' }} />
+      </div>
+      <h1 className="font-display" style={{ fontSize: 32, color: 'var(--rb-neon)', textTransform: 'uppercase', margin: 0 }}>
+        {result.title || 'Тренировка завершена!'}
+      </h1>
+      <p className="rb-text-muted" style={{ marginTop: 8 }}>Отличный результат</p>
+    </div>
+  );
+}
+
+function ResultCards({ result }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="glass-card" style={{ gridColumn: '1 / -1', padding: 'var(--rb-card-padding)', textAlign: 'center' }}>
+        <span className="rb-label">Дистанция</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
+          <span className="rb-display font-display" style={{ fontSize: 40 }}>{Number(result.distance_km).toFixed(1)}</span>
+          <span className="rb-headline">км</span>
+        </div>
+      </div>
+      <div className="glass-card" style={{ gridColumn: '1 / -1', padding: 'var(--rb-card-padding)', textAlign: 'center', borderColor: 'rgba(195,244,0,0.3)' }}>
+        <span className="rb-label">Бонус</span>
+        {result.bonus_credited ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 8 }}>
+            <Icon name="stars" filled style={{ fontSize: 36, color: 'var(--rb-neon)' }} />
+            <span className="rb-display font-display" style={{ fontSize: 40 }}>+{Number(result.bonus_earned).toFixed(1)}</span>
+          </div>
+        ) : (
+          <p className="rb-text-muted" style={{ marginTop: 8 }}>{result.message || 'Бонус не начислен'}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DistanceBlock({ distance }) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
+        <span className="rb-display font-display" style={{ fontSize: 40 }}>{distance.toFixed(2)}</span>
+        <span className="rb-headline" style={{ color: 'var(--rb-on-surface-variant)' }}>км</span>
+      </div>
+      <p className="rb-label" style={{ marginTop: 8 }}>Текущая дистанция</p>
+    </>
   );
 }

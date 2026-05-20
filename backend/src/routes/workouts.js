@@ -35,16 +35,27 @@ async function assertWorkoutOwner(workoutId, userId) {
   return rows[0] || null;
 }
 
-/** Закрыть зависшие тренировки (приложение закрыли без «Завершить»). */
+/** Закрыть только очень старые незавершённые тренировки (>24 ч). */
 async function closeStaleWorkouts(conn, userId) {
   await conn.query(
     `UPDATE workouts SET
        status = 'rejected',
        reject_reason = 'Тренировка отменена (не завершена)',
        finished_at = NOW()
-     WHERE user_id = ? AND status = 'in_progress'`,
+     WHERE user_id = ? AND status = 'in_progress'
+       AND started_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)`,
     [userId]
   );
+}
+
+async function getInProgressWorkout(conn, userId) {
+  const [rows] = await conn.query(
+    `SELECT id FROM workouts
+     WHERE user_id = ? AND status = 'in_progress'
+     ORDER BY started_at DESC LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
 }
 
 router.post('/start', authUser, requireActiveUser, async (req, res) => {
@@ -60,6 +71,16 @@ router.post('/start', authUser, requireActiveUser, async (req, res) => {
 
     await conn.beginTransaction();
     await closeStaleWorkouts(conn, req.userId);
+
+    const existing = await getInProgressWorkout(conn, req.userId);
+    if (existing) {
+      await conn.commit();
+      return res.status(200).json({
+        workoutId: existing.id,
+        id: existing.id,
+        resumed: true,
+      });
+    }
 
     const [result] = await conn.query(
       `INSERT INTO workouts (user_id, shoe_id, started_at, status, background_tracking)
@@ -313,7 +334,7 @@ router.post('/:id/finish', authUser, async (req, res) => {
 router.get('/history', authUser, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, distance_km, duration_seconds, started_at, finished_at, status
+      `SELECT id, distance_km, duration_seconds, started_at, finished_at, status, calculated_bonus
        FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT 50`,
       [req.userId]
     );

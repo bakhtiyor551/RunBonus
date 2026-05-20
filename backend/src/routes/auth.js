@@ -5,43 +5,85 @@ import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authUser } from '../middleware/auth.js';
 import { getUserBalance } from '../services/bonusService.js';
+import { activateShoeForUser } from '../services/shoeActivationService.js';
 
 const router = Router();
 
 router.post('/register', async (req, res) => {
+  const conn = await pool.getConnection();
   try {
-    const { name, phone, password, city } = req.body;
-    if (!name || !phone || !password || !city) {
-      return res.status(400).json({ error: 'Заполните все поля' });
+    const {
+      firstName,
+      lastName,
+      name: nameRaw,
+      phone,
+      password,
+      city,
+      unique_id,
+    } = req.body;
+
+    const name = (nameRaw || [firstName, lastName].filter(Boolean).join(' ')).trim();
+    const userCity = (city || 'Не указан').trim();
+
+    if (!firstName?.trim() || !lastName?.trim()) {
+      return res.status(400).json({ error: 'Укажите имя и фамилию' });
+    }
+    if (!phone?.trim()) {
+      return res.status(400).json({ error: 'Укажите номер телефона' });
+    }
+    if (!password || String(password).length < 4) {
+      return res.status(400).json({ error: 'Пароль не менее 4 символов' });
+    }
+    if (!unique_id?.trim()) {
+      return res.status(400).json({ error: 'Отсканируйте QR-код кроссовок' });
+    }
+    if (!name) {
+      return res.status(400).json({ error: 'Укажите имя и фамилию' });
     }
 
-    const [existing] = await pool.query('SELECT id FROM users WHERE phone = ?', [phone]);
+    const phoneNorm = phone.trim();
+
+    const [existing] = await conn.query('SELECT id FROM users WHERE phone = ?', [phoneNorm]);
     if (existing.length) {
       return res.status(409).json({ error: 'Номер уже зарегистрирован' });
     }
 
+    await conn.beginTransaction();
+
     const passwordHash = await bcrypt.hash(password, 10);
-    const [result] = await pool.query(
+    const [result] = await conn.query(
       'INSERT INTO users (name, phone, password_hash, city) VALUES (?, ?, ?, ?)',
-      [name, phone, passwordHash, city]
+      [name, phoneNorm, passwordHash, userCity]
     );
 
-    await pool.query(
+    const userId = result.insertId;
+
+    await conn.query(
       'INSERT INTO user_bonus_wallets (user_id, balance, total_earned, total_spent) VALUES (?, 0, 0, 0)',
-      [result.insertId]
+      [userId]
     );
 
-    const token = jwt.sign({ userId: result.insertId }, config.jwtSecret, {
-      expiresIn: '30d',
-    });
+    const shoe = await activateShoeForUser(conn, userId, unique_id);
+
+    await conn.commit();
+
+    const token = jwt.sign({ userId }, config.jwtSecret, { expiresIn: '30d' });
+    const profile = await buildUserProfile(userId);
 
     res.status(201).json({
       token,
-      user: { id: result.insertId, name, phone, city, needsActivation: true },
+      user: profile,
+      shoe,
     });
   } catch (err) {
+    await conn.rollback();
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message, code: err.code });
+    }
     console.error(err);
     res.status(500).json({ error: 'Ошибка регистрации' });
+  } finally {
+    conn.release();
   }
 });
 

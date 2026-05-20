@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonItem, IonLabel, IonInput, IonButton, IonText,
-} from '@ionic/react';
+import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
+import Icon from '../components/Icon';
 
 export default function LoginPage({ onAuth }) {
   const [phone, setPhone] = useState('');
@@ -27,30 +25,53 @@ export default function LoginPage({ onAuth }) {
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar color="primary">
-          <IonTitle>Вход</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent className="ion-padding">
-        <h1>RunBonus</h1>
-        <p>Бегай, собирай бонусы и получай скидку на следующую покупку.</p>
-        <form onSubmit={submit}>
-          <IonItem>
-            <IonLabel position="stacked">Телефон</IonLabel>
-            <IonInput type="tel" value={phone} onIonInput={(e) => setPhone(e.detail.value)} required />
-          </IonItem>
-          <IonItem>
-            <IonLabel position="stacked">Пароль</IonLabel>
-            <IonInput type="password" value={password} onIonInput={(e) => setPassword(e.detail.value)} required />
-          </IonItem>
-          {error && <IonText color="danger"><p>{error}</p></IonText>}
-          <IonButton expand="block" type="submit" className="ion-margin-top">Войти</IonButton>
-        </form>
-        <IonButton fill="clear" routerLink="/register" routerDirection="forward" as={Link} to="/register">
-          Регистрация
-        </IonButton>
+      <div className="rb-atmosphere">
+        <div className="rb-atmosphere__blob" style={{ top: '-20%', right: '-10%', width: '60%', height: '60%' }} />
+        <div className="rb-atmosphere__blob" style={{ top: '40%', left: '-20%', width: '70%', height: '70%', opacity: 0.4 }} />
+      </div>
+      <header className="rb-header">
+        <div className="rb-header__brand">
+          <Icon name="bolt" filled style={{ color: 'var(--rb-neon)' }} />
+          <h1 className="rb-header__logo">RunBonus</h1>
+        </div>
+      </header>
+      <IonContent>
+        <main style={{ padding: '24px', maxWidth: 420, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <h1 className="font-display" style={{ fontSize: 32, margin: '0 0 8px', color: '#fff' }}>Бегай. Зарабатывай.</h1>
+            <p className="rb-text-muted">Войдите по телефону и паролю</p>
+          </div>
+
+          <form onSubmit={submit} className="glass-effect" style={{ padding: 24, borderRadius: 24 }}>
+            <label className="rb-label" style={{ display: 'block', marginBottom: 8 }}>Телефон</label>
+            <div className="rb-input-wrap" style={{ marginBottom: 16 }}>
+              <input className="rb-input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+992 …" required />
+            </div>
+
+            <label className="rb-label" style={{ display: 'block', marginBottom: 8 }}>Пароль</label>
+            <motionPasswordWrap password={password} setPassword={setPassword} />
+
+            {error && <p className="rb-text-error">{error}</p>}
+
+            <button type="submit" className="rb-btn-pill" style={{ width: '100%', marginTop: 16 }}>
+              Войти
+              <Icon name="arrow_forward" />
+            </button>
+          </form>
+
+          <p style={{ textAlign: 'center', marginTop: 24 }}>
+            <Link to="/register" className="rb-link">Создать аккаунт</Link>
+          </p>
+        </main>
       </IonContent>
     </IonPage>
+  );
+}
+
+function motionPasswordWrap({ password, setPassword }) {
+  return (
+    <div className="rb-input-wrap" style={{ marginBottom: 16 }}>
+      <input className="rb-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+    </div>
   );
 }

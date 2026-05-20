@@ -8,7 +8,7 @@ import '@ionic/react/css/typography.css';
 import App from './App.jsx';
 import './theme.css';
 
-setupIonicReact();
+setupIonicReact({ hardwareBackButton: false });
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -1,0 +1,50 @@
+import Icon from './Icon';
+
+const NAV = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { id: 0, label: 'Клиенты', icon: 'group' },
+  { id: 1, label: 'QR / Кроссовки', icon: 'qr_code_2' },
+  { id: 2, label: 'Тренировки', icon: 'directions_run' },
+  { id: 3, label: 'Бонусные счета', icon: 'account_balance_wallet' },
+  { id: 4, label: 'Настройки бонусов', icon: 'settings' },
+  { id: 5, label: 'Списание бонусов', icon: 'payments' },
+];
+
+export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {
+  const isActive = (item) =>
+    item.id === 'dashboard' ? activeTab === 'dashboard' : activeTab === item.id;
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar__brand">RunBonus</div>
+      <nav className="sidebar__nav">
+        {NAV.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            className={`sidebar__link${isActive(item) ? ' sidebar__link--active' : ''}`}
+            onClick={() => onNavigate(item.id)}
+          >
+            <Icon name={item.icon} filled={isActive(item)} />
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+      <div className="sidebar__footer">
+        <div className="sidebar__profile">
+          <div className="sidebar__avatar">
+            <Icon name="admin_panel_settings" />
+          </div>
+          <div className="sidebar__profile-text">
+            <p className="sidebar__profile-name">{adminLogin || 'Admin'}</p>
+            <p className="sidebar__profile-role">Pro Tier Admin</p>
+          </div>
+          <Icon name="bolt" className="sidebar__bolt" />
+        </div>
+        <button type="button" className="btn btn--ghost btn--sm sidebar__logout" onClick={onLogout}>
+          Выйти
+        </button>
+      </div>
+    </aside>
+  );
+}
