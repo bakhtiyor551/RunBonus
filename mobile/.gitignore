@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.DS_Store
+
+# Capacitor / Android
+android/.gradle
+android/app/build
+android/build
+android/local.properties
+*.iml
+.idea

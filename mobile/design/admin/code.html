@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RunBonus | Admin Elite Panel</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Geist:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#e2e2e2",
+                        "tertiary-fixed": "#e5e2e1",
+                        "surface-container-highest": "#353535",
+                        "on-primary-fixed": "#161e00",
+                        "on-secondary": "#313030",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "surface-dim": "#131313",
+                        "secondary-fixed": "#e5e2e1",
+                        "inverse-on-surface": "#303030",
+                        "outline": "#8e9379",
+                        "tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#474646",
+                        "on-surface-variant": "#c4c9ac",
+                        "on-surface": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "primary": "#ffffff",
+                        "secondary-container": "#4a4949",
+                        "primary-fixed": "#c3f400",
+                        "secondary": "#c8c6c5",
+                        "on-background": "#e2e2e2",
+                        "error-container": "#93000a",
+                        "on-primary": "#283500",
+                        "primary-container": "#c3f400",
+                        "surface-container-low": "#1b1b1b",
+                        "outline-variant": "#444933",
+                        "on-secondary-container": "#bab8b7",
+                        "on-tertiary-fixed": "#1c1b1b",
+                        "on-tertiary-container": "#656464",
+                        "on-error": "#690005",
+                        "error": "#ffb4ab",
+                        "surface-container": "#1f1f1f",
+                        "surface-tint": "#abd600",
+                        "background": "#131313",
+                        "on-tertiary": "#313030",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "surface": "#131313",
+                        "tertiary-container": "#e5e2e1",
+                        "inverse-primary": "#506600",
+                        "on-secondary-fixed": "#1c1b1b",
+                        "on-primary-container": "#556d00",
+                        "surface-container-lowest": "#0e0e0e",
+                        "primary-fixed-dim": "#abd600",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-bright": "#393939",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "surface-variant": "#353535"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "card-padding": "24px",
+                        "unit": "4px",
+                        "gutter": "16px",
+                        "container-margin": "24px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Space Grotesk"],
+                        "body-md": ["Geist"],
+                        "body-lg": ["Geist"],
+                        "headline-md": ["Space Grotesk"],
+                        "label-sm": ["Geist"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0e0e0e;
+            color: #e2e2e2;
+            font-family: 'Geist', sans-serif;
+            overflow-x: hidden;
+        }
+        .glass-card {
+            background: rgba(31, 31, 31, 0.6);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(195, 244, 0, 0.08);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+        }
+        .neon-glow {
+            box-shadow: 0 0 20px rgba(171, 214, 0, 0.15);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #444933;
+            border-radius: 10px;
+        }
+        .chart-gradient {
+            background: linear-gradient(180deg, rgba(195, 244, 0, 0.15) 0%, rgba(195, 244, 0, 0) 100%);
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- NavigationDrawer (Sidebar) -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-surface-container-low border-r border-outline-variant/10 flex flex-col py-8 z-50">
+<div class="font-display-lg text-primary-fixed mb-8 px-4 text-[32px] font-bold tracking-tighter uppercase">
+            RunBonus
+        </div>
+<nav class="flex-1 space-y-1">
+<!-- Dashboard Active -->
+<a class="flex items-center gap-4 bg-primary-container text-on-primary-container rounded-r-full py-3 px-6 border-l-4 border-primary-fixed transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant py-3 px-6 hover:text-on-surface hover:bg-surface-container-highest transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body-md text-body-md">Users</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant py-3 px-6 hover:text-on-surface hover:bg-surface-container-highest transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined">qr_code_2</span>
+<span class="font-body-md text-body-md">Shoes/QR Codes</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant py-3 px-6 hover:text-on-surface hover:bg-surface-container-highest transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined">directions_run</span>
+<span class="font-body-md text-body-md">Workouts</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant py-3 px-6 hover:text-on-surface hover:bg-surface-container-highest transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Bonus Fund</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant py-3 px-6 hover:text-on-surface hover:bg-surface-container-highest transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined">badge</span>
+<span class="font-body-md text-body-md">Accounts</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant py-3 px-6 hover:text-on-surface hover:bg-surface-container-highest transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-body-md text-body-md">Reports</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant py-3 px-6 hover:text-on-surface hover:bg-surface-container-highest transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Bonus Settings</span>
+</a>
+</nav>
+<div class="mt-auto px-4">
+<div class="flex items-center gap-4 p-4 rounded-xl bg-surface-container-highest/30">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-primary-fixed/20">
+<img class="w-full h-full object-cover" data-alt="A professional close-up portrait of a male tech executive with a clean, modern appearance. He is set against a dark, out-of-focus background with subtle neon green backlighting that matches a high-end fintech aesthetic. The lighting is dramatic yet professional, highlighting sharp facial features and suggesting a sophisticated, data-driven leadership role." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFubipONYOYNoQWFzIavrHqohkZO5HxkCePrBg_d9TVo8yxNzrL8xX-3XVoSnJWVgXkuSrsy7Hy83ZShsoEDwt4qvscANAGGo-0SPpcgD_KNm4dlBaNWc97UzRx3xCcXYNi3Hvjjr3FSOFGsUSh1x1Q0C_ObAB1xrLH8v5-tEunAIIJyIbROboXfYZ9kGDrxB5p4HfYIsCiH4JyIMzI2XPihHWwiC8RL0xHLCGI2lAuQ392WyfUd3JyfVsQt6d7AbB3TkQkVve1MA5"/>
+</div>
+<div class="flex-1 overflow-hidden">
+<p class="font-body-md text-on-surface font-bold truncate">Alex Mover</p>
+<p class="text-xs text-on-surface-variant">Pro Tier Admin</p>
+</div>
+<span class="material-symbols-outlined text-primary-fixed text-sm">bolt</span>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 flex-1 flex flex-col min-h-screen relative overflow-y-auto custom-scrollbar">
+<!-- TopAppBar -->
+<header class="w-full sticky top-0 z-40 backdrop-blur-xl bg-surface/80 border-b border-outline-variant/20 flex justify-between items-center px-container-margin py-4">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary-fixed">bolt</span>
+<h1 class="font-headline-md text-headline-md text-on-surface">Dashboard Analytics</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary-fixed transition-colors">notifications</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-primary-fixed rounded-full"></span>
+</div>
+<div class="h-8 w-[1px] bg-outline-variant/30"></div>
+<div class="flex items-center gap-2 bg-surface-container-high px-4 py-2 rounded-full border border-outline-variant/20">
+<span class="material-symbols-outlined text-primary-fixed text-[20px]">account_balance</span>
+<span class="text-sm font-bold text-on-surface tracking-tight">$2,450,120.00</span>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<div class="p-container-margin space-y-8 max-w-[1600px] mx-auto w-full pb-24">
+<!-- Quick Stats Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-gutter">
+<!-- Total Users -->
+<div class="glass-card p-card-padding rounded-xl flex flex-col justify-between group hover:border-primary-fixed/30 transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-primary-fixed/10 rounded-lg">
+<span class="material-symbols-outlined text-primary-fixed">group</span>
+</div>
+<span class="text-xs text-primary-fixed font-bold bg-primary-fixed/10 px-2 py-1 rounded">+12%</span>
+</div>
+<div>
+<p class="text-on-surface-variant text-sm font-medium">Total Users</p>
+<h3 class="text-3xl font-display-lg text-on-surface mt-1">128,450</h3>
+</div>
+</div>
+<!-- Active Workouts -->
+<div class="glass-card p-card-padding rounded-xl flex flex-col justify-between group hover:border-primary-fixed/30 transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-primary-fixed/10 rounded-lg">
+<span class="material-symbols-outlined text-primary-fixed">directions_run</span>
+</div>
+<div class="flex items-center text-xs text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed mr-1 animate-pulse"></span>
+                            Live
+                        </div>
+</div>
+<div>
+<p class="text-on-surface-variant text-sm font-medium">Active Workouts</p>
+<h3 class="text-3xl font-display-lg text-on-surface mt-1">3,892</h3>
+</div>
+</div>
+<!-- Bonus Fund -->
+<div class="glass-card p-card-padding rounded-xl flex flex-col justify-between group hover:border-primary-fixed/30 transition-all duration-300 xl:col-span-2 bg-gradient-to-br from-surface-container-high to-surface-container">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-primary-fixed/20 rounded-lg">
+<span class="material-symbols-outlined text-primary-fixed">account_balance_wallet</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">trending_up</span>
+</div>
+<div>
+<p class="text-on-surface-variant text-sm font-medium">Bonus Fund Balance</p>
+<h3 class="text-4xl font-display-lg text-primary-fixed mt-1">$1,245,800.00</h3>
+</div>
+</div>
+<!-- Revenue -->
+<div class="glass-card p-card-padding rounded-xl flex flex-col justify-between group hover:border-primary-fixed/30 transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-surface-container-highest rounded-lg">
+<span class="material-symbols-outlined text-on-surface">payments</span>
+</div>
+</div>
+<div>
+<p class="text-on-surface-variant text-sm font-medium">Revenue (MTD)</p>
+<h3 class="text-3xl font-display-lg text-on-surface mt-1">$452.2K</h3>
+</div>
+</div>
+<!-- Expenses -->
+<div class="glass-card p-card-padding rounded-xl flex flex-col justify-between group hover:border-primary-fixed/30 transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-surface-container-highest rounded-lg">
+<span class="material-symbols-outlined text-on-surface-variant">receipt_long</span>
+</div>
+</div>
+<div>
+<p class="text-on-surface-variant text-sm font-medium">Expenses</p>
+<h3 class="text-3xl font-display-lg text-on-surface mt-1">$89.4K</h3>
+</div>
+</div>
+</section>
+<!-- Main Charts & Details -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- User Growth Chart -->
+<div class="lg:col-span-2 glass-card p-card-padding rounded-xl min-h-[400px] flex flex-col">
+<div class="flex justify-between items-center mb-8">
+<div>
+<h4 class="font-headline-md text-on-surface">Platform Growth</h4>
+<p class="text-on-surface-variant text-sm">User acquisition vs active runners</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 text-xs rounded-full bg-surface-container-highest text-on-surface border border-outline-variant/30">1W</button>
+<button class="px-3 py-1 text-xs rounded-full bg-primary-fixed text-on-primary-fixed font-bold">1M</button>
+<button class="px-3 py-1 text-xs rounded-full bg-surface-container-highest text-on-surface border border-outline-variant/30">1Y</button>
+</div>
+</div>
+<div class="flex-1 relative flex items-end gap-2 overflow-hidden chart-gradient rounded-xl pt-4">
+<!-- Mockup Visual Representation of a Line Chart -->
+<svg class="w-full h-full" fill="none" viewbox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+<path class="drop-shadow-[0_0_10px_rgba(171,214,0,0.5)]" d="M0 280C50 260 100 240 150 250C200 260 250 180 300 150C350 120 400 130 450 110C500 90 550 40 600 60C650 80 700 30 800 10" stroke="#abd600" stroke-linecap="round" stroke-width="4"></path>
+<path d="M0 290C100 285 200 270 300 240C400 210 500 180 600 140C700 100 800 50" stroke="#ffffff" stroke-dasharray="8 8" stroke-opacity="0.2" stroke-width="2"></path>
+<!-- Grid lines -->
+<line stroke="#444933" stroke-opacity="0.1" x1="0" x2="800" y1="50" y2="50"></line>
+<line stroke="#444933" stroke-opacity="0.1" x1="0" x2="800" y1="150" y2="150"></line>
+<line stroke="#444933" stroke-opacity="0.1" x1="0" x2="800" y1="250" y2="250"></line>
+</svg>
+<!-- Tooltip Mockup -->
+<div class="absolute top-10 right-[15%] glass-card p-3 rounded-lg border-primary-fixed/40">
+<p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Sept 24</p>
+<p class="text-lg font-display-lg text-primary-fixed">12,450 New</p>
+</div>
+</div>
+<div class="mt-6 flex justify-between items-center border-t border-outline-variant/10 pt-4">
+<div class="flex gap-6">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-primary-fixed"></div>
+<span class="text-xs text-on-surface-variant">New Users</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-white/20"></div>
+<span class="text-xs text-on-surface-variant">Target Projection</span>
+</div>
+</div>
+<div class="text-xs font-bold text-primary-fixed cursor-pointer flex items-center gap-1">
+                            VIEW FULL REPORT <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</div>
+</div>
+</div>
+<!-- Recent Activities / Bonuses -->
+<div class="glass-card p-card-padding rounded-xl flex flex-col h-full">
+<div class="flex justify-between items-center mb-6">
+<h4 class="font-headline-md text-on-surface">Live Payouts</h4>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">more_horiz</span>
+</div>
+<div class="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-2">
+<!-- Transaction Item -->
+<div class="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-container-highest/50 transition-colors cursor-pointer border border-transparent hover:border-outline-variant/20">
+<div class="w-10 h-10 rounded-full bg-primary-fixed/10 flex items-center justify-center text-primary-fixed">
+<span class="material-symbols-outlined text-[20px]">celebration</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">Runner #8821</p>
+<p class="text-xs text-on-surface-variant">5.2km Nike Zoom Air</p>
+</div>
+<div class="text-right">
+<p class="text-sm font-bold text-primary-fixed">+$14.20</p>
+<p class="text-[10px] text-on-surface-variant">2m ago</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-container-highest/50 transition-colors cursor-pointer border border-transparent hover:border-outline-variant/20">
+<div class="w-10 h-10 rounded-full bg-primary-fixed/10 flex items-center justify-center text-primary-fixed">
+<span class="material-symbols-outlined text-[20px]">celebration</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">Runner #4120</p>
+<p class="text-xs text-on-surface-variant">10.0km Adidas Ultra</p>
+</div>
+<div class="text-right">
+<p class="text-sm font-bold text-primary-fixed">+$42.00</p>
+<p class="text-[10px] text-on-surface-variant">5m ago</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-container-highest/50 transition-colors cursor-pointer border border-transparent hover:border-outline-variant/20">
+<div class="w-10 h-10 rounded-full bg-primary-fixed/10 flex items-center justify-center text-primary-fixed">
+<span class="material-symbols-outlined text-[20px]">celebration</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">Runner #1094</p>
+<p class="text-xs text-on-surface-variant">2.1km On Cloudburst</p>
+</div>
+<div class="text-right">
+<p class="text-sm font-bold text-primary-fixed">+$4.50</p>
+<p class="text-[10px] text-on-surface-variant">12m ago</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-container-highest/50 transition-colors cursor-pointer border border-transparent hover:border-outline-variant/20">
+<div class="w-10 h-10 rounded-full bg-primary-fixed/10 flex items-center justify-center text-primary-fixed">
+<span class="material-symbols-outlined text-[20px]">celebration</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface">Runner #9281</p>
+<p class="text-xs text-on-surface-variant">15.4km New Balance</p>
+</div>
+<div class="text-right">
+<p class="text-sm font-bold text-primary-fixed">+$62.15</p>
+<p class="text-[10px] text-on-surface-variant">18m ago</p>
+</div>
+</div>
+</div>
+<button class="w-full mt-6 py-3 rounded-xl border border-outline-variant/30 text-on-surface font-bold text-sm hover:bg-surface-container-highest transition-colors">
+                        VIEW ALL PAYOUTS
+                    </button>
+</div>
+</section>
+<!-- Bottom Bento Row -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<!-- Shoe Distribution -->
+<div class="glass-card p-card-padding rounded-xl">
+<h5 class="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4">NFT Shoe Minting</h5>
+<div class="flex items-end gap-3 h-24 mb-4">
+<div class="flex-1 bg-primary-fixed/20 rounded-t-lg h-[40%]"></div>
+<div class="flex-1 bg-primary-fixed/40 rounded-t-lg h-[70%]"></div>
+<div class="flex-1 bg-primary-fixed rounded-t-lg h-[100%] shadow-[0_-5px_15px_rgba(171,214,0,0.3)]"></div>
+<div class="flex-1 bg-primary-fixed/60 rounded-t-lg h-[80%]"></div>
+<div class="flex-1 bg-primary-fixed/20 rounded-t-lg h-[50%]"></div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-2xl font-display-lg text-on-surface">2,401</span>
+<span class="text-xs text-primary-fixed">+8% this week</span>
+</div>
+</div>
+<!-- Global Health -->
+<div class="glass-card p-card-padding rounded-xl flex flex-col justify-center items-center text-center">
+<div class="relative w-24 h-24 mb-4">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-white/5" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-primary-fixed drop-shadow-[0_0_8px_rgba(171,214,0,0.5)]" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="62.8" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="text-lg font-bold text-on-surface">75%</span>
+</div>
+</div>
+<h5 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Network Health</h5>
+<p class="text-[10px] text-primary-fixed/60 mt-1">OPTIMIZED</p>
+</div>
+<!-- Top Runners Feature -->
+<div class="glass-card p-card-padding rounded-xl lg:col-span-2 relative overflow-hidden group">
+<div class="relative z-10">
+<div class="flex justify-between items-center mb-4">
+<h5 class="text-sm font-bold text-on-surface-variant uppercase tracking-widest">Elite Movers Ranking</h5>
+<button class="bg-primary-fixed text-on-primary-fixed text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter hover:scale-105 transition-transform">
+                                Monthly Rewards
+                            </button>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between group/item">
+<div class="flex items-center gap-3">
+<div class="w-2 h-8 bg-primary-fixed rounded-full opacity-50 group-hover/item:opacity-100 transition-opacity"></div>
+<span class="text-on-surface font-body-md font-bold">1. Michael_RunFast</span>
+</div>
+<span class="text-primary-fixed font-display-lg">1,240 KM</span>
+</div>
+<div class="flex items-center justify-between group/item">
+<div class="flex items-center gap-3">
+<div class="w-2 h-8 bg-white/10 rounded-full group-hover/item:bg-primary-fixed transition-colors"></div>
+<span class="text-on-surface font-body-md font-bold">2. Sarah_Sprint</span>
+</div>
+<span class="text-on-surface font-display-lg opacity-80">1,182 KM</span>
+</div>
+</div>
+</div>
+<!-- Background aesthetic element -->
+<div class="absolute -right-4 -bottom-4 w-40 h-40 bg-primary-fixed/5 rounded-full blur-3xl group-hover:bg-primary-fixed/10 transition-all duration-700"></div>
+</div>
+</section>
+</div>
+<!-- Floating Quick Action (Admin Only) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center shadow-[0_0_30px_rgba(171,214,0,0.4)] hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined font-bold text-[28px]">add</span>
+</button>
+</main>
+<script>
+        // Atmospheric Micro-interactions
+        document.addEventListener('mousemove', (e) => {
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            
+            // Subtle parallax effect for glass cards could be added here
+            // But for now, let's just log interaction to keep it light
+        });
+
+        // Simulating Live Data Updates
+        setInterval(() => {
+            const liveRunners = document.querySelector('h3:nth-of-type(1)'); // Just a mock target
+            // Minimal UI response to show "liveness"
+        }, 5000);
+    </script>
+</body></html>
