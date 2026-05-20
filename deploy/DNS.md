@@ -25,14 +25,19 @@
    ```
    и пересобрать приложение.
 
-## Мобильное приложение и CORS
+## Мобильное приложение: почему не работает runbonus.online
 
-Если в Namecheap снова включён **URL Forward**, `http://runbonus.online` отвечает **302** на IP — в браузере появляется **ошибка CORS** при входе.
+**URL Forward** на Namecheap:
+- ответ **302** на `http://161.129.67.147/...`
+- при редиректе **POST → GET**
+- API отвечает: `Cannot GET /api/auth/login` (404)
 
-**Решения:**
-1. Отключить Forward, настроить **A-запись** на `161.129.67.147` (см. выше).
-2. В APK запросы идут через **CapacitorHttp** (обходит CORS) — пересоберите приложение.
-3. Временно в `mobile/.env.production`: `VITE_API_URL=http://161.129.67.147`
+В браузере то же даёт **ошибку CORS**.
 
-В `mobile/.env.production` по умолчанию: `http://runbonus.online`  
-Запросы: `http://runbonus.online/api/...`
+**Сейчас в приложении:** `mobile/.env.production` → `VITE_API_URL=http://161.129.67.147`  
+В коде `api.js` домен `runbonus.online` автоматически заменяется на IP.
+
+**Когда настроите A-запись** (без Forward), можно снова:
+```
+VITE_API_URL=http://runbonus.online
+```

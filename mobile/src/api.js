@@ -1,18 +1,25 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 /**
- * Продакшен: домен. На нативном приложении запросы идут через CapacitorHttp
- * (без CORS). В браузере runbonus.online может давать 302 → ошибка CORS;
- * для dev в браузере не задавайте VITE_API_URL (прокси Vite).
+ * Продакшен API — прямой IP (без редиректа Namecheap).
+ * runbonus.online отдаёт 302 → POST превращается в GET → «Cannot GET /api/auth/login».
  */
-export const PRODUCTION_API_URL = 'http://runbonus.online';
+export const PRODUCTION_API_URL = 'http://161.129.67.147';
 
-/** Прямой IP — без редиректа Namecheap (запасной вариант в .env) */
-export const FALLBACK_API_URL = 'http://161.129.67.147';
+/** После A-записи на IP (без URL Forward) можно снова http://runbonus.online */
+export const DOMAIN_API_URL = 'http://runbonus.online';
+
+function normalizeApiUrl(url) {
+  const clean = url.replace(/\/$/, '');
+  if (/^https?:\/\/runbonus\.online/i.test(clean)) {
+    return PRODUCTION_API_URL;
+  }
+  return clean;
+}
 
 function resolveApiUrl() {
   const fromEnv = import.meta.env.VITE_API_URL;
-  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  if (fromEnv) return normalizeApiUrl(fromEnv);
 
   if (import.meta.env.PROD) {
     return PRODUCTION_API_URL;
@@ -49,11 +56,26 @@ function buildHeaders(extra = {}) {
 function parseBody(data) {
   if (data == null || data === '') return {};
   if (typeof data === 'object') return data;
+  if (typeof data === 'string' && data.trimStart().startsWith('<')) {
+    const err = new Error(
+      'Сервер вернул HTML вместо JSON. Домен runbonus.online перенаправляет POST — используется IP 161.129.67.147. Пересоберите приложение.'
+    );
+    err.isHtmlResponse = true;
+    throw err;
+  }
   try {
     return JSON.parse(data);
   } catch {
     return {};
   }
+}
+
+function apiErrorMessage(data, status) {
+  if (data?.error) return data.error;
+  if (typeof data === 'string' && data.includes('Cannot GET')) {
+    return 'Ошибка API: запрос ушёл как GET вместо POST (редирект домена). Пересоберите приложение с IP в настройках.';
+  }
+  return status === 401 ? 'Неверный телефон или пароль' : 'Ошибка запроса';
 }
 
 async function requestNative(url, options = {}) {
@@ -76,9 +98,7 @@ async function requestNative(url, options = {}) {
   const data = parseBody(response.data);
 
   if (response.status < 200 || response.status >= 300) {
-    const err = new Error(data.error || 'Ошибка запроса');
-    err.status = response.status;
-    throw err;
+    throw new Error(apiErrorMessage(data, response.status));
   }
 
   return data;
@@ -92,14 +112,22 @@ async function requestFetch(url, options = {}) {
   } catch (e) {
     if (e?.message?.includes('CORS') || e?.name === 'TypeError') {
       throw new Error(
-        'Ошибка CORS: домен перенаправляет запрос (302). В .env.production укажите VITE_API_URL=http://161.129.67.147 или откройте приложение как APK, не в браузере.'
+        'Ошибка CORS. В dev не задавайте VITE_API_URL (прокси Vite) или укажите http://161.129.67.147'
       );
     }
     throw new Error('Нет связи с сервером. Проверьте интернет и настройки API.');
   }
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Ошибка запроса');
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    if (text.trimStart().startsWith('<')) {
+      throw new Error('Сервер вернул HTML — проверьте URL API (без редиректа runbonus.online).');
+    }
+  }
+  if (!res.ok) throw new Error(apiErrorMessage(data, res.status));
   return data;
 }
 
@@ -107,14 +135,7 @@ export async function api(path, options = {}) {
   const url = `${API_URL}${path}`;
 
   if (Capacitor.isNativePlatform()) {
-    try {
-      return await requestNative(url, options);
-    } catch (e) {
-      if (e?.message && !e.message.includes('Ошибка')) {
-        throw new Error(e.message);
-      }
-      throw e;
-    }
+    return requestNative(url, options);
   }
 
   return requestFetch(url, options);
