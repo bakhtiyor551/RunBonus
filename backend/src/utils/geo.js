@@ -14,7 +14,7 @@ export function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 /** Как в мобильном приложении — не считать дрейф GPS на месте. */
-const MIN_SEGMENT_KM = 0.012;
+const MIN_SEGMENT_KM = 0.022;
 
 export function calcDistanceFromPoints(points) {
   if (!points?.length) return 0;

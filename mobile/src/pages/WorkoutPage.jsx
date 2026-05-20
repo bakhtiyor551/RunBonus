@@ -137,8 +137,11 @@ export default function WorkoutPage({ user, setUser }) {
 
           {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
           {!live.gpsReady && !live.gpsError && <p className="rb-text-muted">Подключение GPS…</p>}
-          <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 24 }}>
-            Кнопка «Назад» сворачивает приложение — тренировка и GPS продолжаются. Остановка только через «Завершить тренировку».
+          <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 8, fontSize: 12 }}>
+            Дистанция считается только при реальном движении (дрейф GPS на месте отфильтрован).
+          </p>
+          <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 24, fontSize: 12 }}>
+            «Назад» сворачивает приложение — тренировка продолжается. Остановка — «Завершить тренировку».
           </p>
 
           <button type="button" className="rb-btn-pill" style={{ width: '100%' }} disabled={finishing} onClick={finish}>

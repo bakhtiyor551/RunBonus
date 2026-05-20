@@ -62,18 +62,9 @@ async function flushPointsToServer() {
 function addPosition(pos) {
   if (!session) return;
   const last = session.points[session.points.length - 1];
-  const { record } = shouldRecordGpsPoint(last, pos);
+  const { record } = shouldRecordGpsPoint(last, pos, session.points);
 
   if (!record) {
-    if (
-      last &&
-      pos.accuracy != null &&
-      (last.accuracy == null || pos.accuracy < last.accuracy - 5)
-    ) {
-      session.points = [...session.points.slice(0, -1), pos];
-      session.distance = haversineKm(session.points);
-      persistWorkoutSession();
-    }
     return;
   }
 

@@ -467,6 +467,53 @@ select {
   animation: rb-celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+/* QR-сканер: не даём video перекрыть весь экран (html5-qrcode) */
+.qr-scanner-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.qr-scanner-viewport {
+  width: 100%;
+  min-height: 240px;
+  max-height: 280px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--rb-surface-high);
+  position: relative;
+}
+
+.qr-scanner-viewport video {
+  position: relative !important;
+  width: 100% !important;
+  height: auto !important;
+  max-height: 280px !important;
+  object-fit: cover !important;
+  inset: auto !important;
+}
+
+.qr-scanner-viewport > div {
+  position: relative !important;
+  min-height: 240px;
+}
+
+.qr-scanner-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-scanner-error {
+  margin-top: 12px;
+  font-size: 13px;
+  text-align: center;
+}
+
 .scanner-frame {
   position: relative;
   width: 260px;

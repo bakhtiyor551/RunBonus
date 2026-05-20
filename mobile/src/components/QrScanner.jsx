@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 
 export function parseShoeCode(raw) {
   const s = String(raw || '').trim().toUpperCase();
@@ -7,18 +8,50 @@ export function parseShoeCode(raw) {
   return match ? match[0] : s;
 }
 
-export default function QrScanner({ onScan, active = true }) {
+async function safeStopScanner(scanner) {
+  if (!scanner) return;
+  try {
+    const state = scanner.getState();
+    if (
+      state === Html5QrcodeScannerState.SCANNING ||
+      state === Html5QrcodeScannerState.PAUSED
+    ) {
+      await scanner.stop();
+    }
+  } catch {
+    /* scanner not started yet */
+  }
+  try {
+    scanner.clear();
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * @param {boolean} [enableCamera] — по умолчанию только в нативном приложении (APK)
+ */
+export default function QrScanner({ onScan, active = true, enableCamera }) {
+  const reactId = useId().replace(/:/g, '');
+  const elementId = `rb-qr-reader-${reactId}`;
   const scannerRef = useRef(null);
+  const startingRef = useRef(false);
   const [cameraError, setCameraError] = useState('');
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
 
+  const canUseCamera = enableCamera ?? Capacitor.isNativePlatform();
+
   useEffect(() => {
-    if (!active) return undefined;
+    if (!active || !canUseCamera) return undefined;
+
     let cancelled = false;
+
     (async () => {
+      if (startingRef.current) return;
+      startingRef.current = true;
       try {
-        const scanner = new Html5Qrcode('rb-qr-reader');
+        const scanner = new Html5Qrcode(elementId);
         scannerRef.current = scanner;
         await scanner.start(
           { facingMode: 'environment' },
@@ -32,19 +65,36 @@ export default function QrScanner({ onScan, active = true }) {
         );
         if (!cancelled) setCameraError('');
       } catch (err) {
-        if (!cancelled) setCameraError(err?.message || 'Не удалось открыть камеру');
+        if (!cancelled) {
+          setCameraError(err?.message || 'Не удалось открыть камеру');
+        }
+      } finally {
+        startingRef.current = false;
+        if (cancelled && scannerRef.current) {
+          await safeStopScanner(scannerRef.current);
+          scannerRef.current = null;
+        }
       }
     })();
+
     return () => {
       cancelled = true;
       const scanner = scannerRef.current;
       scannerRef.current = null;
-      if (scanner) scanner.stop().then(() => scanner.clear()).catch(() => {});
+      void safeStopScanner(scanner);
     };
-  }, [active]);
+  }, [active, canUseCamera, elementId]);
+
+  if (!canUseCamera) {
+    return (
+      <p className="rb-text-muted" style={{ textAlign: 'center', fontSize: 13, margin: '12px 0' }}>
+        Сканирование камерой доступно в приложении на телефоне. Введите код вручную ниже.
+      </p>
+    );
+  }
 
   const overlay = (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="qr-scanner-overlay">
       <div className="scanner-frame" style={{ width: 220, height: 220, margin: 0 }}>
         <div className="scanner-corner scanner-corner--tl" />
         <div className="scanner-corner scanner-corner--tr" />
@@ -56,10 +106,12 @@ export default function QrScanner({ onScan, active = true }) {
   );
 
   return (
-    <div style={{ position: 'relative', width: '100%', maxWidth: 320, margin: '0 auto' }}>
-      <div id="rb-qr-reader" style={{ width: '100%', minHeight: 240, borderRadius: 16, overflow: 'hidden', background: '#0e0e0e' }} />
-      {overlay}
-      {cameraError ? <p className="rb-text-error" style={{ marginTop: 12, fontSize: 13, textAlign: 'center' }}>{cameraError}</p> : null}
+    <div className="qr-scanner-wrap">
+      <div id={elementId} className="qr-scanner-viewport" />
+      {active ? overlay : null}
+      {cameraError ? (
+        <p className="rb-text-error qr-scanner-error">{cameraError}</p>
+      ) : null}
     </div>
   );
 }

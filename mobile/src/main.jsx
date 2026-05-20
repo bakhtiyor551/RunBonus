@@ -10,8 +10,4 @@ import './theme.css';
 
 setupIonicReact({ hardwareBackButton: false });
 
-createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+createRoot(document.getElementById('root')).render(<App />);

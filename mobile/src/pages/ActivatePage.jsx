@@ -45,7 +45,7 @@ export default function ActivatePage({ onActivated }) {
   return (
     <IonPage>
       <AppHeader showAvatar={false} />
-      <IonContent>
+      <IonContent fullscreen className="ion-padding">
         <main className="rb-main">
           <h2 className="font-display" style={{ fontSize: 22, textAlign: 'center', marginBottom: 8 }}>Сканируйте QR</h2>
           <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 20 }}>
