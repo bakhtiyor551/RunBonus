@@ -4,6 +4,55 @@ import { sendTelegramMessage, formatWithdrawalTelegramMessage } from './telegram
 
 const ACTIVE_STATUSES = ['pending', 'processing'];
 
+let withdrawalSchemaReady = null;
+
+export async function isWithdrawalSchemaReady(conn = pool) {
+  if (withdrawalSchemaReady !== null) return withdrawalSchemaReady;
+  try {
+    await conn.query('SELECT 1 FROM withdrawal_methods LIMIT 1');
+    await conn.query('SELECT blocked_balance FROM user_bonus_wallets LIMIT 1');
+    withdrawalSchemaReady = true;
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE' || err.code === 'ER_BAD_FIELD_ERROR') {
+      withdrawalSchemaReady = false;
+      return false;
+    }
+    throw err;
+  }
+  return withdrawalSchemaReady;
+}
+
+export function mapWithdrawalError(err) {
+  if (err.status && err.message && !err.message.startsWith('ER_')) {
+    return err;
+  }
+  const code = err.code;
+  const msg = String(err.message || '');
+  if (code === 'INSUFFICIENT_AVAILABLE' || msg.includes('INSUFFICIENT_AVAILABLE')) {
+    const e = new Error('Недостаточно доступного баланса');
+    e.status = 400;
+    return e;
+  }
+  if (code === 'INSUFFICIENT_BALANCE' || msg.includes('INSUFFICIENT_BALANCE')) {
+    const e = new Error('Недостаточно средств на счёте');
+    e.status = 400;
+    return e;
+  }
+  if (code === 'ER_NO_SUCH_TABLE' || code === 'ER_BAD_FIELD_ERROR') {
+    const e = new Error('Модуль вывода не настроен на сервере. Запустите миграцию 004_withdrawals.sql');
+    e.status = 503;
+    return e;
+  }
+  if (msg.includes('withdraw_hold') || msg.includes('Data truncated for column')) {
+    const e = new Error('База данных не обновлена. Нужна миграция вывода средств (004_withdrawals.sql)');
+    e.status = 503;
+    return e;
+  }
+  const e = new Error(err.message || 'Ошибка создания заявки');
+  e.status = err.status || 500;
+  return e;
+}
+
 export async function getWithdrawalSettings(conn = pool) {
   const [rows] = await conn.query('SELECT * FROM withdrawal_settings WHERE id = 1');
   if (!rows.length) {
@@ -54,7 +103,8 @@ async function holdBalance(conn, userId, amount, requestId) {
   const blockedAfter = Math.round((blockedBefore + amount) * 100) / 100;
 
   if (blockedAfter > balanceBefore) {
-    const err = new Error('INSUFFICIENT_AVAILABLE');
+    const err = new Error('Недостаточно доступного баланса');
+    err.status = 400;
     err.code = 'INSUFFICIENT_AVAILABLE';
     throw err;
   }
@@ -105,7 +155,8 @@ async function finalizeWithdraw(conn, userId, amount, requestId, adminComment) {
   const blockedAfter = Math.round(Math.max(0, blockedBefore - amount) * 100) / 100;
 
   if (balanceAfter < 0) {
-    const err = new Error('INSUFFICIENT_BALANCE');
+    const err = new Error('Недостаточно средств на счёте');
+    err.status = 400;
     err.code = 'INSUFFICIENT_BALANCE';
     throw err;
   }
@@ -151,7 +202,17 @@ export async function createWithdrawalRequest(userId, body, ip) {
     throw err;
   }
 
+  if (!(await isWithdrawalSchemaReady())) {
+    const err = new Error('Вывод средств временно недоступен. Обратитесь в поддержку.');
+    err.status = 503;
+    throw err;
+  }
+
   const conn = await pool.getConnection();
+  let request;
+  let method;
+  let userRow;
+  let summaryBefore;
   try {
     await conn.beginTransaction();
 
@@ -213,7 +274,8 @@ export async function createWithdrawalRequest(userId, body, ip) {
       err.status = 400;
       throw err;
     }
-    const method = methods[0];
+    method = methods[0];
+    userRow = users[0];
 
     const [ins] = await conn.query(
       `INSERT INTO withdrawal_requests
@@ -233,33 +295,38 @@ export async function createWithdrawalRequest(userId, body, ip) {
     });
 
     const [reqRows] = await conn.query('SELECT * FROM withdrawal_requests WHERE id = ?', [requestId]);
-    const request = reqRows[0];
+    request = reqRows[0];
+    summaryBefore = summary;
 
     await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw mapWithdrawalError(err);
+  } finally {
+    conn.release();
+  }
 
+  try {
     const tgText = formatWithdrawalTelegramMessage({
-      user: users[0],
+      user: userRow,
       request,
       method,
-      balance: summary.balance,
-      available: summary.available_balance - amt,
+      balance: summaryBefore.balance,
+      available: summaryBefore.available_balance - amt,
     });
     const messageId = await sendTelegramMessage(tgText);
     if (messageId) {
       await pool.query('UPDATE withdrawal_requests SET telegram_message_id = ? WHERE id = ?', [
         messageId,
-        requestId,
+        request.id,
       ]);
     }
-
-    const after = await getWalletSummary(pool, userId);
-    return { request: mapRequestRow(request, method), wallet: after };
   } catch (err) {
-    await conn.rollback();
-    throw err;
-  } finally {
-    conn.release();
+    console.error('[withdrawal] post-commit notify:', err.message);
   }
+
+  const after = await getWalletSummary(pool, userId);
+  return { request: mapRequestRow(request, method), wallet: after };
 }
 
 export function mapRequestRow(r, method) {

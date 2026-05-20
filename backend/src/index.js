@@ -8,6 +8,7 @@ import bonusRoutes from './routes/bonus.js';
 import adminRoutes from './routes/admin.js';
 import withdrawalRoutes from './routes/withdrawal.js';
 import adminWithdrawalsRoutes from './routes/adminWithdrawals.js';
+import { isWithdrawalSchemaReady } from './services/withdrawalService.js';
 
 const app = express();
 
@@ -20,8 +21,14 @@ app.use(
 );
 app.use(express.json({ limit: '2mb' }));
 
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'runbonus-api' });
+app.get('/api/health', async (_req, res) => {
+  let withdrawals = false;
+  try {
+    withdrawals = await isWithdrawalSchemaReady();
+  } catch {
+    withdrawals = false;
+  }
+  res.json({ ok: true, service: 'runbonus-api', withdrawals });
 });
 
 app.use('/api/auth', authRoutes);

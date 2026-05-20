@@ -1,11 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 
-/**
- * Продакшен API (прямой IP сервера).
- * runbonus.online через Namecheap URL Forward отдаёт 302 — ломает CORS в браузере.
- * После A-записи на IP см. deploy/DNS.md — можно снова http://runbonus.online
- */
-export const PRODUCTION_API_URL = 'http://161.129.67.147';
+/** Продакшен API (домен сервера) */
+export const PRODUCTION_API_URL = 'http://runbonus.online';
 
 /**
  * URL API:

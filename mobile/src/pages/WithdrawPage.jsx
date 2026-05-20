@@ -18,7 +18,7 @@ const STATUS_CLASS = {
 export default function WithdrawPage({ user, setUser }) {
   const navigate = useNavigate();
   const [methods, setMethods] = useState([]);
-  const [settings, setSettings] = useState({ min_amount: 20, enabled: true });
+  const [settings, setSettings] = useState({ min_amount: 20, enabled: true, max_daily_amount: 100 });
   const [wallet, setWallet] = useState({
     balance: user?.balance ?? 0,
     blocked_balance: user?.blocked_balance ?? 0,
@@ -32,10 +32,13 @@ export default function WithdrawPage({ user, setUser }) {
     client_comment: '',
   });
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
+    setLoadError('');
     try {
       const [m, s, w, h] = await Promise.all([
         api('/api/withdrawal/methods'),
@@ -43,16 +46,18 @@ export default function WithdrawPage({ user, setUser }) {
         api('/api/withdrawal/wallet-summary'),
         api('/api/withdrawal/my-requests'),
       ]);
-      setMethods(m);
+      setMethods(Array.isArray(m) ? m : []);
       setSettings(s);
       setWallet(w);
-      setHistory(h);
+      setHistory(Array.isArray(h) ? h : []);
       if (setUser) {
         const profile = await api('/api/auth/me');
         setUser(profile);
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      setLoadError(err.message || 'Не удалось загрузить данные для вывода');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -60,10 +65,22 @@ export default function WithdrawPage({ user, setUser }) {
     load();
   }, []);
 
+  const hasActiveRequest = history.some((item) => item.status === 'pending' || item.status === 'processing');
+
   const submit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (!methods.length) {
+      setError('Список кошельков недоступен. Обновите страницу или обратитесь в поддержку.');
+      return;
+    }
+    if (hasActiveRequest) {
+      setError('У вас уже есть заявка в обработке. Дождитесь решения администратора.');
+      return;
+    }
+
     const amount = Number(form.amount);
     if (!form.method_id) {
       setError('Выберите кошелёк');
@@ -78,7 +95,7 @@ export default function WithdrawPage({ user, setUser }) {
       return;
     }
     if (amount > wallet.available_balance) {
-      setError('Сумма больше доступного баланса');
+      setError(`Сумма больше доступного баланса (${formatBalance(wallet.available_balance)} сомони)`);
       return;
     }
     if (amount < settings.min_amount) {
@@ -106,17 +123,36 @@ export default function WithdrawPage({ user, setUser }) {
       if (data.wallet) setWallet(data.wallet);
       await load();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Не удалось отправить заявку');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const canSubmit =
+    !loading &&
+    !submitting &&
+    settings.enabled &&
+    methods.length > 0 &&
+    !hasActiveRequest &&
+    !loadError;
 
   return (
     <IonPage>
       <AppHeader showAvatar={false} onBack={() => navigate('/wallet')} />
       <IonContent>
         <main className="rb-main">
+          {loading && <p className="rb-text-muted">Загрузка…</p>}
+
+          {loadError && (
+            <div className="glass-card" style={{ padding: 16, marginBottom: 16, borderColor: 'var(--rb-error)' }}>
+              <p className="rb-text-error" style={{ margin: 0 }}>{loadError}</p>
+              <button type="button" className="rb-btn-outline" style={{ marginTop: 12, width: '100%' }} onClick={() => { setLoading(true); load(); }}>
+                Повторить
+              </button>
+            </div>
+          )}
+
           <section className="glass-card" style={{ padding: 'var(--rb-card-padding)', marginBottom: 16 }}>
             <p className="rb-label">Доступный баланс</p>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -129,9 +165,15 @@ export default function WithdrawPage({ user, setUser }) {
               </p>
             )}
             <p className="rb-text-muted" style={{ marginTop: 4, fontSize: 12 }}>
-              Минимальный вывод: {settings.min_amount} сомони
+              Минимум: {settings.min_amount} сомони · Лимит в день: {settings.max_daily_amount} сомони
             </p>
           </section>
+
+          {hasActiveRequest && (
+            <p className="rb-text-muted" style={{ marginBottom: 12, fontSize: 13 }}>
+              У вас уже есть заявка в обработке. Новую можно отправить после её завершения.
+            </p>
+          )}
 
           {success && (
             <div className="glass-card withdraw-success-banner" style={{ marginBottom: 16 }}>
@@ -147,15 +189,23 @@ export default function WithdrawPage({ user, setUser }) {
 
           {error && <p className="rb-text-error" style={{ marginBottom: 12 }}>{error}</p>}
 
+          {!methods.length && !loading && !loadError && (
+            <p className="rb-text-error" style={{ marginBottom: 12 }}>
+              Нет доступных способов вывода. Обратитесь в поддержку.
+            </p>
+          )}
+
           <form className="glass-card withdraw-form" onSubmit={submit}>
             <h2 className="rb-headline font-display" style={{ marginBottom: 16 }}>Новая заявка</h2>
 
             <label className="withdraw-field">
               <span className="rb-label">Выберите кошелёк</span>
               <select
+                className="withdraw-field__select"
                 value={form.method_id}
                 onChange={(e) => setForm({ ...form, method_id: e.target.value })}
                 required
+                disabled={!canSubmit}
               >
                 <option value="">— выберите —</option>
                 {methods.map((m) => (
@@ -169,16 +219,21 @@ export default function WithdrawPage({ user, setUser }) {
             <label className="withdraw-field">
               <span className="rb-label">Номер кошелька</span>
               <input
+                className="withdraw-field__input"
                 placeholder="900000000"
+                inputMode="numeric"
+                autoComplete="off"
                 value={form.wallet_number}
                 onChange={(e) => setForm({ ...form, wallet_number: e.target.value })}
                 required
+                disabled={!canSubmit}
               />
             </label>
 
             <label className="withdraw-field">
               <span className="rb-label">Сумма вывода</span>
               <input
+                className="withdraw-field__input"
                 type="number"
                 min={settings.min_amount}
                 step="0.01"
@@ -186,19 +241,22 @@ export default function WithdrawPage({ user, setUser }) {
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
                 required
+                disabled={!canSubmit}
               />
             </label>
 
             <label className="withdraw-field">
               <span className="rb-label">Комментарий</span>
               <input
+                className="withdraw-field__input"
                 placeholder="Необязательно"
                 value={form.client_comment}
                 onChange={(e) => setForm({ ...form, client_comment: e.target.value })}
+                disabled={!canSubmit}
               />
             </label>
 
-            <button type="submit" className="rb-btn-pill" style={{ width: '100%', marginTop: 8 }} disabled={submitting || !settings.enabled}>
+            <button type="submit" className="rb-btn-pill" style={{ width: '100%', marginTop: 8 }} disabled={!canSubmit}>
               <Icon name="send" />
               {submitting ? 'Отправка…' : 'Отправить заявку'}
             </button>
@@ -240,7 +298,7 @@ export default function WithdrawPage({ user, setUser }) {
                   )}
                 </div>
               ))}
-              {!history.length && <p className="rb-text-muted">Заявок пока нет</p>}
+              {!history.length && !loading && <p className="rb-text-muted">Заявок пока нет</p>}
             </div>
           </section>
         </main>

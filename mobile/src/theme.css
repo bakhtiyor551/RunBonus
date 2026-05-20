@@ -598,14 +598,34 @@ ion-content {
 }
 
 .withdraw-field select,
-.withdraw-field input {
+.withdraw-field input,
+.withdraw-field__select,
+.withdraw-field__input {
   width: 100%;
   padding: 12px 16px;
   border-radius: var(--rb-radius-full);
   border: 1px solid rgba(68, 73, 51, 0.4);
-  background: var(--rb-surface-container-high);
-  color: var(--rb-on-surface);
-  font-size: 15px;
+  background: var(--rb-surface-high);
+  color: #e2e2e2;
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-text-fill-color: #e2e2e2;
+  opacity: 1;
+  appearance: none;
+}
+
+.withdraw-field__select {
+  cursor: pointer;
+}
+
+.withdraw-field__select option {
+  background: var(--rb-surface-high);
+  color: #e2e2e2;
+}
+
+.withdraw-field__input:disabled,
+.withdraw-field__select:disabled {
+  opacity: 0.5;
 }
 
 .withdraw-success-banner {

@@ -7,6 +7,8 @@ import {
   createWithdrawalRequest,
   listUserRequests,
   getWalletSummary,
+  isWithdrawalSchemaReady,
+  mapWithdrawalError,
 } from '../services/withdrawalService.js';
 
 const router = Router();
@@ -15,13 +17,30 @@ function clientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
 }
 
+async function requireWithdrawalSchema(_req, res, next) {
+  try {
+    if (!(await isWithdrawalSchemaReady())) {
+      return res.status(503).json({
+        error: 'Модуль вывода не настроен на сервере. Запустите npm run db:setup в backend.',
+      });
+    }
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка проверки модуля вывода' });
+  }
+}
+
+router.use(requireWithdrawalSchema);
+
 router.get('/methods', authUser, async (_req, res) => {
   try {
     const methods = await listMethods(true);
     res.json(methods);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Ошибка загрузки кошельков' });
+    const mapped = mapWithdrawalError(err);
+    res.status(mapped.status || 500).json({ error: mapped.message });
   }
 });
 
@@ -66,7 +85,8 @@ router.post('/requests', authUser, requireActiveUser, async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ error: err.message || 'Ошибка создания заявки' });
+    const mapped = mapWithdrawalError(err);
+    res.status(mapped.status || 500).json({ error: mapped.message });
   }
 });
 
