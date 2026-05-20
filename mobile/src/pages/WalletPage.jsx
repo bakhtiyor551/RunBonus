@@ -10,12 +10,21 @@ import { formatBalance } from '../utils/format';
 export default function WalletPage({ user }) {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const available = user?.available_balance ?? user?.balance ?? 0;
-  const blocked = user?.blocked_balance ?? 0;
+  const [wallet, setWallet] = useState({
+    balance: user?.balance ?? 0,
+    blocked_balance: user?.blocked_balance ?? 0,
+    available_balance: user?.available_balance ?? user?.balance ?? 0,
+  });
 
   useEffect(() => {
     api('/api/bonus/history').then(setItems).catch(() => {});
+    api('/api/withdrawal/wallet-summary')
+      .then(setWallet)
+      .catch(() => {});
   }, []);
+
+  const available = wallet.available_balance;
+  const blocked = wallet.blocked_balance;
 
   return (
     <IonPage>
