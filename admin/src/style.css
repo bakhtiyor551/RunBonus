@@ -985,18 +985,65 @@ code {
   margin-bottom: 8px;
 }
 
-.login-card form p {
-  margin: 12px 0;
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
 }
 
-.login-card input {
+.login-form__label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--on-surface-variant);
+}
+
+.login-form__input {
   width: 100%;
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid rgba(68, 73, 51, 0.5);
+  border-radius: 12px;
+  background: var(--surface-container-high);
+  color: #e2e2e2;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.4;
+  caret-color: var(--primary-fixed);
+  -webkit-text-fill-color: #e2e2e2;
+}
+
+.login-form__input::placeholder {
+  color: rgba(196, 201, 172, 0.5);
+  opacity: 1;
+}
+
+.login-form__input:focus {
+  border-color: var(--primary-fixed);
+  box-shadow: 0 0 0 2px rgba(195, 244, 0, 0.2);
+  outline: none;
+}
+
+.login-form__input:-webkit-autofill,
+.login-form__input:-webkit-autofill:hover,
+.login-form__input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #e2e2e2 !important;
+  box-shadow: 0 0 0 1000px var(--surface-container-high) inset !important;
+  border: 1px solid rgba(68, 73, 51, 0.5);
+}
+
+.login-form__error {
   margin: 0;
 }
 
-.login-card .btn--primary {
+.login-form__submit {
   width: 100%;
-  margin-top: 16px;
+  margin-top: 8px;
   padding: 14px;
 }
 

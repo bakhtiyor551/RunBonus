@@ -9,13 +9,12 @@ import DashboardTab from './DashboardTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
+import LoginPage from './LoginPage';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('adminToken'));
   const [adminLogin, setAdminLogin] = useState(localStorage.getItem('adminLogin') || '');
   const [tab, setTab] = useState('dashboard');
-  const [loginForm, setLoginForm] = useState({ login: 'admin', password: 'admin123' });
-  const [error, setError] = useState('');
   const [users, setUsers] = useState([]);
   const [spendForm, setSpendForm] = useState({ phone: '', amount: '', comment: '' });
   const [fundBalance, setFundBalance] = useState(null);
@@ -36,22 +35,12 @@ export default function App() {
     if (token) loadFundBalance();
   }, [token, loadFundBalance]);
 
-  const login = async (e) => {
-    e.preventDefault();
-    setError('');
-    try {
-      const data = await adminApi('/api/admin/login', {
-        method: 'POST',
-        body: JSON.stringify(loginForm),
-      });
-      localStorage.setItem('adminToken', data.token);
-      localStorage.setItem('adminRole', data.admin.role);
-      localStorage.setItem('adminLogin', data.admin.login);
-      setAdminLogin(data.admin.login);
-      setToken(data.token);
-    } catch (err) {
-      setError(err.message);
-    }
+  const onLoginSuccess = (data) => {
+    localStorage.setItem('adminToken', data.token);
+    localStorage.setItem('adminRole', data.admin.role);
+    localStorage.setItem('adminLogin', data.admin.login);
+    setAdminLogin(data.admin.login);
+    setToken(data.token);
   };
 
   const logout = () => {
@@ -91,35 +80,7 @@ export default function App() {
   };
 
   if (!token) {
-    return (
-      <div className="login-page">
-        <div className="glass-card login-card">
-          <h1>RunBonus</h1>
-          <p className="hint">Админ-панель Elite</p>
-          <form onSubmit={login}>
-            <p>
-              <input
-                placeholder="Логин"
-                value={loginForm.login}
-                onChange={(e) => setLoginForm({ ...loginForm, login: e.target.value })}
-              />
-            </p>
-            <p>
-              <input
-                type="password"
-                placeholder="Пароль"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-              />
-            </p>
-            {error && <p className="error-text">{error}</p>}
-            <button className="btn btn--primary" type="submit">
-              Войти
-            </button>
-          </form>
-        </div>
-      </div>
-    );
+    return <LoginPage onSuccess={onLoginSuccess} />;
   }
 
   return (
