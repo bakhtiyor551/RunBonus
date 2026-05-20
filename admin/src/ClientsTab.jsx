@@ -3,7 +3,7 @@ import { adminApi } from './api';
 import Icon from './components/Icon';
 import { formatMoney } from './utils/format';
 
-function ClientCard({ user, onBlock }) {
+function ClientCard({ user, onTopup, onBlock }) {
   const blocked = user.status === 'blocked';
 
   return (
@@ -32,6 +32,16 @@ function ClientCard({ user, onBlock }) {
       <div className="entity-card__actions">
         <button
           type="button"
+          className="btn btn--primary btn--sm"
+          onClick={() => onTopup(user)}
+          disabled={blocked}
+          title={blocked ? 'Клиент заблокирован' : 'Пополнить баланс'}
+        >
+          <Icon name="add_card" />
+          Пополнить
+        </button>
+        <button
+          type="button"
           className="btn btn--ghost btn--sm"
           onClick={() => onBlock(user.id, !blocked)}
         >
@@ -43,10 +53,12 @@ function ClientCard({ user, onBlock }) {
   );
 }
 
-export default function ClientsTab() {
+export default function ClientsTab({ onFundChange }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [topupForm, setTopupForm] = useState({ phone: '', amount: '', comment: '' });
 
   const loadUsers = async () => {
     setLoading(true);
@@ -72,8 +84,81 @@ export default function ClientsTab() {
     await loadUsers();
   };
 
+  const selectForTopup = (user) => {
+    setTopupForm((f) => ({ ...f, phone: user.phone }));
+    document.querySelector('.clients-page__topup')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const topupBalance = async (e) => {
+    e.preventDefault();
+    setTopupLoading(true);
+    setError('');
+    try {
+      const data = await adminApi('/api/admin/bonus/topup', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone: topupForm.phone.trim(),
+          amount: Number(topupForm.amount),
+          comment: topupForm.comment.trim() || undefined,
+        }),
+      });
+      alert(
+        `Баланс пополнен.\n${data.name || data.phone}: ${formatMoney(data.balance_after)}\nОстаток фонда: ${formatMoney(data.fund_after)}`
+      );
+      setTopupForm({ phone: '', amount: '', comment: '' });
+      await loadUsers();
+      onFundChange?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setTopupLoading(false);
+    }
+  };
+
   return (
     <div className="entity-page">
+      <div className="glass-card card clients-page__topup">
+        <h2>Пополнение баланса клиента</h2>
+        <p className="hint">
+          Сумма списывается с бонусного фонда компании и зачисляется на кошелёк клиента.
+        </p>
+        <form className="settings-form" onSubmit={topupBalance}>
+          <label>
+            Телефон клиента
+            <input
+              placeholder="+992…"
+              value={topupForm.phone}
+              onChange={(e) => setTopupForm({ ...topupForm, phone: e.target.value })}
+              required
+            />
+          </label>
+          <label>
+            Сумма (сомони)
+            <input
+              type="number"
+              min={0.01}
+              step={0.01}
+              placeholder="0"
+              value={topupForm.amount}
+              onChange={(e) => setTopupForm({ ...topupForm, amount: e.target.value })}
+              required
+            />
+          </label>
+          <label>
+            Комментарий
+            <input
+              placeholder="Необязательно"
+              value={topupForm.comment}
+              onChange={(e) => setTopupForm({ ...topupForm, comment: e.target.value })}
+            />
+          </label>
+          <button className="btn btn--primary" type="submit" disabled={topupLoading}>
+            {topupLoading ? 'Пополнение…' : 'Пополнить баланс'}
+          </button>
+        </form>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+
       <div className="glass-card card">
         <div className="entity-page__header">
           <div>
@@ -84,7 +169,6 @@ export default function ClientsTab() {
             Обновить
           </button>
         </div>
-        {error && <p className="error-text">{error}</p>}
         {loading ? (
           <p className="entity-page__empty">Загрузка…</p>
         ) : users.length === 0 ? (
@@ -92,7 +176,7 @@ export default function ClientsTab() {
         ) : (
           <div className="entity-cards-grid">
             {users.map((u) => (
-              <ClientCard key={u.id} user={u} onBlock={blockUser} />
+              <ClientCard key={u.id} user={u} onTopup={selectForTopup} onBlock={blockUser} />
             ))}
           </div>
         )}

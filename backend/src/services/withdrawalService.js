@@ -593,7 +593,7 @@ export async function ensureWithdrawalDefaults(conn = pool) {
   }
 }
 
-export async function listMethods(activeOnly = true) {
+export async function listMethods(activeOnly = true, conn = pool) {
   if (await isWithdrawalSchemaReady(conn)) {
     await ensureWithdrawalDefaults(conn);
   }
