@@ -110,15 +110,15 @@ export async function getUserWallet(conn, userId, lock = false) {
   return rows[0] || null;
 }
 
-export async function ensureUserWallet(conn, userId) {
-  let wallet = await getUserWallet(conn, userId, true);
+export async function ensureUserWallet(conn, userId, lock = true) {
+  let wallet = await getUserWallet(conn, userId, lock);
   if (wallet) return wallet;
 
   await conn.query(
-    'INSERT INTO user_bonus_wallets (user_id, balance, total_earned, total_spent) VALUES (?, 0, 0, 0)',
+    'INSERT INTO user_bonus_wallets (user_id, balance, blocked_balance, total_earned, total_spent, total_withdrawn) VALUES (?, 0, 0, 0, 0, 0)',
     [userId]
   );
-  wallet = await getUserWallet(conn, userId, true);
+  wallet = await getUserWallet(conn, userId, lock);
   return wallet;
 }
 

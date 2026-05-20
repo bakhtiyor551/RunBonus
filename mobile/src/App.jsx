@@ -9,6 +9,7 @@ import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
 import WorkoutPage from './pages/WorkoutPage';
 import WalletPage from './pages/WalletPage';
+import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
@@ -91,6 +92,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
           <Route path="/wallet" element={<WalletPage user={user} />} />
+          <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
           <Route path="/profile" element={<ProfilePage user={user} onLogout={logout} />} />
           <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
           <Route path="/activate" element={<ActivatePage onActivated={async () => setUser(await api('/api/auth/me'))} />} />

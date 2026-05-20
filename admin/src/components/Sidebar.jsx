@@ -8,6 +8,7 @@ const NAV = [
   { id: 3, label: 'Бонусные счета', icon: 'account_balance_wallet' },
   { id: 4, label: 'Настройки бонусов', icon: 'settings' },
   { id: 5, label: 'Списание бонусов', icon: 'payments' },
+  { id: 6, label: 'Вывод средств', icon: 'south_west' },
 ];
 
 export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {

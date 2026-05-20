@@ -4,6 +4,7 @@ import AccountsTab from './AccountsTab';
 import WorkoutsTab from './WorkoutsTab';
 import BonusSettingsTab from './BonusSettingsTab';
 import QrShoesTab from './QrShoesTab';
+import WithdrawalsTab from './WithdrawalsTab';
 import DashboardTab from './DashboardTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
@@ -186,6 +187,11 @@ export default function App() {
           {tab === 4 && (
             <div className="page-content">
               <BonusSettingsTab />
+            </div>
+          )}
+          {tab === 6 && (
+            <div className="page-content">
+              <WithdrawalsTab />
             </div>
           )}
           {tab === 5 && (

@@ -1,20 +1,32 @@
 import { Capacitor } from '@capacitor/core';
 
 /**
+ * Продакшен API (прямой IP сервера).
+ * runbonus.online через Namecheap URL Forward отдаёт 302 — ломает CORS в браузере.
+ * После A-записи на IP см. deploy/DNS.md — можно снова http://runbonus.online
+ */
+export const PRODUCTION_API_URL = 'http://161.129.67.147';
+
+/**
  * URL API:
- * - В .env задайте VITE_API_URL (обязательно для телефона в Wi‑Fi: http://IP_ПК:3001)
- * - Эмулятор Android без .env: http://10.0.2.2:3001
- * - Браузер на ПК: http://localhost:3001
+ * - production: VITE_API_URL / PRODUCTION_API_URL
+ * - dev в браузере: прокси Vite (/api → сервер), без CORS
+ * - dev на эмуляторе: 10.0.2.2:3001 или .env
  */
 function resolveApiUrl() {
   const fromEnv = import.meta.env.VITE_API_URL;
   if (fromEnv) return fromEnv.replace(/\/$/, '');
 
-  if (Capacitor.isNativePlatform()) {
-    if (Capacitor.getPlatform() === 'android') {
-      return 'http://10.0.2.2:3001';
-    }
-    return 'http://localhost:3001';
+  if (import.meta.env.PROD) {
+    return PRODUCTION_API_URL;
+  }
+
+  if (!Capacitor.isNativePlatform()) {
+    return '';
+  }
+
+  if (Capacitor.getPlatform() === 'android') {
+    return 'http://10.0.2.2:3001';
   }
 
   return 'http://localhost:3001';

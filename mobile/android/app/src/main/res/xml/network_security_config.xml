@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Разрешить HTTP к локальному API при разработке -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">runbonus.online</domain>
+        <domain includeSubdomains="false">161.129.67.147</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />

@@ -57,6 +57,12 @@ function mapHistoryRow(r) {
     status = r.workout_status === 'approved' ? 'начислено' : 'без начисления';
   } else if (r.type === 'spend') {
     status = 'списано';
+  } else if (r.type === 'withdraw_hold') {
+    status = 'заморозка на вывод';
+  } else if (r.type === 'withdraw_success') {
+    status = 'вывод выполнен';
+  } else if (r.type === 'withdraw_reject') {
+    status = 'вывод отклонён';
   }
 
   return {

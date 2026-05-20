@@ -15,4 +15,8 @@ export const config = {
   bonusPerKm: Number(process.env.BONUS_PER_KM || 3),
   dailyBonusLimit: Number(process.env.DAILY_BONUS_LIMIT || 10),
   shoeBonusLimit: Number(process.env.SHOE_BONUS_LIMIT || 200),
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN || '',
+    chatId: process.env.TELEGRAM_CHAT_ID || '',
+  },
 };

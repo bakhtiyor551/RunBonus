@@ -5,6 +5,7 @@ import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authUser } from '../middleware/auth.js';
 import { getUserBalance } from '../services/bonusService.js';
+import { getWalletSummary } from '../services/withdrawalService.js';
 import { activateShoeForUser } from '../services/shoeActivationService.js';
 
 const router = Router();
@@ -59,7 +60,7 @@ router.post('/register', async (req, res) => {
     const userId = result.insertId;
 
     await conn.query(
-      'INSERT INTO user_bonus_wallets (user_id, balance, total_earned, total_spent) VALUES (?, 0, 0, 0)',
+      'INSERT INTO user_bonus_wallets (user_id, balance, blocked_balance, total_earned, total_spent, total_withdrawn) VALUES (?, 0, 0, 0, 0, 0)',
       [userId]
     );
 
@@ -143,6 +144,12 @@ async function buildUserProfile(userId) {
   );
 
   const balance = await getUserBalance(userId);
+  let walletSummary = { balance, blocked_balance: 0, available_balance: balance };
+  try {
+    walletSummary = await getWalletSummary(pool, userId);
+  } catch {
+    /* migration not applied yet */
+  }
 
   return {
     id: user.id,
@@ -150,7 +157,9 @@ async function buildUserProfile(userId) {
     phone: user.phone,
     city: user.city,
     status: user.status,
-    balance,
+    balance: walletSummary.balance,
+    blocked_balance: walletSummary.blocked_balance,
+    available_balance: walletSummary.available_balance,
     activeShoe: activeShoe[0]
       ? { id: activeShoe[0].id, unique_id: activeShoe[0].unique_id, model_name: activeShoe[0].model_name }
       : null,
