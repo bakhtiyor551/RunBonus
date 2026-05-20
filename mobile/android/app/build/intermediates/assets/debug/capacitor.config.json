@@ -1,0 +1,19 @@
+{
+	"appId": "com.runbonus.app",
+	"appName": "RunBonus",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "http"
+	},
+	"android": {
+		"allowMixedContent": true
+	},
+	"plugins": {
+		"Geolocation": {
+			"permissions": [
+				"location",
+				"coarseLocation"
+			]
+		}
+	}
+}
