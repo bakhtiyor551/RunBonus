@@ -52,6 +52,15 @@ function WithdrawalCard({ item, selected, onSelect }) {
       <p className="entity-card__meta entity-card__meta--muted">
         #{item.id} · {new Date(item.created_at).toLocaleString('ru')}
       </p>
+      {item.admin_login && (
+        <p className="entity-card__meta">
+          <Icon name="admin_panel_settings" />
+          Админ: {item.admin_login}
+        </p>
+      )}
+      {item.admin_comment && (
+        <p className="entity-card__sub">{item.admin_comment}</p>
+      )}
       <span className="entity-card__link">
         Подробнее <Icon name="arrow_forward" />
       </span>

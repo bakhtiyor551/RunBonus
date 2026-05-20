@@ -186,6 +186,17 @@ export async function createWithdrawalRequest(userId, body, ip) {
       throw err;
     }
 
+    const [activeReq] = await conn.query(
+      `SELECT id FROM withdrawal_requests
+       WHERE user_id = ? AND status IN ('pending', 'processing') LIMIT 1`,
+      [userId]
+    );
+    if (activeReq.length) {
+      const err = new Error('У вас уже есть заявка на вывод в обработке');
+      err.status = 400;
+      throw err;
+    }
+
     const summary = await getWalletSummary(conn, userId, true);
     if (amt > summary.available_balance) {
       const err = new Error('Недостаточно доступного баланса');

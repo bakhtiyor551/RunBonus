@@ -31,17 +31,25 @@ export async function sendTelegramMessage(text) {
 
 export function formatWithdrawalTelegramMessage({ user, request, method, balance, available }) {
   const date = new Date(request.created_at).toLocaleString('ru-RU');
+  const availableLine =
+    available != null ? `\nДоступно после заявки: ${available} сомони` : '';
   return (
     `🔔 <b>Новая заявка на вывод средств</b>\n\n` +
-    `Клиент: ${user.name}\n` +
-    `Телефон: ${user.phone}\n` +
-    `Кошелёк: ${method.name}\n` +
-    `Номер: ${request.wallet_number}\n` +
+    `Клиент: ${escapeHtml(user.name)}\n` +
+    `Телефон: ${escapeHtml(user.phone)}\n` +
+    `Кошелёк: ${escapeHtml(method.name)}\n` +
+    `Номер: ${escapeHtml(request.wallet_number)}\n` +
     `Сумма: ${request.amount} сомони\n` +
-    `Баланс клиента: ${balance} сомони\n` +
-    `Доступно: ${available} сомони\n` +
+    `Баланс клиента: ${balance} сомони${availableLine}\n` +
     `Дата: ${date}\n\n` +
     `Статус: Ожидает обработки\n` +
-    `ID заявки: #${request.id}`
+    `ID: #${request.id}`
   );
+}
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
