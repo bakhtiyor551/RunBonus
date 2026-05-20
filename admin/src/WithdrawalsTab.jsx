@@ -68,6 +68,33 @@ function WithdrawalCard({ item, selected, onSelect }) {
   );
 }
 
+function WalletSummaryCard({ wallet, title }) {
+  if (!wallet) return null;
+  return (
+    <div className="entity-card__highlight" style={{ marginTop: 12 }}>
+      <span className="entity-card__highlight-label">{title}</span>
+      <div className="withdraw-wallet-grid">
+        <div>
+          <span className="withdraw-wallet-grid__label">Баланс</span>
+          <strong>{formatMoney(wallet.balance)}</strong>
+        </div>
+        <div>
+          <span className="withdraw-wallet-grid__label">Доступно</span>
+          <strong className="withdraw-wallet-grid__accent">{formatMoney(wallet.available_balance)}</strong>
+        </div>
+        <div>
+          <span className="withdraw-wallet-grid__label">Заблокировано</span>
+          <strong>{formatMoney(wallet.blocked_balance)}</strong>
+        </div>
+        <div>
+          <span className="withdraw-wallet-grid__label">Всего выведено</span>
+          <strong>{formatMoney(wallet.total_withdrawn)}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WithdrawalsTab() {
   const [list, setList] = useState([]);
   const [filter, setFilter] = useState('');
@@ -108,14 +135,32 @@ export default function WithdrawalsTab() {
     if (!selected) return;
     setError('');
     try {
-      await adminApi(`/api/admin/withdrawals/${selected}/${path}`, {
+      const data = await adminApi(`/api/admin/withdrawals/${selected}/${path}`, {
         method: 'POST',
         body: JSON.stringify({ admin_comment: adminComment || undefined }),
       });
       await loadList();
       await openDetail(selected);
       setAdminComment('');
-      alert('Готово');
+      const w = data.wallet || data.request?.wallet;
+      const amount = data.request?.amount ?? detail?.amount;
+      if (path === 'success' && w) {
+        alert(
+          `${data.message || 'Готово'}\n\n` +
+            `Списано: ${formatMoney(amount)}\n` +
+            `Баланс клиента: ${formatMoney(w.balance)}\n` +
+            `Доступно: ${formatMoney(w.available_balance)}`
+        );
+      } else if (path === 'reject' && w) {
+        alert(
+          `${data.message || 'Готово'}\n\n` +
+            `Возврат на счёт: ${formatMoney(amount)}\n` +
+            `Баланс клиента: ${formatMoney(w.balance)}\n` +
+            `Доступно: ${formatMoney(w.available_balance)}`
+        );
+      } else {
+        alert(data.message || 'Готово');
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -215,10 +260,16 @@ export default function WithdrawalsTab() {
           <p><strong>{detail.user_name}</strong> · {detail.user_phone}</p>
           <p>Кошелёк: {detail.wallet_name} · {detail.wallet_number}</p>
           <p>Сумма: <strong>{formatMoney(detail.amount)}</strong></p>
-          <p>
-            Баланс: {detail.wallet?.balance} · Доступно: {detail.wallet?.available_balance} ·
-            Заблокировано: {detail.wallet?.blocked_balance}
-          </p>
+          <WalletSummaryCard
+            wallet={detail.wallet}
+            title={
+              detail.status === 'success'
+                ? 'Счёт клиента (после списания)'
+                : detail.status === 'rejected'
+                  ? 'Счёт клиента (средства возвращены)'
+                  : 'Счёт клиента'
+            }
+          />
           <p>
             Статус:{' '}
             <span className={`withdraw-status ${STATUS_CLASS[detail.status] || ''}`}>

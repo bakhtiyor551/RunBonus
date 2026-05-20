@@ -77,7 +77,12 @@ router.post('/:id/processing', authAdmin, async (req, res) => {
 router.post('/:id/success', authAdmin, async (req, res) => {
   try {
     const item = await setSuccess(req.params.id, req.adminId, req.body.admin_comment, clientIp(req));
-    res.json({ ok: true, request: item });
+    res.json({
+      ok: true,
+      message: 'Вывод завершён. Сумма списана со счёта клиента.',
+      request: item,
+      wallet: item.wallet,
+    });
   } catch (err) {
     console.error(err);
     res.status(err.status || 500).json({ error: err.message || 'Ошибка' });
@@ -87,7 +92,12 @@ router.post('/:id/success', authAdmin, async (req, res) => {
 router.post('/:id/reject', authAdmin, async (req, res) => {
   try {
     const item = await setRejected(req.params.id, req.adminId, req.body.admin_comment, clientIp(req));
-    res.json({ ok: true, request: item });
+    res.json({
+      ok: true,
+      message: 'Заявка отклонена. Средства возвращены на счёт клиента.',
+      request: item,
+      wallet: item.wallet,
+    });
   } catch (err) {
     console.error(err);
     res.status(err.status || 500).json({ error: err.message || 'Ошибка' });
