@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { adminApi } from './api';
+import Icon from './components/Icon';
 
 async function qrDataUrl(text) {
   return QRCode.toDataURL(text, { width: 180, margin: 1, errorCorrectionLevel: 'M' });
 }
 
-function QrPreview({ code, size = 80 }) {
+const SHOE_STATUS = {
+  new: { label: 'Новый', className: 'entity-card__status--new' },
+  activated: { label: 'Активирован', className: 'entity-card__status--ok' },
+  blocked: { label: 'Заблокирован', className: 'entity-card__status--bad' },
+  expired: { label: 'Истёк', className: 'entity-card__status--muted' },
+};
+
+function QrPreview({ code, size = 120 }) {
   const [src, setSrc] = useState('');
 
   useEffect(() => {
@@ -17,17 +25,46 @@ function QrPreview({ code, size = 80 }) {
     return () => { cancelled = true; };
   }, [code]);
 
-  if (!src) return <span className="qr-placeholder">…</span>;
+  if (!src) {
+    return (
+      <span
+        className="qr-placeholder"
+        style={{ width: size, height: size, lineHeight: `${size}px` }}
+      >
+        …
+      </span>
+    );
+  }
   return <img src={src} alt={`QR ${code}`} width={size} height={size} className="qr-img" />;
 }
 
-function QrCard({ shoe }) {
+function ShoeCard({ shoe }) {
+  const meta = SHOE_STATUS[shoe.status] ?? { label: shoe.status, className: '' };
+
   return (
-    <div className="qr-card">
-      <img src={shoe.qr_image} alt="" width={140} height={140} />
-      <code className="qr-card__code">{shoe.unique_id}</code>
-      <span className="qr-card__model">{shoe.model_name}</span>
-    </div>
+    <article className="shoe-card glass-card">
+      <div className="entity-card__head">
+        <div className="entity-card__icon">
+          <Icon name="steps" />
+        </div>
+        <span className={`chip ${meta.className}`}>{meta.label}</span>
+      </div>
+      <p className="entity-card__title entity-card__title--sm">{shoe.model_name}</p>
+      <div className="shoe-card__qr">
+        {shoe.qr_image ? (
+          <img src={shoe.qr_image} alt="" width={140} height={140} className="qr-img" />
+        ) : (
+          <QrPreview code={shoe.unique_id} size={140} />
+        )}
+      </div>
+      <code className="shoe-card__code">{shoe.unique_id}</code>
+      <p className="entity-card__meta">
+        <Icon name="person" />
+        {shoe.activated_by_phone
+          ? `${shoe.activated_by_name ? `${shoe.activated_by_name} · ` : ''}${shoe.activated_by_phone}`
+          : 'Не привязан'}
+      </p>
+    </article>
   );
 }
 
@@ -118,7 +155,7 @@ export default function QrShoesTab() {
   const filtered = filterModel ? shoes.filter((s) => s.model_name === filterModel) : shoes;
 
   return (
-    <div>
+    <div className="entity-page">
       <div className="glass-card card">
         <h2>Генерация кодов и QR</h2>
         <p className="hint">Категория (модель) и количество. Создаётся код SHOE-… и QR для печати на коробку.</p>
@@ -144,56 +181,48 @@ export default function QrShoesTab() {
             <button type="button" onClick={handlePrint}>Печать QR</button>
           )}
         </form>
-        {error && <p style={{ color: 'crimson' }}>{error}</p>}
+        {error && <p className="error-text">{error}</p>}
       </div>
 
       {generated.length > 0 && (
         <div className="glass-card card">
           <h3>Новые коды ({generated.length})</h3>
-          <div className="qr-grid">
+          <div className="entity-cards-grid entity-cards-grid--compact">
             {generated.map((s) => (
-              <QrCard key={s.id} shoe={s} />
+              <ShoeCard key={s.id} shoe={s} />
             ))}
           </div>
         </div>
       )}
 
       <div className="glass-card card">
-        <h3>Каталог кодов</h3>
-        <div className="inline-form">
-          <label>
-            Категория:
-            <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
-              <option value="">Все</option>
-              {models.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </label>
-          <button type="button" onClick={loadShoes}>Обновить</button>
+        <div className="entity-page__header">
+          <div>
+            <h3>Каталог кроссовок</h3>
+            <p className="hint">{filtered.length} из {shoes.length} пар</p>
+          </div>
+          <div className="inline-form">
+            <label>
+              Категория:
+              <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
+                <option value="">Все</option>
+                {models.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+            <button type="button" onClick={loadShoes}>Обновить</button>
+          </div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>QR</th>
-              <th>Код</th>
-              <th>Категория</th>
-              <th>Статус</th>
-              <th>Клиент</th>
-            </tr>
-          </thead>
-          <tbody>
+        {filtered.length === 0 ? (
+          <p className="entity-page__empty">Нет кроссовок по выбранному фильтру</p>
+        ) : (
+          <div className="entity-cards-grid entity-cards-grid--compact">
             {filtered.map((s) => (
-              <tr key={s.id}>
-                <td><QrPreview code={s.unique_id} size={64} /></td>
-                <td><code>{s.unique_id}</code></td>
-                <td>{s.model_name}</td>
-                <td>{s.status}</td>
-                <td>{s.activated_by_phone || '—'}</td>
-              </tr>
+              <ShoeCard key={s.id} shoe={s} />
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
     </div>
   );

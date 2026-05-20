@@ -6,6 +6,7 @@ import BonusSettingsTab from './BonusSettingsTab';
 import QrShoesTab from './QrShoesTab';
 import WithdrawalsTab from './WithdrawalsTab';
 import DashboardTab from './DashboardTab';
+import ClientsTab from './ClientsTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -15,7 +16,6 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem('adminToken'));
   const [adminLogin, setAdminLogin] = useState(localStorage.getItem('adminLogin') || '');
   const [tab, setTab] = useState('dashboard');
-  const [users, setUsers] = useState([]);
   const [spendForm, setSpendForm] = useState({ phone: '', amount: '', comment: '' });
   const [fundBalance, setFundBalance] = useState(null);
   const [fundCurrency, setFundCurrency] = useState('TJS');
@@ -50,18 +50,9 @@ export default function App() {
     setToken(null);
   };
 
-  const navigate = async (index) => {
+  const navigate = (index) => {
     setTab(index);
-    if (index === 0) setUsers(await adminApi('/api/admin/users'));
     if (index === 'dashboard') loadFundBalance();
-  };
-
-  const blockUser = async (id, blocked) => {
-    await adminApi('/api/admin/users/block', {
-      method: 'POST',
-      body: JSON.stringify({ user_id: id, blocked }),
-    });
-    navigate(0);
   };
 
   const spendBonus = async (e) => {
@@ -97,37 +88,7 @@ export default function App() {
           {tab === 'dashboard' && <DashboardTab onNavigate={navigate} />}
           {tab === 0 && (
             <div className="page-content">
-              <div className="glass-card card">
-                <h2>Клиенты</h2>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Имя</th>
-                      <th>Телефон</th>
-                      <th>ID</th>
-                      <th>Баланс</th>
-                      <th>Статус</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u) => (
-                      <tr key={u.id}>
-                        <td>{u.name}</td>
-                        <td>{u.phone}</td>
-                        <td>{u.activated_shoe_id || '—'}</td>
-                        <td>{u.balance}</td>
-                        <td>{u.status}</td>
-                        <td>
-                          <button type="button" onClick={() => blockUser(u.id, u.status !== 'blocked')}>
-                            {u.status === 'blocked' ? 'Разблокировать' : 'Заблокировать'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ClientsTab />
             </div>
           )}
           {tab === 1 && (

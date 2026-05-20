@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from './api';
+import Icon from './components/Icon';
+import { formatMoney } from './utils/format';
 
 const TYPE_LABELS = {
   bonus_fund: 'Бонусный фонд',
@@ -7,11 +9,81 @@ const TYPE_LABELS = {
   bank: 'Банк',
 };
 
+const TYPE_ICONS = {
+  bonus_fund: 'account_balance_wallet',
+  cash: 'payments',
+  bank: 'account_balance',
+};
+
 const STATUS_LABELS = {
   active: 'Активен',
   blocked: 'Заблокирован',
   closed: 'Закрыт',
 };
+
+const STATUS_CLASS = {
+  active: 'entity-card__status--ok',
+  blocked: 'entity-card__status--bad',
+  closed: 'entity-card__status--muted',
+};
+
+function AccountCard({ account, selected, onSelect }) {
+  return (
+    <article
+      className={`account-card glass-card${selected ? ' entity-card--selected' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(account.id)}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect(account.id)}
+    >
+      <div className="entity-card__head">
+        <div className="entity-card__icon">
+          <Icon name={TYPE_ICONS[account.type] || 'account_balance'} />
+        </div>
+        <span className={`chip ${STATUS_CLASS[account.status] || ''}`}>
+          {STATUS_LABELS[account.status] || account.status}
+        </span>
+      </div>
+      <h3 className="entity-card__title">{account.name}</h3>
+      <p className="entity-card__sub">{TYPE_LABELS[account.type] || account.type}</p>
+      <div className="entity-card__highlight">
+        <span className="entity-card__highlight-label">Остаток</span>
+        <span className="entity-card__highlight-value">
+          {formatMoney(account.current_balance, account.currency)}
+        </span>
+      </div>
+      <p className="entity-card__meta">Начальный: {formatMoney(account.initial_balance, account.currency)}</p>
+      <span className="entity-card__link">
+        История <Icon name="arrow_forward" />
+      </span>
+    </article>
+  );
+}
+
+function TransactionCard({ tx }) {
+  const isDebit = tx.type === 'bonus_to_client';
+  return (
+    <article className="tx-card glass-card">
+      <div className="entity-card__head">
+        <span className="entity-card__tx-type">{tx.type}</span>
+        <span className={`entity-card__tx-amount${isDebit ? ' entity-card__tx-amount--out' : ''}`}>
+          {isDebit ? `−${tx.amount}` : `+${tx.amount}`}
+        </span>
+      </div>
+      <p className="entity-card__meta">{new Date(tx.created_at).toLocaleString('ru')}</p>
+      <p className="entity-card__meta">
+        {tx.balance_before} → <strong>{tx.balance_after}</strong>
+      </p>
+      {tx.user_name && (
+        <p className="entity-card__meta">
+          <Icon name="person" />
+          {tx.user_name} ({tx.user_phone})
+        </p>
+      )}
+      {tx.comment && <p className="entity-card__sub">{tx.comment}</p>}
+    </article>
+  );
+}
 
 export default function AccountsTab() {
   const [accounts, setAccounts] = useState([]);
@@ -97,78 +169,69 @@ export default function AccountsTab() {
     await selectAccount(selectedId);
   };
 
+  const selected = accounts.find((a) => a.id === selectedId);
+
   return (
-    <div className="glass-card card">
-      <h2>Бонусные счета</h2>
-      <p className="hint">
-        Бонусы клиентам списываются с бонусного фонда компании. Если на счёте нет средств — начисление не выполняется.
-      </p>
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+    <div className="entity-page">
+      <div className="glass-card card">
+        <h2>Бонусные счета</h2>
+        <p className="hint">
+          Бонусы клиентам списываются с бонусного фонда компании. Если на счёте нет средств — начисление не выполняется.
+        </p>
+        {error && <p className="error-text">{error}</p>}
 
-      <h3>Открыть счёт</h3>
-      <form className="inline-form" onSubmit={createAccount}>
-        <input
-          placeholder="Название"
-          value={createForm.name}
-          onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-          required
-        />
-        <select
-          value={createForm.type}
-          onChange={(e) => setCreateForm({ ...createForm, type: e.target.value })}
-        >
-          <option value="bonus_fund">Бонусный фонд</option>
-          <option value="cash">Касса</option>
-          <option value="bank">Банк</option>
-        </select>
-        <input
-          type="number"
-          min={0}
-          placeholder="Начальный баланс"
-          value={createForm.initial_balance}
-          onChange={(e) => setCreateForm({ ...createForm, initial_balance: e.target.value })}
-        />
-        <input
-          placeholder="Комментарий"
-          value={createForm.comment}
-          onChange={(e) => setCreateForm({ ...createForm, comment: e.target.value })}
-        />
-        <button className="primary" type="submit">Открыть счёт</button>
-      </form>
+        <h3>Открыть счёт</h3>
+        <form className="inline-form" onSubmit={createAccount}>
+          <input
+            placeholder="Название"
+            value={createForm.name}
+            onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+            required
+          />
+          <select
+            value={createForm.type}
+            onChange={(e) => setCreateForm({ ...createForm, type: e.target.value })}
+          >
+            <option value="bonus_fund">Бонусный фонд</option>
+            <option value="cash">Касса</option>
+            <option value="bank">Банк</option>
+          </select>
+          <input
+            type="number"
+            min={0}
+            placeholder="Начальный баланс"
+            value={createForm.initial_balance}
+            onChange={(e) => setCreateForm({ ...createForm, initial_balance: e.target.value })}
+          />
+          <input
+            placeholder="Комментарий"
+            value={createForm.comment}
+            onChange={(e) => setCreateForm({ ...createForm, comment: e.target.value })}
+          />
+          <button className="primary" type="submit">Открыть счёт</button>
+        </form>
 
-      <h3>Список счетов</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Название</th>
-            <th>Тип</th>
-            <th>Начальный</th>
-            <th>Остаток</th>
-            <th>Статус</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
+        <div className="entity-page__header" style={{ marginTop: 24 }}>
+          <h3>Список счетов</h3>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={loadAccounts}>
+            Обновить
+          </button>
+        </div>
+        <div className="entity-cards-grid">
           {accounts.map((a) => (
-            <tr key={a.id} className={selectedId === a.id ? 'selected-row' : ''}>
-              <td>{a.id}</td>
-              <td>{a.name}</td>
-              <td>{TYPE_LABELS[a.type] || a.type}</td>
-              <td>{a.initial_balance}</td>
-              <td><strong>{a.current_balance}</strong> {a.currency}</td>
-              <td>{STATUS_LABELS[a.status] || a.status}</td>
-              <td>
-                <button type="button" onClick={() => selectAccount(a.id)}>История</button>
-              </td>
-            </tr>
+            <AccountCard
+              key={a.id}
+              account={a}
+              selected={selectedId === a.id}
+              onSelect={selectAccount}
+            />
           ))}
-        </tbody>
-      </table>
+        </div>
+      </div>
 
-      {selectedId && (
-        <div className="sub-card">
-          <h3>Операции по счёту #{selectedId}</h3>
+      {selectedId && selected && (
+        <div className="glass-card card">
+          <h3>Операции · {selected.name}</h3>
           <form className="inline-form" onSubmit={topup}>
             <input
               type="number"
@@ -189,32 +252,15 @@ export default function AccountsTab() {
             <button type="button" onClick={() => setStatus('closed')}>Закрыть</button>
           </form>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Дата</th>
-                <th>Тип</th>
-                <th>Сумма</th>
-                <th>До</th>
-                <th>После</th>
-                <th>Клиент</th>
-                <th>Комментарий</th>
-              </tr>
-            </thead>
-            <tbody>
+          {transactions.length === 0 ? (
+            <p className="entity-page__empty">Операций пока нет</p>
+          ) : (
+            <div className="entity-cards-grid entity-cards-grid--tx">
               {transactions.map((t) => (
-                <tr key={t.id}>
-                  <td>{new Date(t.created_at).toLocaleString('ru')}</td>
-                  <td>{t.type}</td>
-                  <td>{t.type === 'bonus_to_client' ? `−${t.amount}` : t.amount}</td>
-                  <td>{t.balance_before}</td>
-                  <td>{t.balance_after}</td>
-                  <td>{t.user_name ? `${t.user_name} (${t.user_phone})` : '—'}</td>
-                  <td>{t.comment || '—'}</td>
-                </tr>
+                <TransactionCard key={t.id} tx={t} />
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
       )}
     </div>

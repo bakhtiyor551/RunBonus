@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from './api';
+import Icon from './components/Icon';
+import { formatMoney } from './utils/format';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все' },
@@ -16,6 +18,46 @@ const STATUS_CLASS = {
   rejected: 'withdraw-status--bad',
   cancelled: 'withdraw-status--bad',
 };
+
+function WithdrawalCard({ item, selected, onSelect }) {
+  return (
+    <article
+      className={`withdraw-card glass-card${selected ? ' entity-card--selected' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(item.id)}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect(item.id)}
+    >
+      <div className="entity-card__head">
+        <div className="entity-card__icon">
+          <Icon name="south_west" />
+        </div>
+        <span className={`withdraw-status ${STATUS_CLASS[item.status] || ''}`}>
+          {item.status_label}
+        </span>
+      </div>
+      <h3 className="entity-card__title">{item.user_name}</h3>
+      <p className="entity-card__sub">
+        <Icon name="call" />
+        {item.user_phone}
+      </p>
+      <div className="entity-card__highlight">
+        <span className="entity-card__highlight-label">Сумма</span>
+        <span className="entity-card__highlight-value">{formatMoney(item.amount)}</span>
+      </div>
+      <p className="entity-card__meta">
+        <Icon name="account_balance_wallet" />
+        {item.wallet_name} · {item.wallet_number}
+      </p>
+      <p className="entity-card__meta entity-card__meta--muted">
+        #{item.id} · {new Date(item.created_at).toLocaleString('ru')}
+      </p>
+      <span className="entity-card__link">
+        Подробнее <Icon name="arrow_forward" />
+      </span>
+    </article>
+  );
+}
 
 export default function WithdrawalsTab() {
   const [list, setList] = useState([]);
@@ -85,8 +127,8 @@ export default function WithdrawalsTab() {
   };
 
   return (
-    <div className="withdrawals-page">
-      <div className="glass-card card" style={{ marginBottom: 16 }}>
+    <div className="entity-page withdrawals-page">
+      <div className="glass-card card">
         <h2>Настройки вывода</h2>
         <form className="settings-form" onSubmit={saveSettings}>
           <label>
@@ -123,128 +165,103 @@ export default function WithdrawalsTab() {
       </div>
 
       <div className="glass-card card">
-        <div className="withdrawals-toolbar">
-          <h2>Заявки на вывод</h2>
-          <select value={filter} onChange={(e) => { setFilter(e.target.value); loadList(e.target.value); }}>
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <button type="button" className="btn btn--outline" onClick={() => loadList()}>
-            Обновить
-          </button>
+        <div className="entity-page__header withdrawals-toolbar">
+          <div>
+            <h2>Заявки на вывод</h2>
+            <p className="hint">{list.length} заявок</p>
+          </div>
+          <div className="inline-form">
+            <select value={filter} onChange={(e) => { setFilter(e.target.value); loadList(e.target.value); }}>
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <button type="button" className="btn btn--outline" onClick={() => loadList()}>
+              Обновить
+            </button>
+          </div>
         </div>
         {error && <p className="error-text">{error}</p>}
         {loading ? (
-          <p className="hint">Загрузка…</p>
+          <p className="entity-page__empty">Загрузка…</p>
+        ) : list.length === 0 ? (
+          <p className="entity-page__empty">Заявок нет</p>
         ) : (
-          <div className="withdrawals-layout">
-            <div className="withdrawals-table-wrap custom-scrollbar">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Дата</th>
-                    <th>Клиент</th>
-                    <th>Телефон</th>
-                    <th>Кошелёк</th>
-                    <th>Номер</th>
-                    <th>Сумма</th>
-                    <th>Статус</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.map((r) => (
-                    <tr
-                      key={r.id}
-                      className={selected === r.id ? 'selected-row' : ''}
-                      onClick={() => openDetail(r.id)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td>{r.id}</td>
-                      <td>{new Date(r.created_at).toLocaleString('ru')}</td>
-                      <td>{r.user_name}</td>
-                      <td>{r.user_phone}</td>
-                      <td>{r.wallet_name}</td>
-                      <td>{r.wallet_number}</td>
-                      <td><strong>{r.amount}</strong></td>
-                      <td>
-                        <span className={`withdraw-status ${STATUS_CLASS[r.status] || ''}`}>
-                          {r.status_label}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!list.length && <p className="hint">Заявок нет</p>}
-            </div>
-
-            {detail && (
-              <div className="glass-card withdrawals-detail">
-                <h3>Заявка #{detail.id}</h3>
-                <p><strong>{detail.user_name}</strong> · {detail.user_phone}</p>
-                <p>Кошелёк: {detail.wallet_name} · {detail.wallet_number}</p>
-                <p>Сумма: <strong>{detail.amount}</strong> сомони</p>
-                <p>
-                  Баланс: {detail.wallet?.balance} · Доступно: {detail.wallet?.available_balance} ·
-                  Заблокировано: {detail.wallet?.blocked_balance}
-                </p>
-                <p>
-                  Статус:{' '}
-                  <span className={`withdraw-status ${STATUS_CLASS[detail.status] || ''}`}>
-                    {detail.status_label}
-                  </span>
-                </p>
-                {detail.client_comment && <p className="hint">Клиент: {detail.client_comment}</p>}
-                {detail.admin_comment && <p className="hint">Админ: {detail.admin_comment}</p>}
-
-                <label className="withdraw-field" style={{ display: 'block', marginTop: 12 }}>
-                  Комментарий админа
-                  <input
-                    value={adminComment}
-                    onChange={(e) => setAdminComment(e.target.value)}
-                    placeholder="Комментарий к действию"
-                  />
-                </label>
-
-                <div className="withdrawals-actions">
-                  {detail.status === 'pending' && (
-                    <button type="button" className="btn btn--primary" onClick={() => action('processing')}>
-                      Взять в обработку
-                    </button>
-                  )}
-                  {(detail.status === 'pending' || detail.status === 'processing') && (
-                    <>
-                      <button type="button" className="btn btn--primary" onClick={() => action('success')}>
-                        Успешно
-                      </button>
-                      <button type="button" className="btn btn--outline" onClick={() => action('reject')}>
-                        Отклонить
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {detail.logs?.length > 0 && (
-                  <div className="sub-card">
-                    <h4>Журнал</h4>
-                    <ul className="withdraw-logs">
-                      {detail.logs.map((l) => (
-                        <li key={l.id}>
-                          {new Date(l.created_at).toLocaleString('ru')} — {l.old_status || '—'} → {l.new_status}
-                          {l.admin_login ? ` (${l.admin_login})` : ''}
-                          {l.comment ? `: ${l.comment}` : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="entity-cards-grid">
+            {list.map((r) => (
+              <WithdrawalCard
+                key={r.id}
+                item={r}
+                selected={selected === r.id}
+                onSelect={openDetail}
+              />
+            ))}
           </div>
         )}
       </div>
+
+      {detail && (
+        <div className="glass-card card withdrawals-detail">
+          <h3>Заявка #{detail.id}</h3>
+          <p><strong>{detail.user_name}</strong> · {detail.user_phone}</p>
+          <p>Кошелёк: {detail.wallet_name} · {detail.wallet_number}</p>
+          <p>Сумма: <strong>{formatMoney(detail.amount)}</strong></p>
+          <p>
+            Баланс: {detail.wallet?.balance} · Доступно: {detail.wallet?.available_balance} ·
+            Заблокировано: {detail.wallet?.blocked_balance}
+          </p>
+          <p>
+            Статус:{' '}
+            <span className={`withdraw-status ${STATUS_CLASS[detail.status] || ''}`}>
+              {detail.status_label}
+            </span>
+          </p>
+          {detail.client_comment && <p className="hint">Клиент: {detail.client_comment}</p>}
+          {detail.admin_comment && <p className="hint">Админ: {detail.admin_comment}</p>}
+
+          <label className="withdraw-field" style={{ display: 'block', marginTop: 12 }}>
+            Комментарий админа
+            <input
+              value={adminComment}
+              onChange={(e) => setAdminComment(e.target.value)}
+              placeholder="Комментарий к действию"
+            />
+          </label>
+
+          <div className="withdrawals-actions">
+            {detail.status === 'pending' && (
+              <button type="button" className="btn btn--primary" onClick={() => action('processing')}>
+                Взять в обработку
+              </button>
+            )}
+            {(detail.status === 'pending' || detail.status === 'processing') && (
+              <>
+                <button type="button" className="btn btn--primary" onClick={() => action('success')}>
+                  Успешно
+                </button>
+                <button type="button" className="btn btn--outline" onClick={() => action('reject')}>
+                  Отклонить
+                </button>
+              </>
+            )}
+          </div>
+
+          {detail.logs?.length > 0 && (
+            <div className="sub-card" style={{ marginTop: 16 }}>
+              <h4>Журнал</h4>
+              <ul className="withdraw-logs">
+                {detail.logs.map((l) => (
+                  <li key={l.id}>
+                    {new Date(l.created_at).toLocaleString('ru')} — {l.old_status || '—'} → {l.new_status}
+                    {l.admin_login ? ` (${l.admin_login})` : ''}
+                    {l.comment ? `: ${l.comment}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
