@@ -14,7 +14,14 @@ const app = express();
 
 app.use(
   cors({
-    origin: true,
+    origin(origin, callback) {
+      // Capacitor/WebView: http://localhost, capacitor://localhost, null
+      if (!origin || /^https?:\/\/localhost(:\d+)?$/i.test(origin) || /^capacitor:\/\//i.test(origin)) {
+        return callback(null, origin || true);
+      }
+      callback(null, origin);
+    },
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })

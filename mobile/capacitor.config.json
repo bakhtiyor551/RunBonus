@@ -9,6 +9,9 @@
     "allowMixedContent": true
   },
   "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "Geolocation": {
       "permissions": ["location", "coarseLocation"]
     }
