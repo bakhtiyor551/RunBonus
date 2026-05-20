@@ -56,6 +56,7 @@ export default function WithdrawPage({ user, setUser }) {
       }
     } catch (err) {
       setLoadError(err.message || 'Не удалось загрузить данные для вывода');
+      setMethods([]);
     } finally {
       setLoading(false);
     }
@@ -72,8 +73,12 @@ export default function WithdrawPage({ user, setUser }) {
     setError('');
     setSuccess('');
 
+    if (loadError) {
+      setError('Сначала загрузите данные (кнопка «Повторить» выше)');
+      return;
+    }
     if (!methods.length) {
-      setError('Список кошельков недоступен. Обновите страницу или обратитесь в поддержку.');
+      setError('Список кошельков пуст. Обновите страницу или обратитесь в поддержку.');
       return;
     }
     if (hasActiveRequest) {
@@ -83,7 +88,7 @@ export default function WithdrawPage({ user, setUser }) {
 
     const amount = Number(form.amount);
     if (!form.method_id) {
-      setError('Выберите кошелёк');
+      setError('Нажмите на кошелёк выше (Душанбе Сити, Алиф и т.д.)');
       return;
     }
     if (!form.wallet_number.trim()) {
@@ -91,7 +96,7 @@ export default function WithdrawPage({ user, setUser }) {
       return;
     }
     if (!amount || amount <= 0) {
-      setError('Сумма должна быть больше 0');
+      setError('Укажите сумму больше 0');
       return;
     }
     if (amount > wallet.available_balance) {
@@ -129,13 +134,15 @@ export default function WithdrawPage({ user, setUser }) {
     }
   };
 
-  const canSubmit =
-    !loading &&
-    !submitting &&
-    settings.enabled &&
-    methods.length > 0 &&
-    !hasActiveRequest &&
-    !loadError;
+  const fillMaxAmount = () => {
+    const max = Math.max(0, wallet.available_balance);
+    if (max < settings.min_amount) {
+      setError(`Доступно ${formatBalance(max)} сомони — меньше минимума (${settings.min_amount})`);
+      return;
+    }
+    setError('');
+    setForm((f) => ({ ...f, amount: String(max) }));
+  };
 
   return (
     <IonPage>
@@ -145,9 +152,17 @@ export default function WithdrawPage({ user, setUser }) {
           {loading && <p className="rb-text-muted">Загрузка…</p>}
 
           {loadError && (
-            <div className="glass-card" style={{ padding: 16, marginBottom: 16, borderColor: 'var(--rb-error)' }}>
+            <div className="glass-card withdraw-alert" style={{ marginBottom: 16 }}>
               <p className="rb-text-error" style={{ margin: 0 }}>{loadError}</p>
-              <button type="button" className="rb-btn-outline" style={{ marginTop: 12, width: '100%' }} onClick={() => { setLoading(true); load(); }}>
+              <button
+                type="button"
+                className="rb-btn-outline"
+                style={{ marginTop: 12, width: '100%' }}
+                onClick={() => {
+                  setLoading(true);
+                  load();
+                }}
+              >
                 Повторить
               </button>
             </div>
@@ -170,7 +185,7 @@ export default function WithdrawPage({ user, setUser }) {
           </section>
 
           {hasActiveRequest && (
-            <p className="rb-text-muted" style={{ marginBottom: 12, fontSize: 13 }}>
+            <p className="rb-text-error" style={{ marginBottom: 12, fontSize: 13 }}>
               У вас уже есть заявка в обработке. Новую можно отправить после её завершения.
             </p>
           )}
@@ -187,34 +202,39 @@ export default function WithdrawPage({ user, setUser }) {
             </div>
           )}
 
-          {error && <p className="rb-text-error" style={{ marginBottom: 12 }}>{error}</p>}
-
-          {!methods.length && !loading && !loadError && (
-            <p className="rb-text-error" style={{ marginBottom: 12 }}>
-              Нет доступных способов вывода. Обратитесь в поддержку.
-            </p>
+          {error && (
+            <div className="glass-card withdraw-alert" style={{ marginBottom: 12 }}>
+              <p className="rb-text-error" style={{ margin: 0 }}>{error}</p>
+            </div>
           )}
 
           <form className="glass-card withdraw-form" onSubmit={submit}>
-            <h2 className="rb-headline font-display" style={{ marginBottom: 16 }}>Новая заявка</h2>
+            <h2 className="rb-headline font-display" style={{ marginBottom: 8 }}>Новая заявка</h2>
+            <p className="rb-text-muted" style={{ marginBottom: 16, fontSize: 13 }}>
+              1) Выберите кошелёк · 2) Номер · 3) Сумма от {settings.min_amount} сомони
+            </p>
 
-            <label className="withdraw-field">
-              <span className="rb-label">Выберите кошелёк</span>
-              <select
-                className="withdraw-field__select"
-                value={form.method_id}
-                onChange={(e) => setForm({ ...form, method_id: e.target.value })}
-                required
-                disabled={!canSubmit}
-              >
-                <option value="">— выберите —</option>
-                {methods.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <p className="rb-label" style={{ marginBottom: 8 }}>Выберите кошелёк</p>
+            {!methods.length && !loading && (
+              <p className="rb-text-error" style={{ marginBottom: 12, fontSize: 13 }}>
+                Кошельки не загрузились. Нажмите «Повторить» вверху или перезайдите в приложение.
+              </p>
+            )}
+            <div className="withdraw-methods" style={{ marginBottom: 16 }}>
+              {methods.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`withdraw-method-btn${String(form.method_id) === String(m.id) ? ' withdraw-method-btn--active' : ''}`}
+                  onClick={() => {
+                    setError('');
+                    setForm((f) => ({ ...f, method_id: String(m.id) }));
+                  }}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
 
             <label className="withdraw-field">
               <span className="rb-label">Номер кошелька</span>
@@ -226,7 +246,6 @@ export default function WithdrawPage({ user, setUser }) {
                 value={form.wallet_number}
                 onChange={(e) => setForm({ ...form, wallet_number: e.target.value })}
                 required
-                disabled={!canSubmit}
               />
             </label>
 
@@ -237,12 +256,14 @@ export default function WithdrawPage({ user, setUser }) {
                 type="number"
                 min={settings.min_amount}
                 step="0.01"
-                placeholder="0"
+                placeholder={`от ${settings.min_amount}`}
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
                 required
-                disabled={!canSubmit}
               />
+              <button type="button" className="rb-link" style={{ marginTop: 8, fontSize: 13, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} onClick={fillMaxAmount}>
+                Вывести весь доступный баланс
+              </button>
             </label>
 
             <label className="withdraw-field">
@@ -252,11 +273,15 @@ export default function WithdrawPage({ user, setUser }) {
                 placeholder="Необязательно"
                 value={form.client_comment}
                 onChange={(e) => setForm({ ...form, client_comment: e.target.value })}
-                disabled={!canSubmit}
               />
             </label>
 
-            <button type="submit" className="rb-btn-pill" style={{ width: '100%', marginTop: 8 }} disabled={!canSubmit}>
+            <button
+              type="submit"
+              className="rb-btn-pill"
+              style={{ width: '100%', marginTop: 8 }}
+              disabled={loading || submitting}
+            >
               <Icon name="send" />
               {submitting ? 'Отправка…' : 'Отправить заявку'}
             </button>

@@ -54,6 +54,9 @@ export function mapWithdrawalError(err) {
 }
 
 export async function getWithdrawalSettings(conn = pool) {
+  if (await isWithdrawalSchemaReady(conn)) {
+    await ensureWithdrawalDefaults(conn);
+  }
   const [rows] = await conn.query('SELECT * FROM withdrawal_settings WHERE id = 1');
   if (!rows.length) {
     return { enabled: true, min_amount: 20, max_daily_amount: 100 };
@@ -559,11 +562,45 @@ export async function updateWithdrawalSettings(data) {
   return getWithdrawalSettings();
 }
 
+const DEFAULT_METHODS = [
+  ['Душанбе Сити', 'dcity', 1],
+  ['Алиф', 'alif', 2],
+  ['Эсхата', 'eshata', 3],
+  ['Спитамен', 'spitamen', 4],
+  ['DC Next', 'dcnext', 5],
+  ['Корти милли', 'korti', 6],
+  ['Другое', 'other', 99],
+];
+
+/** Заполняет настройки и кошельки, если таблицы есть, но данных нет */
+export async function ensureWithdrawalDefaults(conn = pool) {
+  const [settings] = await conn.query('SELECT id FROM withdrawal_settings WHERE id = 1');
+  if (!settings.length) {
+    await conn.query(
+      'INSERT INTO withdrawal_settings (id, enabled, min_amount, max_daily_amount) VALUES (1, 1, 20, 100)'
+    );
+  }
+  const [methods] = await conn.query('SELECT id FROM withdrawal_methods LIMIT 1');
+  if (!methods.length) {
+    for (const [name, code, sort] of DEFAULT_METHODS) {
+      await conn.query(
+        `INSERT INTO withdrawal_methods (name, code, status, sort_order)
+         VALUES (?, ?, 'active', ?)
+         ON DUPLICATE KEY UPDATE name = VALUES(name), status = 'active'`,
+        [name, code, sort]
+      );
+    }
+  }
+}
+
 export async function listMethods(activeOnly = true) {
+  if (await isWithdrawalSchemaReady(conn)) {
+    await ensureWithdrawalDefaults(conn);
+  }
   const sql = activeOnly
     ? 'SELECT * FROM withdrawal_methods WHERE status = ? ORDER BY sort_order, id'
     : 'SELECT * FROM withdrawal_methods ORDER BY sort_order, id';
   const params = activeOnly ? ['active'] : [];
-  const [rows] = await pool.query(sql, params);
+  const [rows] = await conn.query(sql, params);
   return rows;
 }
