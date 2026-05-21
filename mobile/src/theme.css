@@ -636,6 +636,10 @@ select {
   color: var(--rb-error);
 }
 
+.rb-detail-sheet__status--warn {
+  color: #ffc107;
+}
+
 .rb-detail-sheet__alert {
   margin-top: 16px;
   padding: 14px 16px;

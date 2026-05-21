@@ -70,9 +70,12 @@ function mapHistoryRow(r) {
     date: r.created_at,
     type: r.type,
     amount: Number(r.amount),
-    balance_after: Number(r.balance_after),
+    balance_after: r.balance_after != null ? Number(r.balance_after) : null,
     km: r.distance_km ? Number(r.distance_km) : null,
     status,
+    comment: r.comment || null,
+    reject_reason: r.reject_reason || null,
+    workout_status: r.workout_status || null,
   };
 }
 

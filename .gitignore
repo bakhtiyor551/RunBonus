@@ -5,6 +5,7 @@ dist/
 *.log
 .DS_Store
 .idea/
+**/.idea/
 
 # Android / Capacitor (сборка не в репозитории)
 mobile/android/app/build/

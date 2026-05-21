@@ -5,11 +5,14 @@ import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
+import OperationRow from '../components/OperationRow';
+import OperationDetailModal from '../components/OperationDetailModal';
 import { formatBalance } from '../utils/format';
 
 export default function WalletPage({ user }) {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
+  const [selectedOperation, setSelectedOperation] = useState(null);
   const [wallet, setWallet] = useState({
     balance: user?.balance ?? 0,
     blocked_balance: user?.blocked_balance ?? 0,
@@ -57,39 +60,15 @@ export default function WalletPage({ user }) {
           <section>
             <h2 className="rb-headline font-display" style={{ marginBottom: 16 }}>История операций</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {items.map((item) => {
-                const isEarn = item.type === 'earn';
-                const isWithdraw =
-                  item.type === 'withdraw_hold' ||
-                  item.type === 'withdraw_success' ||
-                  item.type === 'withdraw_reject';
-                const sign = isEarn ? '+' : isWithdraw || item.type === 'spend' ? '−' : '';
-                const color = isEarn ? 'var(--rb-neon)' : 'var(--rb-on-surface)';
-                const icon = isEarn
-                  ? 'trending_up'
-                  : isWithdraw
-                    ? 'south_west'
-                    : 'payments';
-                return (
-                  <div key={item.id} className="glass-card rb-activity-card">
-                    <div className="rb-activity-card__icon">
-                      <Icon name={icon} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontWeight: 600 }}>{new Date(item.date).toLocaleString('ru')}</p>
-                      <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                        {item.status}{item.km != null ? ` • ${item.km} км` : ''}
-                      </p>
-                    </div>
-                    <span className="rb-headline font-display" style={{ color, fontSize: 18 }}>{sign}{item.amount}</span>
-                  </div>
-                );
-              })}
+              {items.map((item) => (
+                <OperationRow key={item.id} item={item} onPress={setSelectedOperation} />
+              ))}
               {!items.length && <p className="rb-text-muted">История пуста</p>}
             </div>
           </section>
         </main>
         <BottomNav />
+        <OperationDetailModal operation={selectedOperation} onClose={() => setSelectedOperation(null)} />
       </IonContent>
     </IonPage>
   );
