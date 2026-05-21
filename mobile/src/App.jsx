@@ -77,6 +77,7 @@ function App() {
     return (
       <IonApp>
         <ActivatePage
+          user={user}
           onActivated={async () => {
             const profile = await api('/api/auth/me');
             setUser(profile);
@@ -95,7 +96,10 @@ function App() {
           <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
           <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
           <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
-          <Route path="/activate" element={<ActivatePage onActivated={async () => setUser(await api('/api/auth/me'))} />} />
+          <Route
+            path="/activate"
+            element={<ActivatePage user={user} onActivated={async () => setUser(await api('/api/auth/me'))} />}
+          />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

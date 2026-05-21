@@ -12,6 +12,11 @@ import {
   mapUserProfileRow,
   saveAvatarFromDataUrl,
 } from '../utils/userProfile.js';
+import {
+  bindDeviceIfEmpty,
+  getDeviceIdFromRequest,
+  isDeviceMismatch,
+} from '../services/deviceBinding.js';
 
 const router = Router();
 
@@ -48,6 +53,10 @@ router.post('/register', async (req, res) => {
     }
 
     const phoneNorm = phone.trim();
+    const deviceId = getDeviceIdFromRequest(req);
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Не удалось определить устройство' });
+    }
 
     const [existing] = await conn.query('SELECT id FROM users WHERE phone = ?', [phoneNorm]);
     if (existing.length) {
@@ -58,9 +67,9 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const [result] = await conn.query(
-      `INSERT INTO users (name, first_name, last_name, phone, password_hash, city)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, firstName.trim(), lastName.trim(), phoneNorm, passwordHash, userCity]
+      `INSERT INTO users (name, first_name, last_name, phone, password_hash, city, device_id, device_bound_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [name, firstName.trim(), lastName.trim(), phoneNorm, passwordHash, userCity, deviceId]
     );
 
     const userId = result.insertId;
@@ -70,12 +79,12 @@ router.post('/register', async (req, res) => {
       [userId]
     );
 
-    const shoe = await activateShoeForUser(conn, userId, unique_id);
+    const shoe = await activateShoeForUser(conn, userId, unique_id, deviceId);
 
     await conn.commit();
 
     const token = jwt.sign({ userId }, config.jwtSecret, { expiresIn: '30d' });
-    const profile = await buildUserProfile(userId);
+    const profile = await buildUserProfile(userId, deviceId);
 
     res.status(201).json({
       token,
@@ -112,8 +121,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Неверный телефон или пароль' });
     }
 
+    const deviceId = getDeviceIdFromRequest(req);
+    await bindDeviceIfEmpty(pool, user.id, deviceId);
+
     const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '30d' });
-    const profile = await buildUserProfile(user.id);
+    const profile = await buildUserProfile(user.id, deviceId);
 
     res.json({ token, user: profile });
   } catch (err) {
@@ -124,7 +136,9 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', authUser, async (req, res) => {
   try {
-    const profile = await buildUserProfile(req.userId);
+    const deviceId = getDeviceIdFromRequest(req);
+    await bindDeviceIfEmpty(pool, req.userId, deviceId);
+    const profile = await buildUserProfile(req.userId, deviceId);
     if (!profile) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(profile);
   } catch (err) {
@@ -162,7 +176,7 @@ router.patch('/profile', authUser, async (req, res) => {
       );
     }
 
-    const profile = await buildUserProfile(req.userId);
+    const profile = await buildUserProfile(req.userId, getDeviceIdFromRequest(req));
     res.json(profile);
   } catch (err) {
     if (err.status) {
@@ -173,9 +187,9 @@ router.patch('/profile', authUser, async (req, res) => {
   }
 });
 
-async function buildUserProfile(userId) {
+async function buildUserProfile(userId, requestDeviceId = null) {
   const [users] = await pool.query(
-    'SELECT id, name, first_name, last_name, avatar_url, phone, city, status FROM users WHERE id = ?',
+    'SELECT id, name, first_name, last_name, avatar_url, phone, city, status, device_id FROM users WHERE id = ?',
     [userId]
   );
   if (!users.length) return null;
@@ -206,6 +220,7 @@ async function buildUserProfile(userId) {
       ? { id: activeShoe[0].id, unique_id: activeShoe[0].unique_id, model_name: activeShoe[0].model_name }
       : null,
     needsActivation: !activeShoe.length,
+    qrActivationAllowed: !isDeviceMismatch(users[0].device_id, requestDeviceId),
   };
 }
 

@@ -5,7 +5,8 @@ import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
 import QrScanner, { parseShoeCode } from '../components/QrScanner';
 
-export default function ActivatePage({ onActivated }) {
+export default function ActivatePage({ onActivated, user }) {
+  const qrAllowed = user?.qrActivationAllowed !== false;
   const [code, setCode] = useState('');
   const [manualCode, setManualCode] = useState('');
   const [error, setError] = useState('');
@@ -22,6 +23,10 @@ export default function ActivatePage({ onActivated }) {
     e.preventDefault();
     setError('');
     setSuccess('');
+    if (!qrAllowed) {
+      setError('Активация QR доступна только на устройстве, где вы впервые вошли в приложение.');
+      return;
+    }
     const unique_id = parseShoeCode(code || manualCode);
     if (!unique_id) {
       setError('Отсканируйте QR или введите код');
@@ -52,7 +57,16 @@ export default function ActivatePage({ onActivated }) {
             QR-код на кроссовках RunBonus
           </p>
 
-          <QrScanner onScan={handleScan} active />
+          {!qrAllowed && (
+            <div className="glass-card rb-detail-sheet__alert" style={{ marginBottom: 20, padding: 14 }}>
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.45 }}>
+                Это другое устройство. Активировать QR можно только на телефоне, где вы зарегистрировались или
+                впервые вошли в аккаунт.
+              </p>
+            </div>
+          )}
+
+          <QrScanner onScan={handleScan} active={qrAllowed} />
 
           {(code || manualCode) && (
             <p style={{ textAlign: 'center', color: 'var(--rb-neon)', marginTop: 12, fontWeight: 600 }}>
@@ -72,7 +86,7 @@ export default function ActivatePage({ onActivated }) {
             </div>
             {error && <p className="rb-text-error">{error}</p>}
             {success && <p style={{ color: 'var(--rb-neon)' }}>{success}</p>}
-            <button type="submit" className="rb-btn-pill" style={{ width: '100%', marginTop: 16 }} disabled={loading}>
+            <button type="submit" className="rb-btn-pill" style={{ width: '100%', marginTop: 16 }} disabled={loading || !qrAllowed}>
               {loading ? 'Активация…' : 'Активировать'}
             </button>
           </form>

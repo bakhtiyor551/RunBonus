@@ -1,4 +1,5 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { getDeviceId } from './services/deviceId';
 
 /** Продакшен API (HTTPS). HTTP/IP nginx перенаправляет на этот домен. */
 export const PRODUCTION_API_URL = 'https://runbonus.online';
@@ -53,6 +54,7 @@ function buildHeaders(extra = {}) {
   };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  headers['X-Device-Id'] = getDeviceId();
   return headers;
 }
 
