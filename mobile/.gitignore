@@ -10,3 +10,8 @@ android/build
 android/local.properties
 *.iml
 .idea
+
+# Capacitor / iOS (сборка и Pods — pod install на Mac)
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/

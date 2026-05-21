@@ -7,16 +7,20 @@
     "dev": "vite --host",
     "build": "vite build --mode production",
     "build:release": "vite build --mode production && npx cap sync",
+    "build:ios": "vite build --mode production && npx cap sync ios",
     "preview": "vite preview",
     "cap:sync": "npm run build && npx cap sync",
     "cap:android": "npm run cap:sync && npx cap run android",
-    "cap:open": "npx cap open android"
+    "cap:ios": "npm run cap:sync && npx cap sync ios",
+    "cap:open": "npx cap open android",
+    "cap:open:ios": "npx cap open ios"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
     "@capacitor/app": "^6.0.3",
     "@capacitor/core": "^6.1.2",
     "@capacitor/geolocation": "^6.0.1",
+    "@capacitor/ios": "^6.2.1",
     "@ionic/react": "^8.3.2",
     "html5-qrcode": "^2.3.8",
     "ionicons": "^7.4.0",

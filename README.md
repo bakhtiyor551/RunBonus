@@ -87,12 +87,22 @@ cd mobile
 npm install
 copy .env.example .env
 # В .env укажите IP вашего ПК: VITE_API_URL=http://192.168.x.x:3001
-npm run build
-npx cap sync android
-ionic cap run android
-# или: npm run cap:android
-# или открыть в Android Studio: npm run cap:open
+npm run build:release
+npx cap open android
 ```
+
+Для **iOS** (сборка только на **Mac** с Xcode — см. [deploy/IOS.md](deploy/IOS.md)):
+
+```bash
+cd mobile
+npm install
+npm run build:ios
+# на Mac:
+cd ios/App && pod install && cd ../..
+npm run cap:open:ios
+```
+
+В Xcode: Signing → Run на iPhone или Archive для App Store.
 
 ## 4. Админ-панель
 

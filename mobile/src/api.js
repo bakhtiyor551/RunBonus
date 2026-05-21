@@ -33,6 +33,11 @@ function resolveApiUrl() {
     return 'http://10.0.2.2:3001';
   }
 
+  if (Capacitor.getPlatform() === 'ios') {
+    // Симулятор: localhost. На iPhone в .env укажите IP ПК: http://192.168.x.x:3001
+    return 'http://localhost:3001';
+  }
+
   return 'http://localhost:3001';
 }
 
