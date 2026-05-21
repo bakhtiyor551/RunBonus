@@ -76,12 +76,19 @@ router.post('/:id/processing', authAdmin, async (req, res) => {
 
 router.post('/:id/success', authAdmin, async (req, res) => {
   try {
-    const item = await setSuccess(req.params.id, req.adminId, req.body.admin_comment, clientIp(req));
+    const item = await setSuccess(
+      req.params.id,
+      req.adminId,
+      req.body.admin_comment,
+      clientIp(req),
+      req.body.account_id
+    );
     res.json({
       ok: true,
-      message: 'Вывод завершён. Сумма списана со счёта клиента.',
+      message: 'Вывод завершён. Списано с кошелька клиента и со счёта компании.',
       request: item,
       wallet: item.wallet,
+      payout_account: item.payout_account,
     });
   } catch (err) {
     console.error(err);

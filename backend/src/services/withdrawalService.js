@@ -1,5 +1,5 @@
 import { pool } from '../db.js';
-import { ensureUserWallet, getUserWallet } from './accountService.js';
+import { ensureUserWallet, debitAccountForWithdrawal } from './accountService.js';
 import { sendTelegramMessage, formatWithdrawalTelegramMessage } from './telegramService.js';
 
 const ACTIVE_STATUSES = ['pending', 'processing'];
@@ -34,8 +34,13 @@ export function mapWithdrawalError(err) {
     return e;
   }
   if (code === 'INSUFFICIENT_BALANCE' || msg.includes('INSUFFICIENT_BALANCE')) {
-    const e = new Error('Недостаточно средств на счёте');
+    const e = new Error('Недостаточно средств на счёте клиента');
     e.status = 400;
+    return e;
+  }
+  if (code === 'INSUFFICIENT_ACCOUNT' || code === 'ACCOUNT_NOT_FOUND' || code === 'ACCOUNT_NOT_ACTIVE') {
+    const e = new Error(err.message || 'Ошибка счёта компании');
+    e.status = err.status || 400;
     return e;
   }
   if (code === 'ER_NO_SUCH_TABLE' || code === 'ER_BAD_FIELD_ERROR') {
@@ -350,8 +355,17 @@ export function mapRequestRow(r, method) {
     user_name: r.user_name,
     user_phone: r.user_phone,
     admin_login: r.admin_login,
+    payout_account_id: r.payout_account_id ?? null,
+    payout_account_name: r.payout_account_name ?? null,
+    payout_account_type: r.payout_account_type ?? null,
   };
 }
+
+const ACCOUNT_TYPE_LABELS = {
+  bonus_fund: 'Бонусный фонд',
+  cash: 'Касса',
+  bank: 'Банк',
+};
 
 const STATUS_LABELS = {
   pending: 'Ожидает обработки',
@@ -383,11 +397,13 @@ export async function listUserRequests(userId) {
 
 export async function listAdminRequests(statusFilter) {
   let sql = `SELECT wr.*, u.name AS user_name, u.phone AS user_phone,
-                    wm.name AS method_name, a.login AS admin_login
+                    wm.name AS method_name, a.login AS admin_login,
+                    pa.name AS payout_account_name, pa.type AS payout_account_type
              FROM withdrawal_requests wr
              JOIN users u ON u.id = wr.user_id
              JOIN withdrawal_methods wm ON wm.id = wr.method_id
-             LEFT JOIN admin_users a ON a.id = wr.admin_id`;
+             LEFT JOIN admin_users a ON a.id = wr.admin_id
+             LEFT JOIN accounts pa ON pa.id = wr.payout_account_id`;
   const params = [];
   if (statusFilter) {
     sql += ' WHERE wr.status = ?';
@@ -398,17 +414,21 @@ export async function listAdminRequests(statusFilter) {
   return rows.map((r) => ({
     ...mapRequestRow(r, { name: r.method_name }),
     status_label: statusLabel(r.status),
+    payout_account_type_label: ACCOUNT_TYPE_LABELS[r.payout_account_type] || r.payout_account_type,
   }));
 }
 
 export async function getRequestById(id) {
   const [rows] = await pool.query(
     `SELECT wr.*, u.name AS user_name, u.phone AS user_phone,
-            wm.name AS method_name, a.login AS admin_login
+            wm.name AS method_name, a.login AS admin_login,
+            pa.name AS payout_account_name, pa.type AS payout_account_type,
+            pa.current_balance AS payout_account_balance
      FROM withdrawal_requests wr
      JOIN users u ON u.id = wr.user_id
      JOIN withdrawal_methods wm ON wm.id = wr.method_id
      LEFT JOIN admin_users a ON a.id = wr.admin_id
+     LEFT JOIN accounts pa ON pa.id = wr.payout_account_id
      WHERE wr.id = ?`,
     [id]
   );
@@ -425,10 +445,22 @@ export async function getRequestById(id) {
     status_label: statusLabel(r.status),
     logs,
     wallet: await getWalletSummary(pool, r.user_id),
+    payout_account: r.payout_account_id
+      ? {
+          id: r.payout_account_id,
+          name: r.payout_account_name,
+          type: r.payout_account_type,
+          type_label: ACCOUNT_TYPE_LABELS[r.payout_account_type] || r.payout_account_type,
+          current_balance: Number(r.payout_account_balance),
+        }
+      : null,
   };
 }
 
-async function transitionRequest(conn, { requestId, adminId, fromStatuses, toStatus, adminComment, ip, onTransition }) {
+async function transitionRequest(
+  conn,
+  { requestId, adminId, fromStatuses, toStatus, adminComment, ip, payoutAccountId, onTransition }
+) {
   const [rows] = await conn.query(
     'SELECT * FROM withdrawal_requests WHERE id = ? FOR UPDATE',
     [requestId]
@@ -453,11 +485,18 @@ async function transitionRequest(conn, { requestId, adminId, fromStatuses, toSta
   if (toStatus === 'success') timeFields.push('completed_at = NOW()');
   if (toStatus === 'rejected') timeFields.push('rejected_at = NOW()');
 
+  const extraSets = [];
+  const extraParams = [];
+  if (payoutAccountId != null) {
+    extraSets.push('payout_account_id = ?');
+    extraParams.push(payoutAccountId);
+  }
+
   await conn.query(
     `UPDATE withdrawal_requests SET status = ?, admin_id = ?, admin_comment = ?,
-      updated_at = NOW()${timeFields.length ? ', ' + timeFields.join(', ') : ''}
+      updated_at = NOW()${timeFields.length ? ', ' + timeFields.join(', ') : ''}${extraSets.length ? ', ' + extraSets.join(', ') : ''}
      WHERE id = ?`,
-    [toStatus, adminId, updates.admin_comment, requestId]
+    [toStatus, adminId, adminComment ?? req.admin_comment, ...extraParams, requestId]
   );
 
   await logStatusChange(conn, {
@@ -492,7 +531,14 @@ export async function setProcessing(requestId, adminId, ip) {
   }
 }
 
-export async function setSuccess(requestId, adminId, adminComment, ip) {
+export async function setSuccess(requestId, adminId, adminComment, ip, payoutAccountId) {
+  const accountId = Number(payoutAccountId);
+  if (!accountId) {
+    const err = new Error('Выберите счёт для списания выплаты');
+    err.status = 400;
+    throw err;
+  }
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -503,15 +549,22 @@ export async function setSuccess(requestId, adminId, adminComment, ip) {
       toStatus: 'success',
       adminComment,
       ip,
+      payoutAccountId: accountId,
       onTransition: async (c, req) => {
         await finalizeWithdraw(c, req.user_id, Number(req.amount), req.id, adminComment);
+        await debitAccountForWithdrawal(c, accountId, Number(req.amount), {
+          userId: req.user_id,
+          requestId: req.id,
+          adminId,
+          comment: adminComment || `Вывод #${req.id}`,
+        });
       },
     });
     await conn.commit();
     return getRequestById(requestId);
   } catch (e) {
     await conn.rollback();
-    throw e;
+    throw mapWithdrawalError(e);
   } finally {
     conn.release();
   }

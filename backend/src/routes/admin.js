@@ -65,14 +65,31 @@ router.get('/users', authAdmin, async (_req, res) => {
 router.get('/shoes', authAdmin, async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT s.id, s.model_name, s.unique_id, s.qr_code, s.status, s.created_at,
-              u.name AS activated_by_name, u.phone AS activated_by_phone
+      `SELECT s.id, s.model_name, s.unique_id, s.qr_code, s.status, s.created_at, s.activated_at,
+              u.id AS activated_by_user_id,
+              u.name AS activated_by_name,
+              u.phone AS activated_by_phone,
+              u.city AS activated_by_city,
+              u.status AS activated_by_status,
+              u.created_at AS activated_by_registered_at,
+              COALESCE(ubw.balance, (
+                SELECT balance_after FROM bonuses WHERE user_id = u.id ORDER BY id DESC LIMIT 1
+              ), 0) AS activated_by_balance,
+              (SELECT COUNT(*) FROM workouts w WHERE w.user_id = u.id) AS activated_by_workouts
        FROM shoes s
        LEFT JOIN users u ON u.id = s.activated_by_user_id
+       LEFT JOIN user_bonus_wallets ubw ON ubw.user_id = u.id
        ORDER BY s.id DESC
        LIMIT 500`
     );
-    res.json(rows);
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        activated_by_balance:
+          r.activated_by_balance != null ? Number(r.activated_by_balance) : null,
+        activated_by_workouts: Number(r.activated_by_workouts || 0),
+      }))
+    );
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка' });
@@ -119,7 +136,7 @@ router.post('/shoes/generate', authAdmin, async (req, res) => {
 router.get('/workouts', authAdmin, async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT w.id, u.name AS client_name, u.phone, w.distance_km, w.duration_seconds,
+      `SELECT w.id, w.user_id, u.name AS client_name, u.phone, w.distance_km, w.duration_seconds,
               w.avg_speed, w.max_speed, w.started_at, w.finished_at, w.status, w.reject_reason,
               w.background_tracking,
               COALESCE(
@@ -207,6 +224,100 @@ router.get('/workouts/:id', authAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.get('/users/:id', authAdmin, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!userId) return res.status(400).json({ error: 'Некорректный ID' });
+
+    const [users] = await pool.query(
+      `SELECT u.id, u.name, u.phone, u.city, u.status, u.created_at, u.updated_at,
+              s.id AS shoe_id, s.unique_id AS shoe_unique_id, s.model_name AS shoe_model,
+              s.status AS shoe_status, s.activated_at AS shoe_activated_at
+       FROM users u
+       LEFT JOIN user_active_shoes uas ON uas.user_id = u.id
+       LEFT JOIN shoes s ON s.id = uas.shoe_id
+       WHERE u.id = ?`,
+      [userId]
+    );
+    if (!users.length) return res.status(404).json({ error: 'Клиент не найден' });
+    const u = users[0];
+
+    const [walletRows] = await pool.query(
+      `SELECT balance, blocked_balance, total_earned, total_spent, total_withdrawn
+       FROM user_bonus_wallets WHERE user_id = ?`,
+      [userId]
+    );
+    const w = walletRows[0];
+    const balance = w ? Number(w.balance) : 0;
+    const blocked = w ? Number(w.blocked_balance || 0) : 0;
+
+    const [stats] = await pool.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(status = 'approved') AS approved,
+         SUM(status = 'rejected') AS rejected,
+         SUM(status = 'in_progress') AS in_progress,
+         SUM(status = 'suspicious') AS suspicious,
+         COALESCE(SUM(distance_km), 0) AS total_km,
+         COALESCE(SUM(CASE WHEN status = 'approved' THEN calculated_bonus ELSE 0 END), 0) AS total_bonus_calc
+       FROM workouts WHERE user_id = ?`,
+      [userId]
+    );
+    const st = stats[0];
+
+    const [withdrawals] = await pool.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(status IN ('pending', 'processing')) AS active
+       FROM withdrawal_requests WHERE user_id = ?`,
+      [userId]
+    );
+
+    res.json({
+      id: u.id,
+      name: u.name,
+      phone: u.phone,
+      city: u.city,
+      status: u.status,
+      created_at: u.created_at,
+      updated_at: u.updated_at,
+      wallet: {
+        balance,
+        blocked_balance: blocked,
+        available_balance: Math.round((balance - blocked) * 100) / 100,
+        total_earned: w ? Number(w.total_earned) : 0,
+        total_spent: w ? Number(w.total_spent) : 0,
+        total_withdrawn: w ? Number(w.total_withdrawn || 0) : 0,
+      },
+      shoe: u.shoe_id
+        ? {
+            id: u.shoe_id,
+            unique_id: u.shoe_unique_id,
+            model_name: u.shoe_model,
+            status: u.shoe_status,
+            activated_at: u.shoe_activated_at,
+          }
+        : null,
+      workouts: {
+        total: Number(st.total),
+        approved: Number(st.approved),
+        rejected: Number(st.rejected),
+        in_progress: Number(st.in_progress),
+        suspicious: Number(st.suspicious),
+        total_km: Number(st.total_km),
+        total_bonus_calc: Number(st.total_bonus_calc),
+      },
+      withdrawals: {
+        total: Number(withdrawals[0].total),
+        active: Number(withdrawals[0].active),
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки профиля' });
   }
 });
 

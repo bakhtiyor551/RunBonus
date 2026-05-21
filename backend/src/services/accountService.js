@@ -36,6 +36,55 @@ export async function createAccount(conn, data, adminId = null) {
   return mapAccount(rows[0]);
 }
 
+/** Списание с счёта компании при успешном выводе клиенту. */
+export async function debitAccountForWithdrawal(
+  conn,
+  accountId,
+  amount,
+  { userId, requestId, adminId = null, comment }
+) {
+  const [rows] = await conn.query('SELECT * FROM accounts WHERE id = ? FOR UPDATE', [accountId]);
+  if (!rows.length) {
+    const err = new Error('Счёт не найден');
+    err.status = 404;
+    err.code = 'ACCOUNT_NOT_FOUND';
+    throw err;
+  }
+  const account = rows[0];
+  if (account.status !== 'active') {
+    const err = new Error('Счёт не активен');
+    err.status = 400;
+    err.code = 'ACCOUNT_NOT_ACTIVE';
+    throw err;
+  }
+
+  const amt = Number(amount);
+  const before = Number(account.current_balance);
+  if (before < amt) {
+    const err = new Error(`Недостаточно средств на счёте «${account.name}»`);
+    err.status = 400;
+    err.code = 'INSUFFICIENT_ACCOUNT';
+    throw err;
+  }
+
+  const after = Math.round((before - amt) * 100) / 100;
+  const note = comment || `Выплата по заявке на вывод #${requestId}`;
+
+  await conn.query('UPDATE accounts SET current_balance = ? WHERE id = ?', [after, accountId]);
+  await conn.query(
+    `INSERT INTO account_transactions
+     (account_id, user_id, type, amount, balance_before, balance_after, comment, created_by)
+     VALUES (?, ?, 'withdrawal_payout', ?, ?, ?, ?, ?)`,
+    [accountId, userId, amt, before, after, note, adminId]
+  );
+
+  return {
+    account: mapAccount({ ...account, current_balance: after }),
+    balance_before: before,
+    balance_after: after,
+  };
+}
+
 export async function topupAccount(conn, accountId, amount, comment, adminId) {
   const [rows] = await conn.query('SELECT * FROM accounts WHERE id = ? FOR UPDATE', [accountId]);
   if (!rows.length) throw new Error('ACCOUNT_NOT_FOUND');

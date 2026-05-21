@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from './api';
 import Icon from './components/Icon';
+import { ClientProfileDetail } from './components/ClientProfileInfo';
 import { formatMoney } from './utils/format';
 
-function ClientCard({ user, onTopup, onBlock }) {
+function ClientCard({ user, selected, onOpen, onTopup, onBlock }) {
   const blocked = user.status === 'blocked';
 
   return (
-    <article className={`client-card glass-card${blocked ? ' client-card--blocked' : ''}`}>
+    <article
+      className={`client-card glass-card client-card--clickable${blocked ? ' client-card--blocked' : ''}${selected ? ' entity-card--selected' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(user)}
+      onKeyDown={(e) => e.key === 'Enter' && onOpen(user)}
+    >
       <div className="entity-card__head">
         <div className="entity-card__icon">
           <Icon name="person" />
@@ -29,7 +36,7 @@ function ClientCard({ user, onTopup, onBlock }) {
         <Icon name="steps" />
         {user.activated_shoe_id || 'Кроссовки не привязаны'}
       </p>
-      <div className="entity-card__actions">
+      <div className="entity-card__actions" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
           className="btn btn--primary btn--sm"
@@ -49,6 +56,9 @@ function ClientCard({ user, onTopup, onBlock }) {
           {blocked ? 'Разблокировать' : 'Заблокировать'}
         </button>
       </div>
+      <span className="entity-card__link">
+        Информация о клиенте <Icon name="arrow_forward" />
+      </span>
     </article>
   );
 }
@@ -58,7 +68,20 @@ export default function ClientsTab({ onFundChange }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [topupLoading, setTopupLoading] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
   const [topupForm, setTopupForm] = useState({ phone: '', amount: '', comment: '' });
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredUsers = users.filter((u) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (u.name || '').toLowerCase().includes(q) ||
+      (u.phone || '').toLowerCase().includes(q) ||
+      String(u.id).includes(q)
+    );
+  });
 
   const loadUsers = async () => {
     setLoading(true);
@@ -77,16 +100,29 @@ export default function ClientsTab({ onFundChange }) {
   }, []);
 
   const blockUser = async (id, blocked) => {
-    await adminApi('/api/admin/users/block', {
-      method: 'POST',
-      body: JSON.stringify({ user_id: id, blocked }),
-    });
-    await loadUsers();
+    setBlockLoading(true);
+    try {
+      await adminApi('/api/admin/users/block', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: id, blocked }),
+      });
+      await loadUsers();
+    } finally {
+      setBlockLoading(false);
+    }
   };
 
   const selectForTopup = (user) => {
     setTopupForm((f) => ({ ...f, phone: user.phone }));
     document.querySelector('.clients-page__topup')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const topupFromProfile = (profile) => {
+    setSelectedUserId(null);
+    setTopupForm((f) => ({ ...f, phone: profile.phone }));
+    requestAnimationFrame(() => {
+      document.querySelector('.clients-page__topup')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const topupBalance = async (e) => {
@@ -114,6 +150,20 @@ export default function ClientsTab({ onFundChange }) {
       setTopupLoading(false);
     }
   };
+
+  if (selectedUserId) {
+    return (
+      <div className="entity-page">
+        <ClientProfileDetail
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          onTopup={topupFromProfile}
+          onBlock={blockUser}
+          blockLoading={blockLoading}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="entity-page">
@@ -163,20 +213,44 @@ export default function ClientsTab({ onFundChange }) {
         <div className="entity-page__header">
           <div>
             <h2>Клиенты</h2>
-            <p className="hint">{users.length} зарегистрировано</p>
+            <p className="hint">
+              {searchQuery.trim()
+                ? `${filteredUsers.length} из ${users.length}`
+                : `${users.length} зарегистрировано`}
+            </p>
           </div>
           <button type="button" className="btn btn--ghost btn--sm" onClick={loadUsers}>
             Обновить
           </button>
         </div>
+
+        <label className="clients-page__search">
+          <span className="workouts-filters__label">Поиск</span>
+          <input
+            type="search"
+            placeholder="Имя, телефон или ID"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </label>
+
         {loading ? (
           <p className="entity-page__empty">Загрузка…</p>
-        ) : users.length === 0 ? (
-          <p className="entity-page__empty">Клиентов пока нет</p>
+        ) : filteredUsers.length === 0 ? (
+          <p className="entity-page__empty">
+            {searchQuery.trim() ? 'Ничего не найдено' : 'Клиентов пока нет'}
+          </p>
         ) : (
           <div className="entity-cards-grid">
-            {users.map((u) => (
-              <ClientCard key={u.id} user={u} onTopup={selectForTopup} onBlock={blockUser} />
+            {filteredUsers.map((u) => (
+              <ClientCard
+                key={u.id}
+                user={u}
+                selected={false}
+                onOpen={(user) => setSelectedUserId(user.id)}
+                onTopup={selectForTopup}
+                onBlock={blockUser}
+              />
             ))}
           </div>
         )}

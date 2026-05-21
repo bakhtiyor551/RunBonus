@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { adminApi } from './api';
 import Icon from './components/Icon';
+import { ClientProfileFromShoe } from './components/ClientProfileInfo';
 
 async function qrDataUrl(text) {
   return QRCode.toDataURL(text, { width: 180, margin: 1, errorCorrectionLevel: 'M' });
@@ -38,11 +39,41 @@ function QrPreview({ code, size = 120 }) {
   return <img src={src} alt={`QR ${code}`} width={size} height={size} className="qr-img" />;
 }
 
-function ShoeCard({ shoe }) {
+function ClientProfilePanel({ shoe, onClose }) {
+  return (
+    <div className="glass-card card shoes-client-profile">
+      <div className="entity-page__header">
+        <h3>Профиль клиента</h3>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>
+          <Icon name="close" />
+          Закрыть
+        </button>
+      </div>
+      <p className="hint shoes-client-profile__hint">
+        Кроссовки <strong>{shoe.unique_id}</strong> · {shoe.model_name}
+      </p>
+      <ClientProfileFromShoe shoe={shoe} />
+    </div>
+  );
+}
+
+function ShoeCard({ shoe, selected, onSelect }) {
   const meta = SHOE_STATUS[shoe.status] ?? { label: shoe.status, className: '' };
+  const hasClient = shoe.status === 'activated' && shoe.activated_by_user_id;
+  const clickable = !!hasClient;
 
   return (
-    <article className="shoe-card glass-card">
+    <article
+      className={`shoe-card glass-card${selected ? ' entity-card--selected' : ''}${clickable ? ' shoe-card--clickable' : ''}`}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? () => onSelect(shoe) : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => e.key === 'Enter' && onSelect(shoe)
+          : undefined
+      }
+    >
       <div className="entity-card__head">
         <div className="entity-card__icon">
           <Icon name="steps" />
@@ -64,6 +95,11 @@ function ShoeCard({ shoe }) {
           ? `${shoe.activated_by_name ? `${shoe.activated_by_name} · ` : ''}${shoe.activated_by_phone}`
           : 'Не привязан'}
       </p>
+      {clickable && (
+        <span className="entity-card__link">
+          Профиль клиента <Icon name="arrow_forward" />
+        </span>
+      )}
     </article>
   );
 }
@@ -75,10 +111,16 @@ export default function QrShoesTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [filterModel, setFilterModel] = useState('');
+  const [selectedShoe, setSelectedShoe] = useState(null);
 
   const loadShoes = async () => {
     const rows = await adminApi('/api/admin/shoes');
     setShoes(rows);
+    if (selectedShoe) {
+      const fresh = rows.find((s) => s.id === selectedShoe.id);
+      if (fresh?.activated_by_user_id) setSelectedShoe(fresh);
+      else setSelectedShoe(null);
+    }
   };
 
   useEffect(() => {
@@ -154,6 +196,12 @@ export default function QrShoesTab() {
   const models = [...new Set(shoes.map((s) => s.model_name))].sort();
   const filtered = filterModel ? shoes.filter((s) => s.model_name === filterModel) : shoes;
 
+  const openClientProfile = (shoe) => {
+    if (shoe.status === 'activated' && shoe.activated_by_user_id) {
+      setSelectedShoe(shoe);
+    }
+  };
+
   return (
     <div className="entity-page">
       <div className="glass-card card">
@@ -189,17 +237,24 @@ export default function QrShoesTab() {
           <h3>Новые коды ({generated.length})</h3>
           <div className="entity-cards-grid entity-cards-grid--compact">
             {generated.map((s) => (
-              <ShoeCard key={s.id} shoe={s} />
+              <ShoeCard key={s.id} shoe={s} selected={false} onSelect={() => {}} />
             ))}
           </div>
         </div>
+      )}
+
+      {selectedShoe && (
+        <ClientProfilePanel shoe={selectedShoe} onClose={() => setSelectedShoe(null)} />
       )}
 
       <div className="glass-card card">
         <div className="entity-page__header">
           <div>
             <h3>Каталог кроссовок</h3>
-            <p className="hint">{filtered.length} из {shoes.length} пар</p>
+            <p className="hint">
+              {filtered.length} из {shoes.length} пар
+              {selectedShoe ? ' · выбран активированный QR' : ''}
+            </p>
           </div>
           <div className="inline-form">
             <label>
@@ -211,7 +266,9 @@ export default function QrShoesTab() {
                 ))}
               </select>
             </label>
-            <button type="button" onClick={loadShoes}>Обновить</button>
+            <button type="button" onClick={() => loadShoes().catch((e) => setError(e.message))}>
+              Обновить
+            </button>
           </div>
         </div>
         {filtered.length === 0 ? (
@@ -219,7 +276,12 @@ export default function QrShoesTab() {
         ) : (
           <div className="entity-cards-grid entity-cards-grid--compact">
             {filtered.map((s) => (
-              <ShoeCard key={s.id} shoe={s} />
+              <ShoeCard
+                key={s.id}
+                shoe={s}
+                selected={selectedShoe?.id === s.id}
+                onSelect={openClientProfile}
+              />
             ))}
           </div>
         )}

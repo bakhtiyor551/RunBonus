@@ -1289,6 +1289,172 @@ code {
   box-shadow: 0 0 20px rgba(171, 214, 0, 0.12);
 }
 
+.shoe-card--clickable {
+  cursor: pointer;
+}
+
+.shoe-card--clickable:hover {
+  border-color: var(--primary-fixed);
+}
+
+.shoes-client-profile__hint {
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
+/* —— Карточка профиля клиента (адаптивная) —— */
+.client-profile-card {
+  margin-top: 12px;
+  padding: clamp(16px, 4vw, 24px);
+  border-radius: var(--radius-xl);
+  background: var(--surface-container);
+  border: 1px solid var(--outline-variant);
+}
+
+.client-profile-card__hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.client-profile-card__identity {
+  display: flex;
+  gap: 12px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.client-profile-card__identity-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.client-profile-card__name {
+  margin: 0 0 8px;
+  font-size: clamp(18px, 4vw, 22px);
+  word-break: break-word;
+}
+
+.client-profile-card__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--on-surface-variant);
+  word-break: break-all;
+}
+
+.client-profile-card__line .material-symbols-outlined {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.client-profile-card__id {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--on-surface-variant);
+}
+
+.client-profile-card__status {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.client-profile-card__balance {
+  width: 100%;
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.client-profile-card__balance .entity-card__highlight-value {
+  font-size: clamp(22px, 5vw, 32px);
+}
+
+.client-profile-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  text-align: left;
+}
+
+.client-profile-card__stat {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-container-low);
+  min-width: 0;
+}
+
+.client-profile-card__stat-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--on-surface-variant);
+  margin-bottom: 4px;
+}
+
+.client-profile-card__stat strong {
+  font-size: clamp(13px, 3vw, 15px);
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.client-profile-card__more {
+  margin-top: 20px;
+}
+
+.client-profile-card__more summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--primary-fixed);
+  margin-bottom: 12px;
+  user-select: none;
+}
+
+.client-profile-card__actions {
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.client-profile-card__actions .btn {
+  flex: 1 1 auto;
+  min-width: min(100%, 140px);
+}
+
+.client-card--clickable {
+  cursor: pointer;
+}
+
+.client-card--clickable:hover {
+  border-color: var(--primary-fixed);
+}
+
+.client-profile-detail__title {
+  margin: 16px 0 8px;
+}
+
+.clients-page__search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  max-width: 360px;
+}
+
+.clients-page__search input {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container);
+  color: var(--on-surface);
+  font: inherit;
+  width: 100%;
+}
+
 .client-card,
 .account-card,
 .withdraw-card,
@@ -1415,6 +1581,350 @@ code {
   gap: 6px;
   color: var(--primary-fixed);
   font-weight: 600;
+}
+
+.client-workouts-grid {
+  align-items: stretch;
+}
+
+.client-workouts-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  text-align: left;
+}
+
+.client-workouts-card--compact {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.client-workouts-card--compact:hover {
+  border-color: var(--primary-fixed);
+}
+
+.client-workouts-card__last {
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.client-profile-info {
+  margin-bottom: 0;
+}
+
+.client-profile-detail {
+  overflow: hidden;
+}
+
+.client-profile-info__section {
+  margin: 20px 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary-fixed);
+}
+
+.client-profile-info__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  gap: 12px;
+}
+
+.client-profile-info__item {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-container);
+}
+
+.client-profile-info__item--accent strong {
+  color: var(--primary-fixed);
+  font-size: 18px;
+}
+
+.client-profile-info__label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--on-surface-variant);
+  margin-bottom: 4px;
+}
+
+.client-profile-info__item strong {
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.client-workouts-detail__title {
+  margin: 0 0 8px;
+}
+
+.workouts-filters {
+  margin-bottom: 0;
+}
+
+.workouts-filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.workouts-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.workouts-filters__field--grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.workouts-filters__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--on-surface-variant);
+}
+
+.workouts-filters select,
+.workouts-filters input[type='search'] {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container);
+  color: var(--on-surface);
+  font: inherit;
+  width: 100%;
+}
+
+.workouts-empty .btn {
+  margin-top: 12px;
+}
+
+.workout-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--gutter);
+  margin-top: 12px;
+}
+
+.workout-history-card {
+  cursor: pointer;
+  text-align: left;
+  padding: 20px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xl);
+  background: var(--surface-container-low);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.workout-history-card:hover {
+  border-color: var(--primary-fixed);
+  box-shadow: 0 0 0 1px var(--primary-fixed-dim);
+}
+
+.workout-history-card:focus-visible {
+  outline: 2px solid var(--primary-fixed);
+  outline-offset: 2px;
+}
+
+.workout-history-card--live {
+  border-color: var(--primary-fixed-dim);
+}
+
+.workout-history-card .entity-card__highlight {
+  margin: 12px 0;
+}
+
+.workout-history-card__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.workout-history-card__stat {
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-container);
+}
+
+.workout-history-card__stat-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--on-surface-variant);
+  margin-bottom: 4px;
+}
+
+.workout-history-card__stat strong {
+  font-size: 15px;
+}
+
+.workout-history-card__stat-bonus {
+  color: var(--primary-fixed);
+}
+
+.workout-history-card__reject {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--error);
+  background: rgba(255, 180, 171, 0.08);
+  border-radius: var(--radius-md);
+}
+
+.entity-card__sub--muted {
+  margin: -4px 0 8px;
+  font-size: 12px;
+  color: var(--on-surface-variant);
+}
+
+.client-workouts-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.client-workouts-card__title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.client-workouts-card__name {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.client-workouts-card__phone {
+  margin: 0;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.client-workouts-card__summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-container);
+  margin-bottom: 16px;
+}
+
+.client-workouts-card__summary strong {
+  display: block;
+  font-size: 18px;
+  margin-top: 4px;
+}
+
+.client-workouts-card__bonus {
+  color: var(--primary-fixed);
+}
+
+.client-workouts-card__history-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--on-surface-variant);
+}
+
+.client-workouts__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.client-workouts__row {
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.client-workouts__row:hover {
+  border-color: var(--primary-fixed);
+  background: var(--surface-container);
+}
+
+.client-workouts__row-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.client-workouts__status {
+  font-size: 11px;
+}
+
+.client-workouts__row-date {
+  font-size: 12px;
+  color: var(--on-surface);
+}
+
+.client-workouts__row-ago {
+  font-size: 11px;
+  color: var(--on-surface-variant);
+}
+
+.client-workouts__row-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.client-workouts__row-bonus {
+  color: var(--primary-fixed);
+}
+
+.client-workouts__row-reject {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #e57373;
+}
+
+.client-workouts__row-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--primary-fixed);
+}
+
+@media (max-width: 640px) {
+  .client-workouts-card__summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 .workout-cards-grid {
@@ -1685,6 +2195,62 @@ code {
   color: var(--primary-fixed);
 }
 
+.withdraw-payout-account {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+}
+
+.withdraw-payout-account--select {
+  border-color: rgba(195, 244, 0, 0.35);
+}
+
+.withdraw-payout-account--done {
+  border-color: rgba(195, 244, 0, 0.2);
+  background: rgba(195, 244, 0, 0.06);
+}
+
+.withdraw-payout-account__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-fixed);
+}
+
+.withdraw-payout-account__hint {
+  margin-bottom: 12px;
+}
+
+.withdraw-payout-account__body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.withdraw-payout-account__balance {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.withdraw-payout-account select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container);
+  color: var(--on-surface);
+  font: inherit;
+}
+
+.withdraw-client-wallet {
+  margin: 12px 0;
+}
+
 .withdraw-logs {
   margin: 0;
   padding-left: 18px;
@@ -1709,6 +2275,121 @@ code {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--outline-variant);
   border-radius: 10px;
+}
+
+/* Адаптив: планшет и телефон */
+@media (max-width: 768px) {
+  .page-content {
+    padding: 16px;
+    padding-bottom: 80px;
+  }
+
+  .entity-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  }
+
+  .client-profile-card__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .client-profile-card__stat:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .workout-history-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  }
+
+  .workouts-filters__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .workouts-filters__field,
+  .workouts-filters__field--grow {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .clients-page__search {
+    max-width: none;
+  }
+
+  .entity-card__actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .entity-card__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .inline-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inline-form input,
+  .inline-form select,
+  .inline-form button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-content {
+    padding: 12px;
+  }
+
+  .client-profile-card__hero {
+    flex-direction: column;
+  }
+
+  .client-profile-card__status {
+    align-self: flex-start;
+  }
+
+  .client-profile-card__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .client-profile-card__stat:last-child {
+    grid-column: auto;
+  }
+
+  .client-profile-info__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .entity-cards-grid,
+  .entity-cards-grid--compact,
+  .workout-history-grid,
+  .client-workouts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .client-workouts-card__summary,
+  .client-profile-info__grid--wallet {
+    grid-template-columns: 1fr;
+  }
+
+  .workouts-page__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .workouts-page__header .btn {
+    width: 100%;
+  }
+
+  .topbar {
+    padding: 12px 16px;
+  }
+
+  .topbar__title {
+    font-size: 1.1rem;
+  }
 }
 
 @media (max-width: 900px) {
