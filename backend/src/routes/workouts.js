@@ -15,7 +15,7 @@ import {
   buildClientFinishResponse,
   CLIENT_START_ERRORS,
 } from '../utils/clientWorkoutResponse.js';
-import { normalizeGpsPoint, shouldSaveGpsPoint } from '../utils/geo.js';
+import { isSameCoordinates, normalizeGpsPoint, shouldSaveGpsPoint } from '../utils/geo.js';
 
 const router = Router();
 
@@ -200,9 +200,11 @@ async function finishWorkout(workoutId, userId, clientPoints) {
       let last = await getLastWorkoutPoint(workoutId, conn);
       const batch = Array.isArray(clientPoints) ? clientPoints : [clientPoints];
       for (const raw of batch) {
-        if (!shouldSaveGpsPoint(last, raw)) continue;
-        const saved = await insertGpsPoint(conn, workoutId, raw);
-        if (saved) last = normalizeGpsPoint(raw);
+        const p = normalizeGpsPoint(raw);
+        if (!p) continue;
+        if (last && isSameCoordinates(last, p)) continue;
+        const saved = await insertGpsPoint(conn, workoutId, p);
+        if (saved) last = p;
       }
     }
 
@@ -306,8 +308,9 @@ async function finishWorkout(workoutId, userId, clientPoints) {
     const client = buildClientFinishResponse({
       finalStatus,
       bonusAmount,
-      distanceKm: validation.distanceKm ?? 0,
+      distanceKm: validation.distanceKm ?? distanceKm,
       balanceAfter,
+      rejectReason,
     });
 
     return { status: 200, body: client };

@@ -4,18 +4,28 @@ export function buildClientFinishResponse({
   bonusAmount,
   distanceKm,
   balanceAfter,
+  rejectReason,
 }) {
   const credited = finalStatus === 'approved' && bonusAmount > 0;
 
+  let message;
+  if (credited) {
+    message = undefined;
+  } else if (rejectReason) {
+    message = rejectReason;
+  } else {
+    message = 'Бонус не начислен по правилам программы';
+  }
+
   return {
     title: 'Тренировка завершена',
+    status: finalStatus,
     distance_km: Number(distanceKm) || 0,
     bonus_credited: credited,
     bonus_earned: credited ? bonusAmount : 0,
     balance_after: balanceAfter != null ? balanceAfter : undefined,
-    message: credited
-      ? undefined
-      : 'Бонус не начислен по правилам программы',
+    reject_reason: rejectReason || undefined,
+    message,
   };
 }
 

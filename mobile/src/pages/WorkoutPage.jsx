@@ -12,6 +12,7 @@ import {
   setActiveWorkoutId,
   getActiveWorkoutId,
   filterTrackPoints,
+  getCurrentPosition,
 } from '../services/geolocation';
 import {
   startWorkoutSession,
@@ -54,7 +55,16 @@ export default function WorkoutPage({ user, setUser }) {
   const finish = async () => {
     if (finishing || !workoutId) return;
     setFinishing(true);
-    const points = filterTrackPoints(getWorkoutPoints());
+    let points = filterTrackPoints(getWorkoutPoints());
+    if (points.length < 2) {
+      try {
+        const pos = await getCurrentPosition();
+        const existing = getWorkoutPoints();
+        points = filterTrackPoints([...existing, pos]);
+      } catch {
+        /* завершим с тем, что есть */
+      }
+    }
     stopWorkoutSession();
 
     try {
@@ -72,7 +82,13 @@ export default function WorkoutPage({ user, setUser }) {
         setUser(profile);
       }
     } catch (err) {
-      alert(err.message);
+      const msg =
+        err.code === 'DEVICE_MISMATCH'
+          ? `${err.message}\n\nВыйдите и войдите снова на этом телефоне.`
+          : err.code === 'DEVICE_REQUIRED'
+            ? 'Обновите приложение RunBonus и повторите вход.'
+            : err.message;
+      alert(msg);
       setFinishing(false);
       startWorkoutSession(workoutId, api).catch(() => {});
     }
@@ -186,7 +202,9 @@ function ResultCards({ result }) {
             <span className="rb-display font-display" style={{ fontSize: 40 }}>+{Number(result.bonus_earned).toFixed(1)}</span>
           </div>
         ) : (
-          <p className="rb-text-muted" style={{ marginTop: 8 }}>{result.message || 'Бонус не начислен'}</p>
+          <p className="rb-text-muted" style={{ marginTop: 8 }}>
+            {result.reject_reason || result.message || 'Бонус не начислен'}
+          </p>
         )}
       </div>
     </div>

@@ -22,9 +22,15 @@ export function validateWorkout(points, durationSeconds, settings) {
   const rejectMax = maxSpeedKmh + 22;
 
   const track = prepareTrackPoints(points);
+  const distanceFromRaw = calcDistanceFromPoints(points);
 
   if (track.length < 2) {
-    return { ok: false, status: 'rejected', reason: 'Недостаточно GPS-точек' };
+    return {
+      ok: false,
+      status: 'rejected',
+      reason: 'Недостаточно GPS-точек для маршрута',
+      distanceKm: distanceFromRaw,
+    };
   }
 
   if (durationSeconds < minDurationSec) {
