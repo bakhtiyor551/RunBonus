@@ -4,8 +4,14 @@ import Icon from './components/Icon';
 import { ClientProfileDetail } from './components/ClientProfileInfo';
 import { formatMoney } from './utils/format';
 
-function ClientCard({ user, selected, onOpen, onTopup, onBlock }) {
+function formatDeviceBound(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('ru');
+}
+
+function ClientCard({ user, selected, onOpen, onTopup, onBlock, onResetDevice, resetLoadingId }) {
   const blocked = user.status === 'blocked';
+  const hasDevice = Boolean(user.device_id);
 
   return (
     <article
@@ -36,6 +42,12 @@ function ClientCard({ user, selected, onOpen, onTopup, onBlock }) {
         <Icon name="steps" />
         {user.activated_shoe_id || 'Кроссовки не привязаны'}
       </p>
+      <p className="entity-card__meta">
+        <Icon name="smartphone" />
+        {hasDevice
+          ? `Устройство привязано${user.device_bound_at ? ` · ${formatDeviceBound(user.device_bound_at)}` : ''}`
+          : 'Устройство не привязано'}
+      </p>
       <div className="entity-card__actions" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
@@ -55,6 +67,18 @@ function ClientCard({ user, selected, onOpen, onTopup, onBlock }) {
           <Icon name={blocked ? 'lock_open' : 'block'} />
           {blocked ? 'Разблокировать' : 'Заблокировать'}
         </button>
+        {hasDevice && (
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => onResetDevice(user)}
+            disabled={resetLoadingId === user.id}
+            title="Сбросить привязку — клиент сможет сканировать QR на новом телефоне"
+          >
+            <Icon name="phonelink_erase" />
+            {resetLoadingId === user.id ? 'Сброс…' : 'Сброс устройства'}
+          </button>
+        )}
       </div>
       <span className="entity-card__link">
         Информация о клиенте <Icon name="arrow_forward" />
@@ -69,6 +93,7 @@ export default function ClientsTab({ onFundChange }) {
   const [error, setError] = useState('');
   const [topupLoading, setTopupLoading] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
+  const [resetLoadingId, setResetLoadingId] = useState(null);
   const [topupForm, setTopupForm] = useState({ phone: '', amount: '', comment: '' });
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,6 +134,31 @@ export default function ClientsTab({ onFundChange }) {
       await loadUsers();
     } finally {
       setBlockLoading(false);
+    }
+  };
+
+  const resetDevice = async (user) => {
+    const label = user.name || user.phone;
+    if (
+      !window.confirm(
+        `Сбросить привязку устройства для «${label}»?\n\nКлиент сможет заново активировать QR на другом телефоне после входа в приложение.`
+      )
+    ) {
+      return;
+    }
+    setResetLoadingId(user.id);
+    setError('');
+    try {
+      const data = await adminApi('/api/admin/users/reset-device', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: user.id }),
+      });
+      alert(data.message || 'Привязка сброшена');
+      await loadUsers();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setResetLoadingId(null);
     }
   };
 
@@ -250,6 +300,8 @@ export default function ClientsTab({ onFundChange }) {
                 onOpen={(user) => setSelectedUserId(user.id)}
                 onTopup={selectForTopup}
                 onBlock={blockUser}
+                onResetDevice={resetDevice}
+                resetLoadingId={resetLoadingId}
               />
             ))}
           </div>

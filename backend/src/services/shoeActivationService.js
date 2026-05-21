@@ -1,4 +1,7 @@
-export async function activateShoeForUser(conn, userId, uniqueIdRaw) {
+import { assertQrActivationDevice } from './deviceBinding.js';
+
+export async function activateShoeForUser(conn, userId, uniqueIdRaw, deviceId) {
+  await assertQrActivationDevice(conn, userId, deviceId);
   const unique_id = uniqueIdRaw?.trim()?.toUpperCase();
   if (!unique_id) {
     const err = new Error('Введите код');

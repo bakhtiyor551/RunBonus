@@ -222,14 +222,20 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                 </div>
               </section>
 
-              <button
-                type="button"
-                className="rb-btn-outline"
-                style={{ width: '100%', marginBottom: 12 }}
-                onClick={() => navigate('/activate')}
-              >
-                <Icon name="qr_code_scanner" /> Активировать QR
-              </button>
+              {user.qrActivationAllowed === false ? (
+                <p className="rb-text-muted" style={{ marginBottom: 12, fontSize: 13, textAlign: 'center' }}>
+                  Активация QR доступна только на основном устройстве.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className="rb-btn-outline"
+                  style={{ width: '100%', marginBottom: 12 }}
+                  onClick={() => navigate('/activate')}
+                >
+                  <Icon name="qr_code_scanner" /> Активировать QR
+                </button>
+              )}
               <button
                 type="button"
                 className="rb-btn-outline"

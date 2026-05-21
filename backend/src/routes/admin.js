@@ -6,6 +6,7 @@ import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authAdmin } from '../middleware/auth.js';
 import { getUserBalance, spendBonus, manualAdjustBonus, topupClientBonus } from '../services/bonusService.js';
+import { resetUserDevice } from '../services/deviceBinding.js';
 import adminAccountsRoutes from './adminAccounts.js';
 import adminBonusSettingsRoutes from './adminBonusSettings.js';
 
@@ -40,6 +41,7 @@ router.get('/users', authAdmin, async (_req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.phone, u.city, u.status, u.created_at,
+              u.device_id, u.device_bound_at,
               s.unique_id AS activated_shoe_id,
               COALESCE(ubw.balance, (
                 SELECT balance_after FROM bonuses WHERE user_id = u.id ORDER BY id DESC LIMIT 1
@@ -332,6 +334,38 @@ router.post('/users/block', authAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.post('/users/reset-device', authAdmin, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const userId = req.body.user_id ?? req.body.userId;
+    if (!userId) {
+      return res.status(400).json({ error: 'Укажите user_id' });
+    }
+    await conn.beginTransaction();
+    const user = await resetUserDevice(conn, userId);
+    await conn.commit();
+    res.json({
+      ok: true,
+      message: 'Привязка устройства сброшена. Клиент сможет активировать QR на новом телефоне после входа.',
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        previous_device_id: user.device_id,
+      },
+    });
+  } catch (err) {
+    await conn.rollback();
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось сбросить устройство' });
+  } finally {
+    conn.release();
   }
 });
 

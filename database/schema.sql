@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
   first_name VARCHAR(60) NULL,
   last_name VARCHAR(60) NULL,
   avatar_url VARCHAR(500) NULL,
+  device_id VARCHAR(64) NULL,
+  device_bound_at TIMESTAMP NULL,
   phone VARCHAR(20) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   city VARCHAR(100) NOT NULL,
