@@ -138,6 +138,60 @@ export async function applyBonus(conn, { userId, shoeId, workoutId, amount, admi
   return { balanceAfter: walletAfter, fundAfter, accountId: fund.id };
 }
 
+/**
+ * Пополнение кошелька клиента с бонусного фонда (админ).
+ */
+export async function topupClientBonus(conn, { userId, amount, comment, adminId = null }) {
+  const fund = await getActiveBonusFund(conn);
+  if (!fund) {
+    const err = new Error('NO_BONUS_FUND');
+    err.code = 'NO_BONUS_FUND';
+    throw err;
+  }
+
+  const fundBefore = Number(fund.current_balance);
+  if (fundBefore < amount) {
+    const err = new Error('INSUFFICIENT_FUND');
+    err.code = 'INSUFFICIENT_FUND';
+    throw err;
+  }
+
+  const fundAfter = Math.round((fundBefore - amount) * 100) / 100;
+  await conn.query('UPDATE accounts SET current_balance = ? WHERE id = ?', [fundAfter, fund.id]);
+
+  const note = comment || 'Пополнение баланса клиента (админ)';
+  const [accTx] = await conn.query(
+    `INSERT INTO account_transactions
+     (account_id, user_id, workout_id, type, amount, balance_before, balance_after, comment, created_by)
+     VALUES (?, ?, NULL, 'bonus_to_client', ?, ?, ?, ?, ?)`,
+    [fund.id, userId, amount, fundBefore, fundAfter, note, adminId]
+  );
+
+  const wallet = await ensureUserWallet(conn, userId);
+  const walletBefore = Number(wallet.balance);
+  const walletAfter = Math.round((walletBefore + amount) * 100) / 100;
+
+  await conn.query(
+    `UPDATE user_bonus_wallets SET balance = ?, total_earned = total_earned + ? WHERE user_id = ?`,
+    [walletAfter, amount, userId]
+  );
+
+  await conn.query(
+    `INSERT INTO user_bonus_transactions
+     (user_id, account_transaction_id, type, amount, balance_before, balance_after, comment)
+     VALUES (?, ?, 'manual', ?, ?, ?, ?)`,
+    [userId, accTx.insertId, amount, walletBefore, walletAfter, note]
+  );
+
+  await conn.query(
+    `INSERT INTO bonuses (user_id, type, amount, balance_after, comment)
+     VALUES (?, 'manual_add', ?, ?, ?)`,
+    [userId, amount, walletAfter, note]
+  );
+
+  return { balanceAfter: walletAfter, fundAfter, accountId: fund.id };
+}
+
 export async function spendBonus(conn, { userId, amount, comment, adminId = null }) {
   const wallet = await ensureUserWallet(conn, userId);
   const walletBefore = Number(wallet.balance);

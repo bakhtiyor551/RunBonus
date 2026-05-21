@@ -5,7 +5,7 @@ import { customAlphabet } from 'nanoid';
 import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authAdmin } from '../middleware/auth.js';
-import { getUserBalance, spendBonus, manualAdjustBonus } from '../services/bonusService.js';
+import { getUserBalance, spendBonus, manualAdjustBonus, topupClientBonus } from '../services/bonusService.js';
 import adminAccountsRoutes from './adminAccounts.js';
 import adminBonusSettingsRoutes from './adminBonusSettings.js';
 
@@ -221,6 +221,62 @@ router.post('/users/block', authAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.post('/bonus/topup', authAdmin, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const { phone, user_id, amount, comment } = req.body;
+    const sum = Number(amount);
+    if ((!phone && !user_id) || !sum || sum <= 0) {
+      return res.status(400).json({ error: 'Укажите телефон или ID клиента и сумму больше 0' });
+    }
+
+    let user;
+    if (user_id) {
+      const [rows] = await conn.query('SELECT id, status, phone, name FROM users WHERE id = ?', [user_id]);
+      if (!rows.length) return res.status(404).json({ error: 'Клиент не найден' });
+      user = rows[0];
+    } else {
+      const [rows] = await conn.query('SELECT id, status, phone, name FROM users WHERE phone = ?', [phone]);
+      if (!rows.length) return res.status(404).json({ error: 'Клиент не найден' });
+      user = rows[0];
+    }
+
+    if (user.status === 'blocked') {
+      return res.status(403).json({ error: 'Клиент заблокирован' });
+    }
+
+    await conn.beginTransaction();
+    const result = await topupClientBonus(conn, {
+      userId: user.id,
+      amount: sum,
+      comment,
+      adminId: req.adminId,
+    });
+    await conn.commit();
+
+    res.json({
+      ok: true,
+      user_id: user.id,
+      phone: user.phone,
+      name: user.name,
+      balance_after: result.balanceAfter,
+      fund_after: result.fundAfter,
+    });
+  } catch (err) {
+    await conn.rollback();
+    if (err.code === 'INSUFFICIENT_FUND') {
+      return res.status(400).json({ error: 'Недостаточно средств на бонусном фонде' });
+    }
+    if (err.code === 'NO_BONUS_FUND') {
+      return res.status(400).json({ error: 'Бонусный фонд не найден или неактивен' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка пополнения' });
+  } finally {
+    conn.release();
   }
 });
 

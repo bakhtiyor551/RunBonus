@@ -1666,6 +1666,25 @@ code {
   color: var(--error);
 }
 
+.withdraw-wallet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.withdraw-wallet-grid__label {
+  display: block;
+  font-size: 11px;
+  color: var(--on-surface-variant);
+  margin-bottom: 2px;
+}
+
+.withdraw-wallet-grid__accent {
+  color: var(--primary-fixed);
+}
+
 .withdraw-logs {
   margin: 0;
   padding-left: 18px;

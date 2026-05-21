@@ -88,7 +88,7 @@ export default function App() {
           {tab === 'dashboard' && <DashboardTab onNavigate={navigate} />}
           {tab === 0 && (
             <div className="page-content">
-              <ClientsTab />
+              <ClientsTab onFundChange={loadFundBalance} />
             </div>
           )}
           {tab === 1 && (

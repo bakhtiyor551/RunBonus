@@ -1,4 +1,4 @@
-const PRODUCTION_API_URL = 'http://161.129.67.147';
+const PRODUCTION_API_URL = 'https://runbonus.online';
 
 function resolveApiUrl() {
   const fromEnv = import.meta.env.VITE_API_URL;
