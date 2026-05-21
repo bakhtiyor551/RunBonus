@@ -6,7 +6,7 @@ import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authAdmin } from '../middleware/auth.js';
 import { getUserBalance, spendBonus, manualAdjustBonus, topupClientBonus } from '../services/bonusService.js';
-import { resetUserDevice } from '../services/deviceBinding.js';
+import { formatDeviceAdminInfo, resetUserDevice } from '../services/deviceBinding.js';
 import adminAccountsRoutes from './adminAccounts.js';
 import adminBonusSettingsRoutes from './adminBonusSettings.js';
 
@@ -53,10 +53,14 @@ router.get('/users', authAdmin, async (_req, res) => {
        ORDER BY u.created_at DESC`
     );
     res.json(
-      rows.map((r) => ({
-        ...r,
-        balance: r.balance != null ? Number(r.balance) : 0,
-      }))
+      rows.map((r) => {
+        const device = formatDeviceAdminInfo(r.device_id, r.device_bound_at);
+        return {
+          ...r,
+          balance: r.balance != null ? Number(r.balance) : 0,
+          device,
+        };
+      })
     );
   } catch (err) {
     console.error(err);
@@ -236,6 +240,7 @@ router.get('/users/:id', authAdmin, async (req, res) => {
 
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.phone, u.city, u.status, u.created_at, u.updated_at,
+              u.device_id, u.device_bound_at,
               s.id AS shoe_id, s.unique_id AS shoe_unique_id, s.model_name AS shoe_model,
               s.status AS shoe_status, s.activated_at AS shoe_activated_at
        FROM users u
@@ -316,6 +321,7 @@ router.get('/users/:id', authAdmin, async (req, res) => {
         total: Number(withdrawals[0].total),
         active: Number(withdrawals[0].active),
       },
+      device: formatDeviceAdminInfo(u.device_id, u.device_bound_at),
     });
   } catch (err) {
     console.error(err);
@@ -355,7 +361,9 @@ router.post('/users/reset-device', authAdmin, async (req, res) => {
         name: user.name,
         phone: user.phone,
         previous_device_id: user.device_id,
+        previous_device: formatDeviceAdminInfo(user.device_id, null),
       },
+      device: formatDeviceAdminInfo(null, null),
     });
   } catch (err) {
     await conn.rollback();

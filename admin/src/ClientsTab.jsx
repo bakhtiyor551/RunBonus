@@ -2,16 +2,12 @@ import { useEffect, useState } from 'react';
 import { adminApi } from './api';
 import Icon from './components/Icon';
 import { ClientProfileDetail } from './components/ClientProfileInfo';
+import { ClientDeviceInfo } from './components/ClientDeviceInfo';
 import { formatMoney } from './utils/format';
-
-function formatDeviceBound(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleString('ru');
-}
 
 function ClientCard({ user, selected, onOpen, onTopup, onBlock, onResetDevice, resetLoadingId }) {
   const blocked = user.status === 'blocked';
-  const hasDevice = Boolean(user.device_id);
+  const device = user.device;
 
   return (
     <article
@@ -42,12 +38,13 @@ function ClientCard({ user, selected, onOpen, onTopup, onBlock, onResetDevice, r
         <Icon name="steps" />
         {user.activated_shoe_id || 'Кроссовки не привязаны'}
       </p>
-      <p className="entity-card__meta">
-        <Icon name="smartphone" />
-        {hasDevice
-          ? `Устройство привязано${user.device_bound_at ? ` · ${formatDeviceBound(user.device_bound_at)}` : ''}`
-          : 'Устройство не привязано'}
-      </p>
+      <ClientDeviceInfo
+        user={user}
+        device={device}
+        compact
+        onResetDevice={onResetDevice}
+        resetLoading={resetLoadingId === user.id}
+      />
       <div className="entity-card__actions" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
@@ -67,18 +64,6 @@ function ClientCard({ user, selected, onOpen, onTopup, onBlock, onResetDevice, r
           <Icon name={blocked ? 'lock_open' : 'block'} />
           {blocked ? 'Разблокировать' : 'Заблокировать'}
         </button>
-        {hasDevice && (
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => onResetDevice(user)}
-            disabled={resetLoadingId === user.id}
-            title="Сбросить привязку — клиент сможет сканировать QR на новом телефоне"
-          >
-            <Icon name="phonelink_erase" />
-            {resetLoadingId === user.id ? 'Сброс…' : 'Сброс устройства'}
-          </button>
-        )}
       </div>
       <span className="entity-card__link">
         Информация о клиенте <Icon name="arrow_forward" />
@@ -210,6 +195,8 @@ export default function ClientsTab({ onFundChange }) {
           onTopup={topupFromProfile}
           onBlock={blockUser}
           blockLoading={blockLoading}
+          onResetDevice={resetDevice}
+          resetLoadingId={resetLoadingId}
         />
       </div>
     );

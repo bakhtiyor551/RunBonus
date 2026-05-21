@@ -93,6 +93,13 @@ function apiErrorMessage(data, status) {
   return status === 401 ? 'Неверный телефон или пароль' : 'Ошибка запроса';
 }
 
+function throwApiError(data, status) {
+  const err = new Error(apiErrorMessage(data, status));
+  err.code = data?.code;
+  err.status = status;
+  throw err;
+}
+
 async function requestNative(url, options = {}) {
   const method = options.method || 'GET';
   const headers = buildHeaders(options.headers || {});
@@ -113,7 +120,7 @@ async function requestNative(url, options = {}) {
   const data = parseBody(response.data);
 
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(apiErrorMessage(data, response.status));
+    throwApiError(data, response.status);
   }
 
   return data;
@@ -144,7 +151,7 @@ async function requestFetch(url, options = {}) {
       throw new Error('Сервер вернул HTML — проверьте URL API (без редиректа runbonus.online).');
     }
   }
-  if (!res.ok) throw new Error(apiErrorMessage(data, res.status));
+  if (!res.ok) throwApiError(data, res.status);
   return data;
 }
 
@@ -174,4 +181,15 @@ export async function api(path, options = {}) {
 export function setToken(token) {
   if (token) localStorage.setItem('token', token);
   else localStorage.removeItem('token');
+}
+
+/** Выход: снимает привязку, если выход с основного телефона. */
+export async function logoutApi() {
+  if (!getToken()) return;
+  try {
+    await api('/api/auth/logout', { method: 'POST', body: JSON.stringify({}) });
+  } catch {
+    /* с «чужого» телефона logout может не пройти — локально всё равно выходим */
+  }
+  setToken(null);
 }

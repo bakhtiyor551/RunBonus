@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { config } from '../config.js';
-import { authUser } from '../middleware/auth.js';
+import { authUser, authUserToken } from '../middleware/auth.js';
 import { getUserBalance } from '../services/bonusService.js';
 import { getWalletSummary } from '../services/withdrawalService.js';
 import { activateShoeForUser } from '../services/shoeActivationService.js';
@@ -13,9 +13,10 @@ import {
   saveAvatarFromDataUrl,
 } from '../utils/userProfile.js';
 import {
-  bindDeviceIfEmpty,
+  bindDeviceOnLogin,
   getDeviceIdFromRequest,
   isDeviceMismatch,
+  unbindDeviceOnLogout,
 } from '../services/deviceBinding.js';
 
 const router = Router();
@@ -122,12 +123,22 @@ router.post('/login', async (req, res) => {
     }
 
     const deviceId = getDeviceIdFromRequest(req);
-    await bindDeviceIfEmpty(pool, user.id, deviceId);
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Не удалось определить устройство' });
+    }
+    const bindResult = await bindDeviceOnLogin(pool, user.id, deviceId);
 
     const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '30d' });
     const profile = await buildUserProfile(user.id, deviceId);
 
-    res.json({ token, user: profile });
+    res.json({
+      token,
+      user: profile,
+      device_changed: bindResult.device_changed,
+      message: bindResult.device_changed
+        ? 'Аккаунт привязан к этому телефону. Другие устройства отключены.'
+        : undefined,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка входа' });
@@ -136,14 +147,30 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', authUser, async (req, res) => {
   try {
-    const deviceId = getDeviceIdFromRequest(req);
-    await bindDeviceIfEmpty(pool, req.userId, deviceId);
-    const profile = await buildUserProfile(req.userId, deviceId);
+    const profile = await buildUserProfile(req.userId, req.deviceId);
     if (!profile) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(profile);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.post('/logout', authUserToken, async (req, res) => {
+  try {
+    const result = await unbindDeviceOnLogout(pool, req.userId, req.deviceId);
+    res.json({
+      ok: true,
+      device_cleared: result.cleared,
+      message: result.cleared
+        ? 'Выход выполнен. Привязка к этому телефону снята.'
+        : result.mismatch
+          ? 'Выход выполнен. Это устройство не было основным для аккаунта.'
+          : 'Выход выполнен.',
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка выхода' });
   }
 });
 

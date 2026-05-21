@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { IonApp } from '@ionic/react';
 import { useEffect, useState } from 'react';
-import { api, setToken } from './api';
+import { api, logoutApi, setToken } from './api';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -28,7 +28,15 @@ function App() {
     }
     api('/api/auth/me')
       .then(setUser)
-      .catch(() => setToken(null))
+      .catch((err) => {
+        if (err.code === 'DEVICE_MISMATCH') {
+          sessionStorage.setItem(
+            'auth_notice',
+            err.message || 'Аккаунт открыт на другом телефоне. Войдите снова на этом устройстве.'
+          );
+        }
+        setToken(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -44,10 +52,13 @@ function App() {
   const onAuth = (data) => {
     setToken(data.token);
     setUser(data.user);
+    if (data.message) {
+      sessionStorage.setItem('auth_notice', data.message);
+    }
   };
 
-  const logout = () => {
-    setToken(null);
+  const logout = async () => {
+    await logoutApi();
     setUser(null);
   };
 
