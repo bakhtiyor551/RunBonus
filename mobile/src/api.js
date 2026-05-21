@@ -58,6 +58,18 @@ function buildHeaders(extra = {}) {
   return headers;
 }
 
+/** device_id в теле — надёжнее заголовка в Capacitor/WebView и nginx. */
+function withDevicePayload(body) {
+  const deviceId = getDeviceId();
+  if (!body) return JSON.stringify({ device_id: deviceId });
+  try {
+    const data = typeof body === 'string' ? JSON.parse(body) : { ...body };
+    return JSON.stringify({ ...data, device_id: deviceId });
+  } catch {
+    return JSON.stringify({ device_id: deviceId });
+  }
+}
+
 function parseBody(data) {
   if (data == null || data === '') return {};
   if (typeof data === 'object') return data;
@@ -94,7 +106,7 @@ async function requestNative(url, options = {}) {
   };
 
   if (options.body && method !== 'GET' && method !== 'HEAD') {
-    req.data = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+    req.data = JSON.parse(options.body);
   }
 
   const response = await CapacitorHttp.request(req);
@@ -108,10 +120,12 @@ async function requestNative(url, options = {}) {
 }
 
 async function requestFetch(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
   const headers = buildHeaders(options.headers || {});
+  const fetchOptions = { ...options, headers };
   let res;
   try {
-    res = await fetch(url, { ...options, headers });
+    res = await fetch(fetchOptions);
   } catch (e) {
     if (e?.message?.includes('CORS') || e?.name === 'TypeError') {
       throw new Error(
@@ -134,14 +148,27 @@ async function requestFetch(url, options = {}) {
   return data;
 }
 
-export async function api(path, options = {}) {
-  const url = `${API_URL}${path}`;
+function appendDeviceQuery(url) {
+  const id = encodeURIComponent(getDeviceId());
+  return url.includes('?') ? `${url}&device_id=${id}` : `${url}?device_id=${id}`;
+}
 
-  if (Capacitor.isNativePlatform()) {
-    return requestNative(url, options);
+export async function api(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  let url = `${API_URL}${path}`;
+  const apiOptions = { ...options };
+
+  if (method === 'GET' || method === 'HEAD') {
+    url = appendDeviceQuery(url);
+  } else if (options.body) {
+    apiOptions.body = withDevicePayload(options.body);
   }
 
-  return requestFetch(url, options);
+  if (Capacitor.isNativePlatform()) {
+    return requestNative(url, apiOptions);
+  }
+
+  return requestFetch(url, apiOptions);
 }
 
 export function setToken(token) {

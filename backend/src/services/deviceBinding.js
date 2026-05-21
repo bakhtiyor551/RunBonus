@@ -1,7 +1,14 @@
 const DEVICE_HEADER = 'x-device-id';
 
 export function getDeviceIdFromRequest(req) {
-  const raw = req.headers[DEVICE_HEADER] || req.body?.deviceId || req.body?.device_id;
+  const raw =
+    (typeof req.get === 'function' && req.get(DEVICE_HEADER)) ||
+    req.headers[DEVICE_HEADER] ||
+    req.headers['X-Device-Id'] ||
+    req.query?.device_id ||
+    req.query?.deviceId ||
+    req.body?.deviceId ||
+    req.body?.device_id;
   const id = String(raw || '').trim();
   if (!id || id.length > 64) return null;
   return id;
