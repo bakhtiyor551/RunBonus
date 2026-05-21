@@ -60,7 +60,7 @@ VITE_API_URL=http://192.168.x.x:3001
 | Геолокация | Тренировки, GPS-маршрут |
 | Камера | Сканирование QR кроссовок |
 | Фон — location | Тренировка при свёрнутом приложении |
-| ATS | HTTP к API-серверу |
+| ATS | HTTP/HTTPS к API (продакшен: **https://runbonus.online**) |
 
 ## Частые проблемы
 
@@ -68,7 +68,9 @@ VITE_API_URL=http://192.168.x.x:3001
 
 **Signing error** — в Xcode выберите Apple ID в Signing & Capabilities.
 
-**Нет сети на iPhone** — проверьте `VITE_API_URL` и что backend доступен по HTTP с телефона.
+**Нет сети на iPhone** — в релизе API: `https://runbonus.online`. Проверьте интернет и что сайт открывается в Safari.
+
+**Ошибка HTML вместо JSON** — пересоберите: `npm run build:ios` (в `.env.production` только `https://runbonus.online`, без второй строки `VITE_API_URL`).
 
 **Симулятор не видит localhost API** — backend должен работать на Mac; для API используется `http://localhost:3001` только в симуляторе.
 
