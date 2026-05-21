@@ -15,6 +15,7 @@ import {
   buildClientFinishResponse,
   CLIENT_START_ERRORS,
 } from '../utils/clientWorkoutResponse.js';
+import { normalizeGpsPoint, shouldSaveGpsPoint } from '../utils/geo.js';
 
 const router = Router();
 
@@ -103,28 +104,46 @@ router.post('/start', authUser, requireActiveUser, async (req, res) => {
   }
 });
 
+async function getLastWorkoutPoint(workoutId, conn = pool) {
+  const [rows] = await conn.query(
+    `SELECT latitude, longitude, speed, accuracy, recorded_at
+     FROM workout_points WHERE workout_id = ? ORDER BY recorded_at DESC LIMIT 1`,
+    [workoutId]
+  );
+  return rows[0] ? normalizeGpsPoint(rows[0]) : null;
+}
+
+async function insertGpsPoint(conn, workoutId, rawPoint) {
+  const p = normalizeGpsPoint(rawPoint);
+  if (!p) return false;
+
+  await conn.query(
+    `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      workoutId,
+      p.latitude,
+      p.longitude,
+      p.speed,
+      p.accuracy,
+      p.recorded_at ? new Date(p.recorded_at) : new Date(),
+    ]
+  );
+  return true;
+}
+
 async function savePoints(workoutId, userId, points) {
   const workout = await assertWorkoutOwner(workoutId, userId);
   if (!workout) return null;
 
   const list = Array.isArray(points) ? points : [points];
-  for (const p of list) {
-    const lat = p.latitude ?? p.lat;
-    const lng = p.longitude ?? p.lng;
-    if (lat == null || lng == null) continue;
+  let last = await getLastWorkoutPoint(workoutId);
 
-    await pool.query(
-      `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        workoutId,
-        lat,
-        lng,
-        p.speed ?? null,
-        p.accuracy ?? null,
-        p.recorded_at ? new Date(p.recorded_at) : new Date(),
-      ]
-    );
+  for (const raw of list) {
+    if (!shouldSaveGpsPoint(last, raw)) continue;
+    const p = normalizeGpsPoint(raw);
+    await insertGpsPoint(pool, workoutId, p);
+    last = p;
   }
   return workout;
 }
@@ -178,22 +197,12 @@ async function finishWorkout(workoutId, userId, clientPoints) {
     }
 
     if (clientPoints?.length) {
-      for (const p of clientPoints) {
-        const lat = p.latitude ?? p.lat;
-        const lng = p.longitude ?? p.lng;
-        if (lat == null || lng == null) continue;
-        await conn.query(
-          `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            workoutId,
-            lat,
-            lng,
-            p.speed ?? null,
-            p.accuracy ?? null,
-            p.recorded_at ? new Date(p.recorded_at) : new Date(),
-          ]
-        );
+      let last = await getLastWorkoutPoint(workoutId, conn);
+      const batch = Array.isArray(clientPoints) ? clientPoints : [clientPoints];
+      for (const raw of batch) {
+        if (!shouldSaveGpsPoint(last, raw)) continue;
+        const saved = await insertGpsPoint(conn, workoutId, raw);
+        if (saved) last = normalizeGpsPoint(raw);
       }
     }
 

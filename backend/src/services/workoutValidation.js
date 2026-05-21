@@ -1,4 +1,9 @@
-import { calcDistanceFromPoints } from '../utils/geo.js';
+import {
+  calcDistanceFromPoints,
+  haversineKm,
+  prepareTrackPoints,
+  MAX_GPS_ACCURACY_M,
+} from '../utils/geo.js';
 
 const WALK_MIN = 3;
 const WALK_MAX = 7;
@@ -6,7 +11,6 @@ const RUN_MIN = 7;
 const MAX_JUMP_KM = 0.15;
 const MAX_JUMP_SEC = 5;
 const STALE_COORD_SEC = 120;
-const MIN_ACCURACY_METERS = 80;
 const SUSPICIOUS_MARGIN = 7;
 
 export function validateWorkout(points, durationSeconds, settings) {
@@ -17,7 +21,9 @@ export function validateWorkout(points, durationSeconds, settings) {
   const suspiciousMax = maxSpeedKmh + SUSPICIOUS_MARGIN;
   const rejectMax = maxSpeedKmh + 22;
 
-  if (!points || points.length < 2) {
+  const track = prepareTrackPoints(points);
+
+  if (track.length < 2) {
     return { ok: false, status: 'rejected', reason: 'Недостаточно GPS-точек' };
   }
 
@@ -29,7 +35,7 @@ export function validateWorkout(points, durationSeconds, settings) {
     };
   }
 
-  const distanceKm = calcDistanceFromPoints(points);
+  const distanceKm = calcDistanceFromPoints(track);
   if (distanceKm < minDistanceKm) {
     return {
       ok: false,
@@ -45,9 +51,7 @@ export function validateWorkout(points, durationSeconds, settings) {
   let badAccuracyCount = 0;
   let staleCount = 0;
 
-  const sorted = [...points].sort(
-    (a, b) => new Date(a.recorded_at) - new Date(b.recorded_at)
-  );
+  const sorted = track;
 
   for (let i = 0; i < sorted.length; i++) {
     const p = sorted[i];
@@ -62,7 +66,7 @@ export function validateWorkout(points, durationSeconds, settings) {
     if (speed > 0 && speed < WALK_MIN) invalidSpeedCount++;
     if (speed > runMax && speed <= suspiciousMax) suspiciousCount++;
 
-    if (p.accuracy != null && Number(p.accuracy) > MIN_ACCURACY_METERS) {
+    if (p.accuracy != null && Number(p.accuracy) > MAX_GPS_ACCURACY_M) {
       badAccuracyCount++;
     }
 
@@ -71,13 +75,13 @@ export function validateWorkout(points, durationSeconds, settings) {
       const dt =
         (new Date(p.recorded_at) - new Date(prev.recorded_at)) / 1000;
       if (dt > 0 && dt <= MAX_JUMP_SEC) {
-        const segKm =
-          Math.abs(p.latitude - prev.latitude) +
-          Math.abs(p.longitude - prev.longitude);
-        if (segKm > 0.01) {
-          const approxKm = segKm * 111;
-          if (approxKm > MAX_JUMP_KM) jumpCount++;
-        }
+        const segKm = haversineKm(
+          prev.latitude,
+          prev.longitude,
+          p.latitude,
+          p.longitude
+        );
+        if (segKm > MAX_JUMP_KM) jumpCount++;
       }
       if (
         p.latitude === prev.latitude &&
