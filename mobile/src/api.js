@@ -1,29 +1,27 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
-/**
- * Продакшен API — прямой IP (без редиректа Namecheap).
- * runbonus.online отдаёт 302 → POST превращается в GET → «Cannot GET /api/auth/login».
- */
-export const PRODUCTION_API_URL = 'http://161.129.67.147';
-
-/** После A-записи на IP (без URL Forward) можно снова http://runbonus.online */
-export const DOMAIN_API_URL = 'http://runbonus.online';
+/** Продакшен API (HTTPS). HTTP/IP nginx перенаправляет на этот домен. */
+export const PRODUCTION_API_URL = 'https://runbonus.online';
 
 function normalizeApiUrl(url) {
-  const clean = url.replace(/\/$/, '');
-  if (/^https?:\/\/runbonus\.online/i.test(clean)) {
+  const clean = String(url || '').replace(/\/$/, '');
+  if (!clean) return PRODUCTION_API_URL;
+  if (/^http:\/\/161\.129\.67\.147/i.test(clean)) {
+    return PRODUCTION_API_URL;
+  }
+  if (/^http:\/\/runbonus\.online/i.test(clean)) {
     return PRODUCTION_API_URL;
   }
   return clean;
 }
 
 function resolveApiUrl() {
+  if (import.meta.env.PROD) {
+    return normalizeApiUrl(import.meta.env.VITE_API_URL);
+  }
+
   const fromEnv = import.meta.env.VITE_API_URL;
   if (fromEnv) return normalizeApiUrl(fromEnv);
-
-  if (import.meta.env.PROD) {
-    return PRODUCTION_API_URL;
-  }
 
   if (!Capacitor.isNativePlatform()) {
     return '';
@@ -62,11 +60,9 @@ function parseBody(data) {
   if (data == null || data === '') return {};
   if (typeof data === 'object') return data;
   if (typeof data === 'string' && data.trimStart().startsWith('<')) {
-    const err = new Error(
-      'Сервер вернул HTML вместо JSON. Домен runbonus.online перенаправляет POST — используется IP 161.129.67.147. Пересоберите приложение.'
+    throw new Error(
+      'Ошибка связи с сервером. Переустановите приложение или обратитесь в поддержку.'
     );
-    err.isHtmlResponse = true;
-    throw err;
   }
   try {
     return JSON.parse(data);

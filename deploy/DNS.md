@@ -34,10 +34,6 @@
 
 В браузере то же даёт **ошибку CORS**.
 
-**Сейчас в приложении:** `mobile/.env.production` → `VITE_API_URL=http://161.129.67.147`  
-В коде `api.js` домен `runbonus.online` автоматически заменяется на IP.
-
-**Когда настроите A-запись** (без Forward), можно снова:
-```
-VITE_API_URL=http://runbonus.online
-```
+**Сейчас в приложении:** `VITE_API_URL=https://runbonus.online`  
+Сервер nginx перенаправляет `http://161.129.67.147` → `https://runbonus.online`.  
+Используйте **HTTPS**, не HTTP и не голый IP.

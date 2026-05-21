@@ -42,10 +42,8 @@ npx cap open ios
 В `mobile/.env.production`:
 
 ```
-VITE_API_URL=http://161.129.67.147
+VITE_API_URL=https://runbonus.online
 ```
-
-Не используйте `http://runbonus.online`, пока включён URL Forward (302 ломает POST).
 
 На **реальном iPhone** для разработки с локальным backend укажите в `.env`:
 

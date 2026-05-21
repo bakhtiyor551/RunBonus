@@ -3,10 +3,15 @@
 	"appName": "RunBonus",
 	"webDir": "dist",
 	"server": {
-		"androidScheme": "http"
+		"androidScheme": "http",
+		"iosScheme": "http"
 	},
 	"android": {
 		"allowMixedContent": true
+	},
+	"ios": {
+		"contentInset": "automatic",
+		"allowsLinkPreview": false
 	},
 	"plugins": {
 		"CapacitorHttp": {
