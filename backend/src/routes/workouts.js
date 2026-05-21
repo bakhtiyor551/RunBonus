@@ -343,7 +343,8 @@ router.post('/:id/finish', authUser, async (req, res) => {
 router.get('/history', authUser, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, distance_km, duration_seconds, started_at, finished_at, status, calculated_bonus
+      `SELECT id, distance_km, duration_seconds, avg_speed, max_speed,
+              started_at, finished_at, status, calculated_bonus, reject_reason
        FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT 50`,
       [req.userId]
     );

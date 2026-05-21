@@ -5,15 +5,18 @@ import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import ProgressRing from '../components/ProgressRing';
+import StatsDetailModal from '../components/StatsDetailModal';
+import WorkoutDetailModal from '../components/WorkoutDetailModal';
 import Icon from '../components/Icon';
+import { countFinishedWorkouts } from '../utils/workoutStats';
 import { formatBalance, formatWorkoutDate } from '../utils/format';
 import { getActiveWorkoutId, setActiveWorkoutId } from '../services/geolocation';
 import { getWorkoutSession } from '../services/workoutTracker';
 
-function ActivityRow({ workout }) {
+function ActivityRow({ workout, onPress }) {
   const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
   return (
-    <div className="glass-card rb-activity-card">
+    <button type="button" className="glass-card rb-activity-card" onClick={() => onPress(workout)}>
       <div className="rb-activity-card__icon">
         <Icon name="directions_run" />
       </div>
@@ -30,7 +33,7 @@ function ActivityRow({ workout }) {
           <span className="rb-label" style={{ display: 'block' }}>сомони</span>
         </div>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -39,6 +42,8 @@ export default function HomePage({ user, setUser }) {
   const location = useLocation();
   const [starting, setStarting] = useState(false);
   const [workouts, setWorkouts] = useState([]);
+  const [statsModal, setStatsModal] = useState(null);
+  const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(() => getActiveWorkoutId());
 
   useEffect(() => {
@@ -50,7 +55,7 @@ export default function HomePage({ user, setUser }) {
   }, [location.pathname]);
 
   const totalKm = workouts.reduce((s, w) => s + (Number(w.distance_km) || 0), 0);
-  const totalRuns = workouts.filter((w) => w.status === 'approved' || w.finished_at).length;
+  const totalRuns = countFinishedWorkouts(workouts);
   const kmGoal = Math.max(100, Math.ceil(totalKm / 50) * 50);
   const runsGoal = Math.max(10, Math.ceil(totalRuns / 5) * 5);
 
@@ -123,12 +128,22 @@ export default function HomePage({ user, setUser }) {
           <section style={{ marginBottom: 40 }}>
             <h2 className="rb-headline font-display" style={{ marginBottom: 24 }}>Статистика</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div className="glass-card" style={{ padding: 'var(--rb-gutter)' }}>
+              <button
+                type="button"
+                className="glass-card rb-stat-card"
+                onClick={() => setStatsModal('km')}
+                aria-label="Подробная статистика по километрам"
+              >
                 <ProgressRing value={totalKm} max={kmGoal} label="Всего км" />
-              </div>
-              <div className="glass-card" style={{ padding: 'var(--rb-gutter)' }}>
+              </button>
+              <button
+                type="button"
+                className="glass-card rb-stat-card"
+                onClick={() => setStatsModal('workouts')}
+                aria-label="Подробная статистика по тренировкам"
+              >
                 <ProgressRing value={totalRuns} max={runsGoal} label="Тренировок" />
-              </div>
+              </button>
             </div>
           </section>
 
@@ -141,13 +156,15 @@ export default function HomePage({ user, setUser }) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {workouts.slice(0, 5).map((w) => (
-                <ActivityRow key={w.id} workout={w} />
+                <ActivityRow key={w.id} workout={w} onPress={setSelectedWorkout} />
               ))}
               {!workouts.length && <p className="rb-text-muted">Пока нет тренировок</p>}
             </div>
           </section>
         </main>
         <BottomNav />
+        <StatsDetailModal type={statsModal} workouts={workouts} onClose={() => setStatsModal(null)} />
+        <WorkoutDetailModal workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
       </IonContent>
     </IonPage>
   );
