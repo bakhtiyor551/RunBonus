@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
@@ -9,7 +9,16 @@ export default function LoginPage({ onAuth }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const msg = sessionStorage.getItem('auth_notice');
+    if (msg) {
+      setNotice(msg);
+      sessionStorage.removeItem('auth_notice');
+    }
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -93,6 +102,11 @@ export default function LoginPage({ onAuth }) {
               </div>
             </label>
 
+            {notice && (
+              <p className="rb-text-muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
+                {notice}
+              </p>
+            )}
             {error && <p className="rb-text-error">{error}</p>}
 
             <button type="submit" className="rb-btn-pill rb-login-form__submit" disabled={loading}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import Icon from './Icon';
 import { formatMoney } from '../utils/format';
+import { ClientDeviceInfo } from './ClientDeviceInfo';
 
 function ClientProfileCard({ profile, children }) {
   const blocked = profile.status === 'blocked';
@@ -43,6 +44,10 @@ function ClientProfileCard({ profile, children }) {
           {formatMoney(profile.wallet.balance)}
         </span>
       </div>
+
+      {profile.device != null && (
+        <ClientDeviceInfo user={profile} device={profile.device} />
+      )}
 
       <div className="client-profile-card__stats">
         <div className="client-profile-card__stat">
@@ -183,7 +188,15 @@ export function ClientProfileInfo({ profile, children }) {
   );
 }
 
-export function ClientProfileDetail({ userId, onClose, onTopup, onBlock, blockLoading }) {
+export function ClientProfileDetail({
+  userId,
+  onClose,
+  onTopup,
+  onBlock,
+  blockLoading,
+  onResetDevice,
+  resetLoadingId,
+}) {
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -240,6 +253,20 @@ export function ClientProfileDetail({ userId, onClose, onTopup, onBlock, blockLo
               <Icon name={blocked ? 'lock_open' : 'block'} />
               {blocked ? 'Разблокировать' : 'Заблокировать'}
             </button>
+            {onResetDevice && (profile.device?.bound || profile.device_id) && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                disabled={resetLoadingId === profile.id}
+                onClick={async () => {
+                  await onResetDevice(profile);
+                  await load();
+                }}
+              >
+                <Icon name="phonelink_erase" />
+                {resetLoadingId === profile.id ? 'Сброс…' : 'Сброс устройства'}
+              </button>
+            )}
           </div>
         </ClientProfileInfo>
       )}
