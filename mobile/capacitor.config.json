@@ -2,16 +2,19 @@
   "appId": "com.runbonus.app",
   "appName": "RunBonus",
   "webDir": "dist",
+  "backgroundColor": "#131313",
   "server": {
     "androidScheme": "http",
-    "iosScheme": "http"
+    "iosScheme": "capacitor"
   },
   "android": {
     "allowMixedContent": true
   },
   "ios": {
-    "contentInset": "automatic",
-    "allowsLinkPreview": false
+    "backgroundColor": "#131313",
+    "contentInset": "never",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
   },
   "plugins": {
     "CapacitorHttp": {
