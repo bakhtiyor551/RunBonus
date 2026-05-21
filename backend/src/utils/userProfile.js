@@ -48,7 +48,16 @@ export function saveAvatarFromDataUrl(userId, dataUrl) {
 
   const filename = `user-${userId}.${ext}`;
   fs.writeFileSync(path.join(dir, filename), buf);
-  return `/uploads/avatars/${filename}`;
+  return `/api/uploads/avatars/${filename}`;
+}
+
+/** Путь для клиента (через nginx /api → Node). */
+export function normalizeAvatarUrl(avatarUrl) {
+  if (!avatarUrl) return null;
+  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl;
+  if (avatarUrl.startsWith('/api/uploads/')) return avatarUrl;
+  if (avatarUrl.startsWith('/uploads/')) return `/api${avatarUrl}`;
+  return avatarUrl;
 }
 
 export function mapUserProfileRow(user) {
@@ -65,6 +74,6 @@ export function mapUserProfileRow(user) {
     phone: user.phone,
     city: user.city,
     status: user.status,
-    avatar_url: user.avatar_url || null,
+    avatar_url: normalizeAvatarUrl(user.avatar_url),
   };
 }

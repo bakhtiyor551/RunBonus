@@ -20,8 +20,10 @@ export default function ProfilePage({ user, setUser, onLogout }) {
   const [avatarBase64, setAvatarBase64] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [avatarCacheKey, setAvatarCacheKey] = useState(0);
 
-  const displayAvatar = avatarPreview || resolveAvatarUrl(user.avatar_url);
+  const displayAvatar =
+    avatarPreview || resolveAvatarUrl(user.avatar_url, avatarCacheKey || undefined);
 
   useEffect(() => {
     if (!editing) {
@@ -84,6 +86,7 @@ export default function ProfilePage({ user, setUser, onLogout }) {
         body: JSON.stringify(body),
       });
       setUser(profile);
+      setAvatarCacheKey(Date.now());
       setEditing(false);
       setAvatarPreview(null);
       setAvatarBase64(null);

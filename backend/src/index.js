@@ -33,6 +33,7 @@ app.use(
 );
 app.use(express.json({ limit: '3mb' }));
 app.use('/uploads', express.static(UPLOADS_ROOT));
+app.use('/api/uploads', express.static(UPLOADS_ROOT));
 
 app.get('/api/health', async (_req, res) => {
   let withdrawals = false;

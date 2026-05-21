@@ -1,10 +1,23 @@
 import { API_URL } from '../api';
 
-export function resolveAvatarUrl(avatarUrl) {
+/** Публичный URL аватара (файлы отдаются через /api/uploads на сервере). */
+export function resolveAvatarUrl(avatarUrl, cacheKey) {
   if (!avatarUrl) return null;
-  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl;
-  const base = API_URL || '';
-  return `${base}${avatarUrl}`;
+  let path = avatarUrl;
+  if (/^https?:\/\//i.test(avatarUrl)) {
+    path = avatarUrl;
+  } else {
+    if (path.startsWith('/uploads/')) {
+      path = `/api${path}`;
+    }
+    const base = (API_URL || '').replace(/\/$/, '');
+    path = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+  if (cacheKey) {
+    const sep = path.includes('?') ? '&' : '?';
+    return `${path}${sep}v=${cacheKey}`;
+  }
+  return path;
 }
 
 /** Сжимает фото для загрузки (макс. 512px, JPEG). */
