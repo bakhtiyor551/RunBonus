@@ -10,8 +10,8 @@ import {
   getCurrentPosition,
 } from './geolocation';
 
-const SYNC_INTERVAL_MS = 7000;
-const BACKGROUND_POLL_MS = 12000;
+const SYNC_INTERVAL_MS = 8000;
+const BACKGROUND_POLL_MS = 10000;
 
 let session = null;
 const listeners = new Set();
@@ -64,9 +64,7 @@ function addPosition(pos) {
   const last = session.points[session.points.length - 1];
   const { record } = shouldRecordGpsPoint(last, pos, session.points);
 
-  if (!record) {
-    return;
-  }
+  if (!record) return;
 
   session.points = [...session.points, pos];
   session.distance = haversineKm(session.points);
