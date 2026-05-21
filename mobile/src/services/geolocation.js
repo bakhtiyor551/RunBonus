@@ -16,6 +16,29 @@ const MAX_JUMP_SECONDS = 4;
 /** Если новая точка в этом радиусе от «центра» последних точек — дрейф. */
 const STATIONARY_RADIUS_METERS = 28;
 const STATIONARY_RECENT_COUNT = 4;
+/** Минимальная скорость сегмента (км/ч), иначе считаем стоянием. */
+const MIN_SPEED_KMH = 1.5;
+/** Минимум между точками маршрута (мс). */
+const MIN_RECORD_INTERVAL_MS = 4000;
+
+function minSegmentForAccuracy(accuracy) {
+  const acc = Number(accuracy);
+  if (!Number.isFinite(acc) || acc <= 0) return MIN_SEGMENT_METERS;
+  return Math.max(MIN_SEGMENT_METERS, Math.min(20, acc * 0.4));
+}
+
+function isNearStationaryCluster(recent, pos) {
+  if (!recent?.length || !pos) return false;
+  let sumLat = 0;
+  let sumLon = 0;
+  for (const p of recent) {
+    sumLat += p.latitude;
+    sumLon += p.longitude;
+  }
+  const cLat = sumLat / recent.length;
+  const cLon = sumLon / recent.length;
+  return haversineMeters(cLat, cLon, pos.latitude, pos.longitude) < STATIONARY_RADIUS_METERS;
+}
 
 function isNative() {
   return Capacitor.isNativePlatform();
@@ -185,14 +208,9 @@ function isValidTrackPoint(pos) {
 /**
  * Стоит ли добавить точку в маршрут.
  */
-export function shouldRecordGpsPoint(last, pos) {
+export function shouldRecordGpsPoint(last, pos, recentPoints = []) {
   if (!isValidTrackPoint(pos)) {
     return { record: false, reason: 'accuracy_or_speed' };
-  }
-
-  const speed = pos.speed ?? 0;
-  if (speed > 0 && speed < MIN_SPEED_KMH) {
-    return { record: false, reason: 'speed' };
   }
 
   if (!last) {
@@ -226,7 +244,7 @@ export function shouldRecordGpsPoint(last, pos) {
   }
 
   const dt = segmentSeconds(last, pos);
-  if (dt != null && dt > 0) {
+  if (dt != null && dt > 0 && dt < 120) {
     const speedKmh = (distM / 1000 / dt) * 3600;
     if (speedKmh < MIN_SPEED_KMH) {
       return { record: false, reason: 'slow', distM };

@@ -48,11 +48,11 @@ export function persistWorkoutSession() {
 
 async function flushPointsToServer() {
   if (!session?.points.length || !navigator.onLine) return;
-  const last = session.points[session.points.length - 1];
+  const batch = session.points.slice(-80);
   try {
     await session.api(`/api/workouts/${session.workoutId}/points`, {
       method: 'POST',
-      body: JSON.stringify(last),
+      body: JSON.stringify({ points: batch }),
     });
   } catch {
     /* retry later */
