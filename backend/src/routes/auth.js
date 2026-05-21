@@ -7,6 +7,11 @@ import { authUser } from '../middleware/auth.js';
 import { getUserBalance } from '../services/bonusService.js';
 import { getWalletSummary } from '../services/withdrawalService.js';
 import { activateShoeForUser } from '../services/shoeActivationService.js';
+import {
+  buildDisplayName,
+  mapUserProfileRow,
+  saveAvatarFromDataUrl,
+} from '../utils/userProfile.js';
 
 const router = Router();
 
@@ -53,8 +58,9 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const [result] = await conn.query(
-      'INSERT INTO users (name, phone, password_hash, city) VALUES (?, ?, ?, ?)',
-      [name, phoneNorm, passwordHash, userCity]
+      `INSERT INTO users (name, first_name, last_name, phone, password_hash, city)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, firstName.trim(), lastName.trim(), phoneNorm, passwordHash, userCity]
     );
 
     const userId = result.insertId;
@@ -127,13 +133,53 @@ router.get('/me', authUser, async (req, res) => {
   }
 });
 
+router.patch('/profile', authUser, async (req, res) => {
+  try {
+    const firstName = String(req.body.firstName ?? req.body.first_name ?? '').trim();
+    const lastName = String(req.body.lastName ?? req.body.last_name ?? '').trim();
+    const avatarBase64 = req.body.avatarBase64 ?? req.body.avatar_base64 ?? null;
+
+    if (!firstName || !lastName) {
+      return res.status(400).json({ error: 'Укажите имя и фамилию' });
+    }
+
+    const name = buildDisplayName(firstName, lastName);
+    let avatarUrl;
+
+    if (avatarBase64) {
+      avatarUrl = saveAvatarFromDataUrl(req.userId, avatarBase64);
+    }
+
+    if (avatarUrl) {
+      await pool.query(
+        'UPDATE users SET name = ?, first_name = ?, last_name = ?, avatar_url = ? WHERE id = ?',
+        [name, firstName, lastName, avatarUrl, req.userId]
+      );
+    } else {
+      await pool.query(
+        'UPDATE users SET name = ?, first_name = ?, last_name = ? WHERE id = ?',
+        [name, firstName, lastName, req.userId]
+      );
+    }
+
+    const profile = await buildUserProfile(req.userId);
+    res.json(profile);
+  } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось сохранить профиль' });
+  }
+});
+
 async function buildUserProfile(userId) {
   const [users] = await pool.query(
-    'SELECT id, name, phone, city, status FROM users WHERE id = ?',
+    'SELECT id, name, first_name, last_name, avatar_url, phone, city, status FROM users WHERE id = ?',
     [userId]
   );
   if (!users.length) return null;
-  const user = users[0];
+  const base = mapUserProfileRow(users[0]);
 
   const [activeShoe] = await pool.query(
     `SELECT s.id, s.unique_id, s.model_name, s.status, s.max_bonus_limit
@@ -152,11 +198,7 @@ async function buildUserProfile(userId) {
   }
 
   return {
-    id: user.id,
-    name: user.name,
-    phone: user.phone,
-    city: user.city,
-    status: user.status,
+    ...base,
     balance: walletSummary.balance,
     blocked_balance: walletSummary.blocked_balance,
     available_balance: walletSummary.available_balance,

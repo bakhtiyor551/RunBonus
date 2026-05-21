@@ -1,6 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config } from './config.js';
+import { UPLOADS_ROOT } from './utils/userProfile.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import authRoutes from './routes/auth.js';
 import shoesRoutes from './routes/shoes.js';
 import workoutRoutes from './routes/workouts.js';
@@ -26,7 +31,8 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '3mb' }));
+app.use('/uploads', express.static(UPLOADS_ROOT));
 
 app.get('/api/health', async (_req, res) => {
   let withdrawals = false;

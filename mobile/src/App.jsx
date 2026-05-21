@@ -93,7 +93,7 @@ function App() {
           <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
           <Route path="/wallet" element={<WalletPage user={user} />} />
           <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
-          <Route path="/profile" element={<ProfilePage user={user} onLogout={logout} />} />
+          <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
           <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
           <Route path="/activate" element={<ActivatePage onActivated={async () => setUser(await api('/api/auth/me'))} />} />
           <Route path="/history" element={<HistoryPage />} />

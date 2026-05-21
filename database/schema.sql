@@ -4,6 +4,9 @@ USE runbonus;
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
+  first_name VARCHAR(60) NULL,
+  last_name VARCHAR(60) NULL,
+  avatar_url VARCHAR(500) NULL,
   phone VARCHAR(20) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   city VARCHAR(100) NOT NULL,
