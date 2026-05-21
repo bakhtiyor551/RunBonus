@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
+import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
 
 export default function LoginPage({ onAuth }) {
@@ -44,7 +45,7 @@ export default function LoginPage({ onAuth }) {
       </div>
       <header className="rb-header">
         <div className="rb-header__brand">
-          <Icon name="bolt" filled style={{ color: 'var(--rb-neon)' }} />
+          <BoltIcon size="md" />
           <h1 className="rb-header__logo">RunBonus</h1>
         </div>
       </header>

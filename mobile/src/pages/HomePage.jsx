@@ -7,6 +7,7 @@ import BottomNav from '../components/BottomNav';
 import ProgressRing from '../components/ProgressRing';
 import StatsDetailModal from '../components/StatsDetailModal';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
+import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
 import { countFinishedWorkouts } from '../utils/workoutStats';
 import { formatBalance, formatWorkoutDate } from '../utils/format';
@@ -96,7 +97,10 @@ export default function HomePage({ user, setUser }) {
         <main className="rb-main">
           <section style={{ marginBottom: 32 }}>
             <div className="glass-card" style={{ padding: 'var(--rb-card-padding)' }}>
-              <span className="rb-label">Баланс бонусов</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <BoltIcon size="sm" glow />
+                <span className="rb-label">Баланс бонусов</span>
+              </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
                 <span className="rb-display font-display">{formatBalance(user.balance)}</span>
                 <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, color: 'var(--rb-neon-dim)' }}>сомони</span>

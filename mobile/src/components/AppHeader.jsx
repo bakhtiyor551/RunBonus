@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import BoltIcon from './BoltIcon';
 import Icon from './Icon';
 
 export default function AppHeader({ showAvatar = true, badge, onBack }) {
@@ -10,7 +11,7 @@ export default function AppHeader({ showAvatar = true, badge, onBack }) {
         </button>
       ) : (
         <div className="rb-header__brand">
-          <Icon name="bolt" filled style={{ color: 'var(--rb-neon)' }} />
+          <BoltIcon size="md" />
           <h1 className="rb-header__logo">RunBonus</h1>
         </div>
       )}

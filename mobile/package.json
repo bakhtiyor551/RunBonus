@@ -13,7 +13,8 @@
     "cap:android": "npm run cap:sync && npx cap run android",
     "cap:ios": "npm run cap:sync && npx cap sync ios",
     "cap:open": "npx cap open android",
-    "cap:open:ios": "npx cap open ios"
+    "cap:open:ios": "npx cap open ios",
+    "icons": "node scripts/generate-icons.mjs && npx @capacitor/assets generate --iconBackgroundColor \"#131313\" --splashBackgroundColor \"#131313\""
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
@@ -32,8 +33,10 @@
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^6.1.2",
     "@vitejs/plugin-react": "^4.3.1",
+    "sharp": "^0.34.5",
     "vite": "^5.4.8"
   }
 }
