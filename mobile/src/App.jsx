@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { IonApp } from '@ionic/react';
 import { useEffect, useState } from 'react';
-import { api, logoutApi, setToken } from './api';
+import { api, logoutApi, onForcedLogout, setToken } from './api';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -13,12 +13,27 @@ import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
+import {
+  clearWorkoutLocal,
+  getActiveWorkoutId,
+  setActiveWorkoutId,
+} from './services/geolocation';
 import { syncActiveWorkoutWithServer } from './services/activeWorkout';
-import { startWorkoutSession } from './services/workoutTracker';
+import { startWorkoutSession, stopWorkoutSession } from './services/workoutTracker';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    return onForcedLogout(() => {
+      const id = getActiveWorkoutId();
+      stopWorkoutSession();
+      if (id) clearWorkoutLocal(id);
+      setActiveWorkoutId(null);
+      setUser(null);
+    });
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -28,13 +43,7 @@ function App() {
     }
     api('/api/auth/me')
       .then(setUser)
-      .catch((err) => {
-        if (err.code === 'DEVICE_MISMATCH') {
-          sessionStorage.setItem(
-            'auth_notice',
-            err.message || 'Аккаунт открыт на другом телефоне. Войдите снова на этом устройстве.'
-          );
-        }
+      .catch(() => {
         setToken(null);
       })
       .finally(() => setLoading(false));

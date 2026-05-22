@@ -152,12 +152,13 @@ export default function WorkoutPage({ user, setUser }) {
         navigate('/');
         return;
       }
+      if (err.code === 'DEVICE_MISMATCH') {
+        return;
+      }
       const msg =
-        err.code === 'DEVICE_MISMATCH'
-          ? `${err.message}\n\nВыйдите и войдите снова на этом телефоне.`
-          : err.code === 'DEVICE_REQUIRED'
-            ? 'Обновите приложение RunBonus и повторите вход.'
-            : err.message;
+        err.code === 'DEVICE_REQUIRED'
+          ? 'Обновите приложение RunBonus и повторите вход.'
+          : err.message;
       alert(msg);
       setFinishing(false);
       startWorkoutSession(workoutId, api).catch(() => {});
