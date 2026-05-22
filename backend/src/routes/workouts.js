@@ -10,7 +10,7 @@ import {
   capBonusByRemaining,
   applyWorkoutProgress,
   getLevelForKm,
-  MAX_SHOE_KM,
+  getMaxShoeKmFromLevels,
 } from '../services/customerLevelService.js';
 import { getActiveBonusSettings } from '../services/bonusSettingsService.js';
 import { getActiveBonusFund } from '../services/accountService.js';
@@ -350,7 +350,8 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         const progress = await ensureShoeProgress(conn, userId, workout.shoe_id);
         const kmBefore = Number(progress.total_km) || 0;
 
-        if (progress.is_completed || kmBefore >= MAX_SHOE_KM) {
+        const maxShoeKm = getMaxShoeKmFromLevels(customerLevels);
+        if (progress.is_completed || kmBefore >= maxShoeKm) {
           finalStatus = 'rejected';
           rejectReason = 'Лимит километража по этой паре кроссовок достигнут';
         } else {

@@ -141,6 +141,48 @@ export default function LevelPage() {
             </div>
           </section>
 
+          {data.all_levels?.length > 0 && (
+            <section style={{ marginTop: 32 }}>
+              <h2 className="rb-headline font-display" style={{ marginBottom: 16 }}>
+                Все уровни программы
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {data.all_levels.map((l) => (
+                  <div
+                    key={l.code}
+                    className="glass-card"
+                    style={{
+                      padding: 14,
+                      display: 'flex',
+                      gap: 12,
+                      alignItems: 'center',
+                      opacity: l.unlocked ? 1 : 0.5,
+                      borderColor: l.is_current ? (l.color ? `${l.color}66` : 'rgba(195,244,0,0.4)') : undefined,
+                    }}
+                  >
+                    <Icon
+                      name={l.icon || 'military_tech'}
+                      filled={l.is_current}
+                      style={{ color: l.color || 'var(--rb-on-surface-variant)' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <strong>{l.name}</strong>
+                      <p className="rb-label" style={{ margin: '4px 0 0', textTransform: 'none' }}>
+                        {l.from_km}–{l.to_km} км · {Number(l.price_per_km).toFixed(2)} сом/км
+                      </p>
+                    </div>
+                    {l.is_current && (
+                      <span className="rb-badge-live" style={{ fontSize: 10 }}>
+                        Сейчас
+                      </span>
+                    )}
+                    {!l.unlocked && <Icon name="lock" />}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section style={{ marginTop: 32, marginBottom: 24 }}>
             <h2 className="rb-headline font-display" style={{ marginBottom: 16 }}>
               Достижения
