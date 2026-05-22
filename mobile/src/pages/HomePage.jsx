@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { IonPage, IonContent } from '@ionic/react';
-import { api } from '../api';
+import { api, cacheUser } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import ProgressRing from '../components/ProgressRing';
@@ -97,6 +97,7 @@ export default function HomePage({ user, setUser }) {
 
   const refresh = async () => {
     const profile = await api('/api/auth/me');
+    cacheUser(profile);
     setUser(profile);
   };
 

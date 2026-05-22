@@ -42,8 +42,44 @@ function resolveApiUrl() {
 
 export const API_URL = resolveApiUrl();
 
+const USER_CACHE_KEY = 'rb_user_cache';
+
 function getToken() {
   return localStorage.getItem('token');
+}
+
+export function isNetworkError(err) {
+  if (!err) return true;
+  if (err.isNetworkError) return true;
+  const msg = String(err.message || '');
+  if (
+    /нет связи|network|failed to fetch|timeout|internet|offline|недоступен|ECONNREFUSED|ENOTFOUND|Unable to resolve host/i.test(
+      msg
+    )
+  ) {
+    return true;
+  }
+  return err.status == null || err.status === 0;
+}
+
+export function cacheUser(user) {
+  if (user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+  else localStorage.removeItem(USER_CACHE_KEY);
+}
+
+export function getCachedUser() {
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function networkError(message = 'Нет связи с сервером. Проверьте интернет.') {
+  const err = new Error(message);
+  err.isNetworkError = true;
+  return err;
 }
 
 function buildHeaders(extra = {}) {
@@ -138,7 +174,17 @@ async function requestNative(url, options = {}) {
     req.data = JSON.parse(options.body);
   }
 
-  const response = await CapacitorHttp.request(req);
+  let response;
+  try {
+    response = await CapacitorHttp.request(req);
+  } catch {
+    throw networkError();
+  }
+
+  if (!response.status) {
+    throw networkError();
+  }
+
   const data = parseBody(response.data);
 
   if (response.status < 200 || response.status >= 300) {
@@ -157,11 +203,11 @@ async function requestFetch(url, options = {}) {
     res = await fetch(fetchOptions);
   } catch (e) {
     if (e?.message?.includes('CORS') || e?.name === 'TypeError') {
-      throw new Error(
+      throw networkError(
         'Ошибка CORS. В dev не задавайте VITE_API_URL (прокси Vite) или укажите http://161.129.67.147'
       );
     }
-    throw new Error('Нет связи с сервером. Проверьте интернет и настройки API.');
+    throw networkError('Нет связи с сервером. Проверьте интернет и настройки API.');
   }
 
   const text = await res.text();
@@ -202,7 +248,10 @@ export async function api(path, options = {}) {
 
 export function setToken(token) {
   if (token) localStorage.setItem('token', token);
-  else localStorage.removeItem('token');
+  else {
+    localStorage.removeItem('token');
+    cacheUser(null);
+  }
 }
 
 /** Выход: снимает привязку, если выход с основного телефона. */

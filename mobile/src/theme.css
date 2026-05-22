@@ -699,6 +699,90 @@ select {
   }
 }
 
+/* Offline alert — centered, above bottom nav and sheets */
+.rb-offline-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding:
+    max(16px, env(safe-area-inset-top, 0px))
+    max(var(--rb-gutter), env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px))
+    max(var(--rb-gutter), env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+}
+
+.rb-offline-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.rb-offline-modal__panel {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  padding: 28px 24px;
+  text-align: center;
+  animation: rb-offline-pop 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes rb-offline-pop {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.rb-offline-modal__icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(195, 244, 0, 0.12);
+}
+
+.rb-offline-modal__title {
+  margin: 0 0 12px;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.rb-offline-modal__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rb-offline-modal__hint {
+  margin: 20px 0 0;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--rb-neon-dim);
+  animation: rb-offline-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes rb-offline-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .rb-profile-hero {
   text-align: center;
   margin-bottom: 32px;
