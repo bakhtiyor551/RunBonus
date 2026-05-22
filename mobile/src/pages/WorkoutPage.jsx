@@ -263,6 +263,20 @@ function CelebrateBlock({ result }) {
       <h1 className="font-display" style={{ fontSize: 32, color: 'var(--rb-neon)', textTransform: 'uppercase', margin: 0 }}>
         {result.title || 'Тренировка завершена!'}
       </h1>
+      {result.level_up?.message && (
+        <p
+          className="rb-headline"
+          style={{
+            marginTop: 16,
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: 'rgba(195,244,0,0.12)',
+            color: 'var(--rb-neon)',
+          }}
+        >
+          {result.level_up.message}
+        </p>
+      )}
       <p className="rb-text-muted" style={{ marginTop: 8 }}>Отличный результат</p>
     </div>
   );

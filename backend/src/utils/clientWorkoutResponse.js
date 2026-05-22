@@ -5,6 +5,7 @@ export function buildClientFinishResponse({
   distanceKm,
   balanceAfter,
   rejectReason,
+  levelUp,
 }) {
   const credited = finalStatus === 'approved' && bonusAmount > 0;
 
@@ -26,6 +27,7 @@ export function buildClientFinishResponse({
     balance_after: balanceAfter != null ? balanceAfter : undefined,
     reject_reason: rejectReason || undefined,
     message,
+    level_up: levelUp || undefined,
   };
 }
 

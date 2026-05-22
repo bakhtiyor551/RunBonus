@@ -182,7 +182,15 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                 <p className="rb-label" style={{ marginTop: 8 }}>
                   {formatBalance(user.balance)} сомони
                 </p>
-                <button type="button" className="rb-link" style={{ marginTop: 16, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }} onClick={startEdit}>
+                <button
+                  type="button"
+                  className="rb-link"
+                  style={{ marginTop: 16, display: 'block', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                  onClick={() => navigate('/level')}
+                >
+                  Мой уровень
+                </button>
+                <button type="button" className="rb-link" style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }} onClick={startEdit}>
                   Редактировать профиль
                 </button>
               </>

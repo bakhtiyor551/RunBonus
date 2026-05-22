@@ -91,6 +91,43 @@ function ClientProfileCard({ profile, children }) {
           </div>
         </div>
 
+        {profile.level_info?.current_level && (
+          <>
+            <h4 className="client-profile-info__section">Уровень клиента</h4>
+            <div className="client-profile-info__grid">
+              <div className="client-profile-info__item">
+                <span className="client-profile-info__label">Текущий уровень</span>
+                <strong>{profile.level_info.current_level}</strong>
+              </div>
+              <div className="client-profile-info__item">
+                <span className="client-profile-info__label">Км по паре</span>
+                <strong>{Number(profile.level_info.total_km).toFixed(1)}</strong>
+              </div>
+              <div className="client-profile-info__item">
+                <span className="client-profile-info__label">Бонус по паре</span>
+                <strong>{formatMoney(profile.level_info.total_bonus)}</strong>
+              </div>
+              <div className="client-profile-info__item">
+                <span className="client-profile-info__label">Следующий</span>
+                <strong>{profile.level_info.next_level || '—'}</strong>
+              </div>
+            </div>
+            {profile.level_info.level_transitions?.length > 0 && (
+              <>
+                <h4 className="client-profile-info__section">История переходов</h4>
+                <ul className="hint" style={{ margin: 0, paddingLeft: 18 }}>
+                  {profile.level_info.level_transitions.slice(0, 8).map((t) => (
+                    <li key={`${t.level_name}-${t.reached_at}`}>
+                      {t.level_name} — {Number(t.reached_km).toFixed(1)} км (
+                      {new Date(t.reached_at).toLocaleDateString('ru-RU')})
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        )}
+
         <h4 className="client-profile-info__section">Кроссовки</h4>
         {profile.shoe ? (
           <div className="client-profile-info__grid">

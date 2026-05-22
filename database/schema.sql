@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS workouts (
   reject_reason VARCHAR(500) NULL,
   price_per_km DECIMAL(10, 2) NULL,
   calculated_bonus DECIMAL(10, 2) NULL,
+  level_snapshot JSON NULL,
+  bonus_breakdown JSON NULL,
   client_visible_map BOOLEAN NOT NULL DEFAULT FALSE,
   client_visible_limits BOOLEAN NOT NULL DEFAULT FALSE,
   background_tracking BOOLEAN NOT NULL DEFAULT TRUE,
@@ -193,6 +195,49 @@ CREATE TABLE IF NOT EXISTS bonus_settings (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS customer_levels (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  code VARCHAR(50) NOT NULL,
+  from_km DECIMAL(10,2) NOT NULL,
+  to_km DECIMAL(10,2) NOT NULL,
+  price_per_km DECIMAL(10,2) NOT NULL,
+  color VARCHAR(50) NULL,
+  icon VARCHAR(100) NULL,
+  status ENUM('active','inactive') DEFAULT 'active',
+  description TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_customer_levels_code (code)
+);
+
+CREATE TABLE IF NOT EXISTS user_shoe_progress (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  shoe_id INT NOT NULL,
+  total_km DECIMAL(10,2) DEFAULT 0,
+  total_bonus DECIMAL(10,2) DEFAULT 0,
+  current_level_id BIGINT NULL,
+  is_completed BOOLEAN DEFAULT FALSE,
+  completed_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_user_shoe (user_id, shoe_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (shoe_id) REFERENCES shoes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_level_history (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  shoe_id INT NOT NULL,
+  level_id BIGINT NOT NULL,
+  reached_km DECIMAL(10,2) NOT NULL,
+  reached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (shoe_id) REFERENCES shoes(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS bonus_settings_log (

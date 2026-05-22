@@ -47,9 +47,11 @@ export default function HomePage({ user, setUser }) {
   const [statsModal, setStatsModal] = useState(null);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(() => getActiveWorkoutId());
+  const [levelInfo, setLevelInfo] = useState(null);
 
   useEffect(() => {
     api('/api/workouts/history').then(setWorkouts).catch(() => {});
+    api('/api/me/level').then(setLevelInfo).catch(() => {});
     syncActiveWorkoutWithServer()
       .then(({ workoutId }) => {
         setActiveWorkoutIdState(workoutId || getWorkoutSession()?.workoutId || null);
@@ -118,6 +120,40 @@ export default function HomePage({ user, setUser }) {
               </button>
             </div>
           </section>
+
+          {levelInfo?.current_level && (
+            <section style={{ marginBottom: 24 }}>
+              <button
+                type="button"
+                className="glass-card"
+                style={{
+                  width: '100%',
+                  padding: 'var(--rb-card-padding)',
+                  textAlign: 'left',
+                  border: 'none',
+                  cursor: 'pointer',
+                  borderColor: levelInfo.color ? `${levelInfo.color}44` : undefined,
+                }}
+                onClick={() => navigate('/level')}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span className="rb-label">Ваш уровень</span>
+                    <p className="rb-headline font-display" style={{ margin: '4px 0 0', color: levelInfo.color || 'var(--rb-neon)' }}>
+                      {levelInfo.current_level}
+                    </p>
+                    <p className="rb-text-muted" style={{ margin: '8px 0 0', fontSize: 14 }}>
+                      Прогресс: {Number(levelInfo.total_km).toFixed(1)} км
+                      {levelInfo.next_level && !levelInfo.is_completed && (
+                        <> · след. {levelInfo.next_level}</>
+                      )}
+                    </p>
+                  </div>
+                  <Icon name="chevron_right" />
+                </div>
+              </button>
+            </section>
+          )}
 
           <section style={{ marginBottom: 40 }}>
             {activeWorkoutId ? (

@@ -12,6 +12,7 @@ import WalletPage from './pages/WalletPage';
 import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
+import LevelPage from './pages/LevelPage';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
 import {
   clearWorkoutLocal,
@@ -122,6 +123,7 @@ function App() {
             element={<ActivatePage user={user} onActivated={async () => setUser(await api('/api/auth/me'))} />}
           />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/level" element={<LevelPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

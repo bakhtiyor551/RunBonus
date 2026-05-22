@@ -1,4 +1,5 @@
 import { assertQrActivationDevice } from './deviceBinding.js';
+import { ensureShoeProgress } from './customerLevelService.js';
 
 export async function activateShoeForUser(conn, userId, uniqueIdRaw, deviceId) {
   await assertQrActivationDevice(conn, userId, deviceId);
@@ -52,6 +53,8 @@ export async function activateShoeForUser(conn, userId, uniqueIdRaw, deviceId) {
      ON DUPLICATE KEY UPDATE shoe_id = VALUES(shoe_id)`,
     [userId, shoe.id]
   );
+
+  await ensureShoeProgress(conn, userId, shoe.id);
 
   return {
     id: shoe.id,
