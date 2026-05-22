@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
@@ -38,12 +38,13 @@ function LevelBadge({ level, color, icon }) {
 }
 
 export default function LevelPage() {
-  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadLevel = () => {
+    setLoading(true);
     Promise.all([api('/api/me/level'), api('/api/me/level-history')])
       .then(([level, hist]) => {
         setData(level);
@@ -51,16 +52,21 @@ export default function LevelPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    loadLevel();
+  }, [location.pathname]);
 
   if (loading) {
     return (
       <IonPage>
-        <AppHeader onBack={() => navigate(-1)} showAvatar={false} />
+        <AppHeader />
         <IonContent>
           <main className="rb-main">
             <p className="rb-text-muted">Загрузка…</p>
           </main>
+          <BottomNav />
         </IonContent>
       </IonPage>
     );
@@ -69,9 +75,12 @@ export default function LevelPage() {
   if (!data?.current_level && !data?.is_completed) {
     return (
       <IonPage>
-        <AppHeader onBack={() => navigate(-1)} showAvatar={false} />
+        <AppHeader />
         <IonContent>
           <main className="rb-main">
+            <h1 className="rb-headline font-display" style={{ marginBottom: 16 }}>
+              Мой уровень
+            </h1>
             <p className="rb-text-muted">Активируйте кроссовки, чтобы начать прогресс уровней.</p>
           </main>
           <BottomNav />
@@ -82,7 +91,7 @@ export default function LevelPage() {
 
   return (
     <IonPage>
-      <AppHeader title="Мой уровень" onBack={() => navigate(-1)} showAvatar={false} />
+      <AppHeader />
       <IonContent>
         <main className="rb-main">
           <h1 className="rb-headline font-display" style={{ marginBottom: 24 }}>
@@ -91,20 +100,10 @@ export default function LevelPage() {
           <LevelBadge level={data.current_level} color={data.color} icon={data.icon} />
 
           <div className="glass-card" style={{ padding: 'var(--rb-card-padding)', marginTop: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div>
-                <span className="rb-label">Общий километраж</span>
-                <p className="rb-display font-display" style={{ margin: '4px 0 0', fontSize: 28 }}>
-                  {Number(data.total_km).toFixed(1)} км
-                </p>
-              </div>
-              <div>
-                <span className="rb-label">Бонус по паре</span>
-                <p className="rb-display font-display" style={{ margin: '4px 0 0', fontSize: 28 }}>
-                  {Number(data.total_bonus || 0).toFixed(0)}
-                </p>
-              </div>
-            </div>
+            <span className="rb-label">Общий километраж</span>
+            <p className="rb-display font-display" style={{ margin: '4px 0 0', fontSize: 28 }}>
+              {Number(data.total_km).toFixed(1)} км
+            </p>
             {data.next_level && !data.is_completed && (
               <p className="rb-text-muted" style={{ marginTop: 16, marginBottom: 0 }}>
                 Следующий уровень: <strong style={{ color: 'var(--rb-neon)' }}>{data.next_level}</strong>
@@ -140,48 +139,6 @@ export default function LevelPage() {
               {!history.length && <p className="rb-text-muted">Пока нет переходов</p>}
             </div>
           </section>
-
-          {data.all_levels?.length > 0 && (
-            <section style={{ marginTop: 32 }}>
-              <h2 className="rb-headline font-display" style={{ marginBottom: 16 }}>
-                Все уровни программы
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {data.all_levels.map((l) => (
-                  <div
-                    key={l.code}
-                    className="glass-card"
-                    style={{
-                      padding: 14,
-                      display: 'flex',
-                      gap: 12,
-                      alignItems: 'center',
-                      opacity: l.unlocked ? 1 : 0.5,
-                      borderColor: l.is_current ? (l.color ? `${l.color}66` : 'rgba(195,244,0,0.4)') : undefined,
-                    }}
-                  >
-                    <Icon
-                      name={l.icon || 'military_tech'}
-                      filled={l.is_current}
-                      style={{ color: l.color || 'var(--rb-on-surface-variant)' }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <strong>{l.name}</strong>
-                      <p className="rb-label" style={{ margin: '4px 0 0', textTransform: 'none' }}>
-                        {l.from_km}–{l.to_km} км · {Number(l.price_per_km).toFixed(2)} сом/км
-                      </p>
-                    </div>
-                    {l.is_current && (
-                      <span className="rb-badge-live" style={{ fontSize: 10 }}>
-                        Сейчас
-                      </span>
-                    )}
-                    {!l.unlocked && <Icon name="lock" />}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
 
           <section style={{ marginTop: 32, marginBottom: 24 }}>
             <h2 className="rb-headline font-display" style={{ marginBottom: 16 }}>
