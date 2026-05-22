@@ -6,6 +6,11 @@ import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 
+function achievementDescription(text) {
+  if (!text) return '';
+  return text.replace(/\s*·\s*[\d.,]+\s*сом\/км/gi, '').trim();
+}
+
 function LevelBadge({ level, color, icon }) {
   return (
     <div
@@ -162,7 +167,7 @@ export default function LevelPage() {
                   />
                   <p style={{ margin: '8px 0 0', fontWeight: 600 }}>{a.title}</p>
                   <p className="rb-label" style={{ margin: '4px 0 0', textTransform: 'none', fontSize: 11 }}>
-                    {a.description}
+                    {achievementDescription(a.description)}
                   </p>
                 </div>
               ))}
