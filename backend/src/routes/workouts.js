@@ -10,7 +10,7 @@ import {
   capBonusByRemaining,
   applyWorkoutProgress,
   getLevelForKm,
-  MAX_SHOE_KM,
+  getMaxShoeKmFromLevels,
 } from '../services/customerLevelService.js';
 import { getActiveBonusSettings } from '../services/bonusSettingsService.js';
 import { getActiveBonusFund } from '../services/accountService.js';
@@ -66,6 +66,25 @@ async function getInProgressWorkout(conn, userId) {
   );
   return rows[0] || null;
 }
+
+router.get('/active', authUser, async (req, res) => {
+  try {
+    const conn = await pool.getConnection();
+    try {
+      await closeStaleWorkouts(conn, req.userId);
+      const existing = await getInProgressWorkout(conn, req.userId);
+      if (!existing) {
+        return res.json({ active: false, workoutId: null });
+      }
+      res.json({ active: true, workoutId: existing.id, id: existing.id });
+    } finally {
+      conn.release();
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
 
 router.post('/start', authUser, requireActiveUser, async (req, res) => {
   const conn = await pool.getConnection();
@@ -218,15 +237,26 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     );
 
     if (!workouts.length) {
+      const [any] = await conn.query(
+        'SELECT id, status FROM workouts WHERE id = ? AND user_id = ?',
+        [workoutId, userId]
+      );
       await conn.rollback();
+      if (any.length) {
+        return {
+          status: 400,
+          body: {
+            error: 'Эта тренировка уже завершена. Начните новую с главного экрана.',
+            code: 'WORKOUT_NOT_ACTIVE',
+            workout_id: any[0].id,
+            status: any[0].status,
+          },
+        };
+      }
       return { status: 404, body: { error: 'Тренировка не найдена' } };
     }
 
     const workout = workouts[0];
-    if (workout.status !== 'in_progress') {
-      await conn.rollback();
-      return { status: 400, body: { error: 'Тренировка уже завершена' } };
-    }
 
     if (clientPoints?.length) {
       let last = await getLastWorkoutPoint(workoutId, conn);
@@ -320,7 +350,8 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         const progress = await ensureShoeProgress(conn, userId, workout.shoe_id);
         const kmBefore = Number(progress.total_km) || 0;
 
-        if (progress.is_completed || kmBefore >= MAX_SHOE_KM) {
+        const maxShoeKm = getMaxShoeKmFromLevels(customerLevels);
+        if (progress.is_completed || kmBefore >= maxShoeKm) {
           finalStatus = 'rejected';
           rejectReason = 'Лимит километража по этой паре кроссовок достигнут';
         } else {

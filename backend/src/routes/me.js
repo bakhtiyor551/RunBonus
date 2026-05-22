@@ -20,6 +20,8 @@ router.get('/level', authUser, async (req, res) => {
       icon: summary.icon,
       total_bonus: summary.total_bonus,
       achievements: summary.achievements,
+      all_levels: summary.all_levels,
+      max_shoe_km: summary.max_shoe_km,
     });
   } catch (err) {
     console.error(err);

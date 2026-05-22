@@ -1,8 +1,16 @@
 import { pool } from '../db.js';
 
-export const MAX_SHOE_KM = 200;
+/** Запасной лимит, если в БД нет уровней */
+export const DEFAULT_MAX_SHOE_KM = 200;
 
 const MAX_SHOE_BONUS = 221;
+
+/** Максимальный км по активным уровням из админки */
+export function getMaxShoeKmFromLevels(levels) {
+  const active = (levels || []).filter((l) => l.status === 'active');
+  if (!active.length) return DEFAULT_MAX_SHOE_KM;
+  return Math.max(...active.map((l) => Number(l.to_km)));
+}
 
 function round2(n) {
   return Math.round(Number(n) * 100) / 100;
@@ -34,10 +42,11 @@ export async function getAllCustomerLevels(conn = pool) {
 export function getLevelForKm(totalKm, levels) {
   const km = Number(totalKm) || 0;
   const active = levels.filter((l) => l.status === 'active');
+  const maxKm = getMaxShoeKmFromLevels(levels);
   if (!active.length) {
-    return { level: null, next: null, completed: km >= MAX_SHOE_KM };
+    return { level: null, next: null, completed: km >= maxKm };
   }
-  if (km >= MAX_SHOE_KM) {
+  if (km >= maxKm) {
     return { level: active[active.length - 1], next: null, completed: true };
   }
   for (let i = 0; i < active.length; i++) {
@@ -57,11 +66,12 @@ export function getLevelForKm(totalKm, levels) {
 export function calcTieredBonus(kmBefore, workoutKm, levels) {
   const before = Math.max(0, Number(kmBefore) || 0);
   const distance = Math.max(0, Number(workoutKm) || 0);
-  if (before >= MAX_SHOE_KM || distance <= 0) {
+  const maxKm = getMaxShoeKmFromLevels(levels);
+  if (before >= maxKm || distance <= 0) {
     return { bonus: 0, breakdown: [], kmAfter: before, effectiveKm: 0 };
   }
 
-  const kmEnd = Math.min(before + distance, MAX_SHOE_KM);
+  const kmEnd = Math.min(before + distance, maxKm);
   const effectiveKm = kmEnd - before;
   const breakdown = [];
   let totalBonus = 0;
@@ -69,7 +79,7 @@ export function calcTieredBonus(kmBefore, workoutKm, levels) {
   for (const level of levels) {
     if (level.status !== 'active') continue;
     const bandStart = level.from_km;
-    const bandEnd = Math.min(level.to_km, MAX_SHOE_KM);
+    const bandEnd = Math.min(level.to_km, maxKm);
     if (before >= bandEnd) continue;
 
     const overlapStart = Math.max(before, bandStart);
@@ -123,7 +133,13 @@ export async function ensureShoeProgress(conn, userId, shoeId) {
           `UPDATE user_shoe_progress SET total_km = ?, current_level_id = ?,
            is_completed = ?, completed_at = IF(?, NOW(), NULL)
            WHERE id = ?`,
-          [round2(km), level?.id ?? null, km >= MAX_SHOE_KM, km >= MAX_SHOE_KM, row.id]
+          [
+            round2(km),
+            level?.id ?? null,
+            km >= getMaxShoeKmFromLevels(levels),
+            km >= getMaxShoeKmFromLevels(levels),
+            row.id,
+          ]
         );
         row.total_km = km;
       }
@@ -134,7 +150,7 @@ export async function ensureShoeProgress(conn, userId, shoeId) {
   const km = await backfillShoeKm(conn, userId, shoeId);
   const levels = await getActiveCustomerLevels(conn);
   const { level } = getLevelForKm(km, levels);
-  const completed = km >= MAX_SHOE_KM;
+  const completed = km >= getMaxShoeKmFromLevels(levels);
 
   const [result] = await conn.query(
     `INSERT INTO user_shoe_progress
@@ -172,19 +188,20 @@ async function recordLevelMilestones(conn, userId, shoeId, kmBefore, kmAfter, le
       }
     }
   }
-  if (kmBefore < MAX_SHOE_KM && kmAfter >= MAX_SHOE_KM) {
-    const completionLevel = levels.find((l) => l.to_km >= MAX_SHOE_KM) || levels[levels.length - 1];
+  const maxKm = getMaxShoeKmFromLevels(levels);
+  if (kmBefore < maxKm && kmAfter >= maxKm) {
+    const completionLevel = levels.find((l) => l.to_km >= maxKm) || levels[levels.length - 1];
     if (completionLevel) {
       const [dup] = await conn.query(
         `SELECT id FROM user_level_history
          WHERE user_id = ? AND shoe_id = ? AND level_id = ? AND reached_km >= ?`,
-        [userId, shoeId, completionLevel.id, MAX_SHOE_KM]
+        [userId, shoeId, completionLevel.id, maxKm]
       );
       if (!dup.length) {
         await conn.query(
           `INSERT INTO user_level_history (user_id, shoe_id, level_id, reached_km)
            VALUES (?, ?, ?, ?)`,
-          [userId, shoeId, completionLevel.id, MAX_SHOE_KM]
+          [userId, shoeId, completionLevel.id, maxKm]
         );
       }
     }
@@ -197,10 +214,11 @@ async function recordLevelMilestones(conn, userId, shoeId, kmBefore, kmAfter, le
 export async function applyWorkoutProgress(conn, userId, shoeId, distanceKm, bonusCredited) {
   const progress = await ensureShoeProgress(conn, userId, shoeId);
   const kmBefore = Number(progress.total_km) || 0;
-  const kmAfter = round2(Math.min(kmBefore + distanceKm, MAX_SHOE_KM));
   const levels = await getActiveCustomerLevels(conn);
+  const maxKm = getMaxShoeKmFromLevels(levels);
+  const kmAfter = round2(Math.min(kmBefore + distanceKm, maxKm));
   const { level } = getLevelForKm(kmAfter, levels);
-  const completed = kmAfter >= MAX_SHOE_KM;
+  const completed = kmAfter >= maxKm;
 
   const [historyBefore] = await conn.query(
     `SELECT level_id FROM user_level_history WHERE user_id = ? AND shoe_id = ?`,
@@ -288,6 +306,10 @@ export async function getUserLevelSummary(userId, conn = pool) {
     progressToNext = round2(Math.max(0, next.from_km - totalKm));
   }
 
+  if (totalKm > 0 && levels.length) {
+    await recordLevelMilestones(conn, userId, shoeId, 0, totalKm, levels);
+  }
+
   const [history] = await conn.query(
     `SELECT ulh.id, ulh.reached_km, ulh.reached_at, cl.name, cl.code, cl.color, cl.icon
      FROM user_level_history ulh
@@ -297,7 +319,8 @@ export async function getUserLevelSummary(userId, conn = pool) {
     [userId, shoeId]
   );
 
-  const achievements = buildAchievements(history);
+  const maxKm = getMaxShoeKmFromLevels(levels);
+  const achievements = buildAchievements(history, completed, totalKm, levels, maxKm);
 
   return {
     current_level: level?.name ?? (completed ? 'Завершено' : null),
@@ -310,8 +333,21 @@ export async function getUserLevelSummary(userId, conn = pool) {
     color: level?.color ?? null,
     icon: level?.icon ?? null,
     total_bonus: round2(progress.total_bonus),
+    max_shoe_km: maxKm,
     active_shoe: shoes[0],
     achievements,
+    all_levels: levels.map((l) => ({
+      id: l.id,
+      name: l.name,
+      code: l.code,
+      from_km: l.from_km,
+      to_km: l.to_km,
+      price_per_km: l.price_per_km,
+      color: l.color,
+      icon: l.icon,
+      unlocked: totalKm >= l.from_km || codesFromHistory(history).has(l.code),
+      is_current: level?.id === l.id,
+    })),
     level_history: history.map((h) => ({
       id: h.id,
       level: h.name,
@@ -324,28 +360,28 @@ export async function getUserLevelSummary(userId, conn = pool) {
   };
 }
 
-function buildAchievements(history) {
-  const codes = new Set(history.map((h) => h.code));
-  return [
-    {
-      id: 'bronze',
-      title: 'Bronze',
-      unlocked: codes.has('bronze'),
-      description: 'Достигнут уровень Bronze',
-    },
-    {
-      id: 'silver',
-      title: 'Silver',
-      unlocked: codes.has('silver'),
-      description: 'Достигнут уровень Silver',
-    },
-    {
-      id: 'gold',
-      title: 'Gold',
-      unlocked: codes.has('gold'),
-      description: 'Достигнут уровень Gold',
-    },
-  ];
+function codesFromHistory(history) {
+  return new Set((history || []).map((h) => h.code));
+}
+
+function buildAchievements(history, completed, totalKm, levels, maxKm) {
+  const codes = codesFromHistory(history);
+  const active = (levels || []).filter((l) => l.status === 'active');
+  const items = active.map((l) => ({
+    id: l.code,
+    title: l.name,
+    unlocked: codes.has(l.code) || totalKm >= l.from_km,
+    description: `${l.from_km}–${l.to_km} км · ${l.price_per_km} сом/км`,
+    color: l.color,
+    icon: l.icon,
+  }));
+  items.push({
+    id: 'complete',
+    title: `${maxKm} км`,
+    unlocked: completed || totalKm >= maxKm,
+    description: 'Полный километраж по паре кроссовок',
+  });
+  return items;
 }
 
 export async function getAdminClientLevelInfo(userId, conn = pool) {
