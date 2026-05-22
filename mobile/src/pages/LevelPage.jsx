@@ -146,7 +146,7 @@ export default function LevelPage() {
               Достижения
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {(data.achievements || []).map((a) => (
+              {(data.achievements || []).filter((a) => a.id !== 'complete').map((a) => (
                 <div
                   key={a.id}
                   className="glass-card"

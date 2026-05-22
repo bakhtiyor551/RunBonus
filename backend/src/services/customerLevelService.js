@@ -297,7 +297,7 @@ export async function getUserLevelSummary(userId, conn = pool) {
     [userId, shoeId]
   );
 
-  const achievements = buildAchievements(history, completed, totalKm);
+  const achievements = buildAchievements(history);
 
   return {
     current_level: level?.name ?? (completed ? 'Завершено' : null),
@@ -324,7 +324,7 @@ export async function getUserLevelSummary(userId, conn = pool) {
   };
 }
 
-function buildAchievements(history, completed, totalKm) {
+function buildAchievements(history) {
   const codes = new Set(history.map((h) => h.code));
   return [
     {
@@ -344,12 +344,6 @@ function buildAchievements(history, completed, totalKm) {
       title: 'Gold',
       unlocked: codes.has('gold'),
       description: 'Достигнут уровень Gold',
-    },
-    {
-      id: 'complete',
-      title: '200 км',
-      unlocked: completed || totalKm >= MAX_SHOE_KM,
-      description: 'Полный километраж по паре кроссовок',
     },
   ];
 }
