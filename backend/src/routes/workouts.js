@@ -15,7 +15,12 @@ import {
   buildClientFinishResponse,
   CLIENT_START_ERRORS,
 } from '../utils/clientWorkoutResponse.js';
-import { isSameCoordinates, normalizeGpsPoint, shouldSaveGpsPoint } from '../utils/geo.js';
+import {
+  calcDistanceFromPoints,
+  isSameCoordinates,
+  normalizeGpsPoint,
+  shouldSaveGpsPoint,
+} from '../utils/geo.js';
 
 const router = Router();
 
@@ -173,7 +178,7 @@ router.post('/:id/points', authUser, async (req, res) => {
   }
 });
 
-async function finishWorkout(workoutId, userId, clientPoints) {
+async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -215,12 +220,56 @@ async function finishWorkout(workoutId, userId, clientPoints) {
 
     const startedAt = new Date(workout.started_at);
     const finishedAt = new Date();
-    const durationSeconds = Math.floor((finishedAt - startedAt) / 1000);
+    const serverDuration = Math.floor((finishedAt - startedAt) / 1000);
+    const clientDuration = Number(clientMeta.duration_seconds);
+    const durationSeconds =
+      clientDuration > 0 ? Math.floor(clientDuration) : serverDuration;
 
     const settings = await getActiveBonusSettings(conn);
-    const validation = validateWorkout(dbPoints, durationSeconds, settings);
+    let validation = validateWorkout(dbPoints, durationSeconds, settings);
 
-    const distanceKm = validation.distanceKm ?? 0;
+    let clientTrackDistance = 0;
+    if (clientPoints?.length) {
+      const batch = Array.isArray(clientPoints) ? clientPoints : [clientPoints];
+      clientTrackDistance = calcDistanceFromPoints(
+        batch.map(normalizeGpsPoint).filter(Boolean)
+      );
+    }
+    const clientDistanceKm = Number(clientMeta.distance_km);
+
+    let distanceKm = validation.distanceKm ?? 0;
+    if (distanceKm < 0.001 && clientTrackDistance > distanceKm) {
+      distanceKm = clientTrackDistance;
+    }
+    if (distanceKm < 0.001 && clientDistanceKm > 0) {
+      distanceKm = clientDistanceKm;
+    }
+
+    const minDurationSec = (settings?.min_duration_minutes ?? 5) * 60;
+    const minDistanceKm = settings?.min_distance_km ?? 0.5;
+
+    if (!validation.ok && validation.reason?.includes('GPS')) {
+      if (durationSeconds >= minDurationSec && distanceKm >= minDistanceKm) {
+        const avgSpeed =
+          durationSeconds > 0 ? (distanceKm / durationSeconds) * 3600 : 0;
+        validation = {
+          ok: true,
+          status: 'approved',
+          distanceKm,
+          avgSpeed,
+          maxSpeed: validation.maxSpeed ?? 0,
+        };
+      } else {
+        validation = {
+          ...validation,
+          distanceKm,
+          reason:
+            durationSeconds < minDurationSec
+              ? `Минимум ${settings?.min_duration_minutes ?? 5} мин (сейчас ${Math.floor(durationSeconds / 60)} мин)`
+              : `Минимум ${minDistanceKm} км (сейчас ${distanceKm.toFixed(2)} км)`,
+        };
+      }
+    }
     const pricePerKm = settings.price_per_km;
     const rawCalculatedBonus = calcRawBonus(distanceKm, pricePerKm);
 
@@ -325,7 +374,7 @@ async function finishWorkout(workoutId, userId, clientPoints) {
 router.post('/finish', authUser, async (req, res) => {
   try {
     const workout_id = req.body.workout_id ?? req.params.id;
-    const result = await finishWorkout(workout_id, req.userId, req.body.points);
+    const result = await finishWorkout(workout_id, req.userId, req.body.points, req.body);
     res.status(result.status).json(result.body);
   } catch (err) {
     console.error(err);
@@ -335,7 +384,7 @@ router.post('/finish', authUser, async (req, res) => {
 
 router.post('/:id/finish', authUser, async (req, res) => {
   try {
-    const result = await finishWorkout(req.params.id, req.userId, req.body.points);
+    const result = await finishWorkout(req.params.id, req.userId, req.body.points, req.body);
     res.status(result.status).json(result.body);
   } catch (err) {
     console.error(err);

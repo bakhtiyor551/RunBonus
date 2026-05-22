@@ -52,26 +52,40 @@ export default function WorkoutPage({ user, setUser }) {
     }
   };
 
+  const samplePoints = (pts, max = 120) => {
+    if (pts.length <= max) return pts;
+    const step = Math.ceil(pts.length / max);
+    return pts.filter((_, i) => i % step === 0);
+  };
+
   const finish = async () => {
     if (finishing || !workoutId) return;
     setFinishing(true);
+
+    const snapDistance = live.distance;
+    const snapSeconds = live.seconds;
+
     let points = filterTrackPoints(getWorkoutPoints());
     if (points.length < 2) {
       try {
         const pos = await getCurrentPosition();
-        const existing = getWorkoutPoints();
-        points = filterTrackPoints([...existing, pos]);
+        points = filterTrackPoints([...getWorkoutPoints(), pos]);
       } catch {
         /* завершим с тем, что есть */
       }
     }
-    stopWorkoutSession();
+    points = samplePoints(points);
 
     try {
       const data = await api(`/api/workouts/${workoutId}/finish`, {
         method: 'POST',
-        body: JSON.stringify({ points }),
+        body: JSON.stringify({
+          points,
+          distance_km: snapDistance,
+          duration_seconds: snapSeconds,
+        }),
       });
+      stopWorkoutSession();
       clearWorkoutLocal(workoutId);
       setActiveWorkoutId(null);
       setResult(data);
@@ -82,6 +96,18 @@ export default function WorkoutPage({ user, setUser }) {
         setUser(profile);
       }
     } catch (err) {
+      if (err.message?.includes('уже завершена')) {
+        stopWorkoutSession();
+        clearWorkoutLocal(workoutId);
+        setActiveWorkoutId(null);
+        setResult({
+          title: 'Тренировка завершена',
+          distance_km: snapDistance,
+          bonus_credited: false,
+          message: 'Тренировка уже была сохранена ранее',
+        });
+        return;
+      }
       const msg =
         err.code === 'DEVICE_MISMATCH'
           ? `${err.message}\n\nВыйдите и войдите снова на этом телефоне.`

@@ -7,7 +7,7 @@ const GPS_INTERVAL_MS = 8000;
 /** Минимальное смещение для новой точки маршрута (~5 м). */
 export const MIN_SEGMENT_METERS = 5;
 
-export const MAX_ACCURACY_METERS = 50;
+export const MAX_ACCURACY_METERS = 80;
 export const MAX_SPEED_KMH = 25;
 /** Минимальная скорость (км/ч), иначе считаем стоянием / шум GPS. */
 export const MIN_SPEED_KMH = 1.5;
@@ -20,6 +20,10 @@ const MAX_JUMP_SECONDS = 4;
 /** Если новая точка в этом радиусе от «центра» последних точек — дрейф. */
 const STATIONARY_RADIUS_METERS = 28;
 const STATIONARY_RECENT_COUNT = 4;
+/** Минимальная скорость сегмента (км/ч), иначе считаем стоянием. */
+const MIN_SPEED_KMH = 1.5;
+/** Минимум между точками маршрута (мс). */
+const MIN_RECORD_INTERVAL_MS = 3000;
 
 function minSegmentForAccuracy(accuracy) {
   const acc = Number(accuracy);
