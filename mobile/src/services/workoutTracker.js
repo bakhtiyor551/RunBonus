@@ -47,15 +47,17 @@ export function persistWorkoutSession() {
 }
 
 async function flushPointsToServer() {
-  if (!session?.points.length || !navigator.onLine) return;
+  if (!session?.points.length || !navigator.onLine || session.serverStale) return;
   const batch = session.points.slice(-80);
   try {
     await session.api(`/api/workouts/${session.workoutId}/points`, {
       method: 'POST',
       body: JSON.stringify({ points: batch }),
     });
-  } catch {
-    /* retry later */
+  } catch (err) {
+    if (err.status === 404 || err.message?.includes('не найдена')) {
+      session.serverStale = true;
+    }
   }
 }
 

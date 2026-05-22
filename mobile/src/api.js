@@ -93,7 +93,29 @@ function apiErrorMessage(data, status) {
   return status === 401 ? 'Неверный телефон или пароль' : 'Ошибка запроса';
 }
 
+let forcedLogoutHandler = null;
+
+/** Сброс сессии и переход на логин (аккаунт открыт на другом устройстве). */
+export function onForcedLogout(handler) {
+  forcedLogoutHandler = handler;
+  return () => {
+    if (forcedLogoutHandler === handler) forcedLogoutHandler = null;
+  };
+}
+
+function triggerForcedLogout(data) {
+  if (data?.code !== 'DEVICE_MISMATCH') return;
+  sessionStorage.setItem(
+    'auth_notice',
+    data.error ||
+      'Аккаунт активен на другом телефоне. Войдите снова на этом устройстве.'
+  );
+  setToken(null);
+  forcedLogoutHandler?.();
+}
+
 function throwApiError(data, status) {
+  triggerForcedLogout(data);
   const err = new Error(apiErrorMessage(data, status));
   err.code = data?.code;
   err.status = status;

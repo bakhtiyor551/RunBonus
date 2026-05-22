@@ -3,6 +3,7 @@ import { adminApi } from './api';
 import AccountsTab from './AccountsTab';
 import WorkoutsTab from './WorkoutsTab';
 import BonusSettingsTab from './BonusSettingsTab';
+import CustomerLevelsTab from './CustomerLevelsTab';
 import QrShoesTab from './QrShoesTab';
 import WithdrawalsTab from './WithdrawalsTab';
 import DashboardTab from './DashboardTab';
@@ -109,6 +110,11 @@ export default function App() {
           {tab === 4 && (
             <div className="page-content">
               <BonusSettingsTab />
+            </div>
+          )}
+          {tab === 7 && (
+            <div className="page-content">
+              <CustomerLevelsTab />
             </div>
           )}
           {tab === 6 && (

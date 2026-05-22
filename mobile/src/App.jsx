@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { IonApp } from '@ionic/react';
 import { useEffect, useState } from 'react';
-import { api, logoutApi, setToken } from './api';
+import { api, logoutApi, onForcedLogout, setToken } from './api';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -12,13 +12,29 @@ import WalletPage from './pages/WalletPage';
 import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
+import LevelPage from './pages/LevelPage';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
-import { getActiveWorkoutId } from './services/geolocation';
-import { startWorkoutSession } from './services/workoutTracker';
+import {
+  clearWorkoutLocal,
+  getActiveWorkoutId,
+  setActiveWorkoutId,
+} from './services/geolocation';
+import { syncActiveWorkoutWithServer } from './services/activeWorkout';
+import { startWorkoutSession, stopWorkoutSession } from './services/workoutTracker';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    return onForcedLogout(() => {
+      const id = getActiveWorkoutId();
+      stopWorkoutSession();
+      if (id) clearWorkoutLocal(id);
+      setActiveWorkoutId(null);
+      setUser(null);
+    });
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -28,13 +44,7 @@ function App() {
     }
     api('/api/auth/me')
       .then(setUser)
-      .catch((err) => {
-        if (err.code === 'DEVICE_MISMATCH') {
-          sessionStorage.setItem(
-            'auth_notice',
-            err.message || 'Аккаунт открыт на другом телефоне. Войдите снова на этом устройстве.'
-          );
-        }
+      .catch(() => {
         setToken(null);
       })
       .finally(() => setLoading(false));
@@ -43,10 +53,11 @@ function App() {
   useEffect(() => {
     if (!user || user.needsActivation) return;
     initWorkoutLifecycle();
-    const activeId = getActiveWorkoutId();
-    if (activeId) {
-      startWorkoutSession(activeId, api).catch(() => {});
-    }
+    syncActiveWorkoutWithServer()
+      .then(({ workoutId }) => {
+        if (workoutId) startWorkoutSession(workoutId, api).catch(() => {});
+      })
+      .catch(() => {});
   }, [user]);
 
   const onAuth = (data) => {
@@ -112,6 +123,7 @@ function App() {
             element={<ActivatePage user={user} onActivated={async () => setUser(await api('/api/auth/me'))} />}
           />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/level" element={<LevelPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

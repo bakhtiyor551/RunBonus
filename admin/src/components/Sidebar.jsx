@@ -7,6 +7,7 @@ const NAV = [
   { id: 2, label: 'Тренировки', icon: 'directions_run' },
   { id: 3, label: 'Бонусные счета', icon: 'account_balance_wallet' },
   { id: 4, label: 'Настройки бонусов', icon: 'settings' },
+  { id: 7, label: 'Уровни клиентов', icon: 'military_tech' },
   { id: 5, label: 'Списание бонусов', icon: 'payments' },
   { id: 6, label: 'Вывод средств', icon: 'south_west' },
 ];

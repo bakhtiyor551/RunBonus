@@ -9,6 +9,8 @@ import { getUserBalance, spendBonus, manualAdjustBonus, topupClientBonus } from 
 import { formatDeviceAdminInfo, resetUserDevice } from '../services/deviceBinding.js';
 import adminAccountsRoutes from './adminAccounts.js';
 import adminBonusSettingsRoutes from './adminBonusSettings.js';
+import adminCustomerLevelsRoutes from './adminCustomerLevels.js';
+import { getAdminClientLevelInfo } from '../services/customerLevelService.js';
 
 const router = Router();
 const genId = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 8);
@@ -322,6 +324,7 @@ router.get('/users/:id', authAdmin, async (req, res) => {
         active: Number(withdrawals[0].active),
       },
       device: formatDeviceAdminInfo(u.device_id, u.device_bound_at),
+      level_info: await getAdminClientLevelInfo(userId),
     });
   } catch (err) {
     console.error(err);
@@ -502,5 +505,6 @@ router.post('/bonus/manual', authAdmin, async (req, res) => {
 
 router.use(adminAccountsRoutes);
 router.use(adminBonusSettingsRoutes);
+router.use(adminCustomerLevelsRoutes);
 
 export default router;

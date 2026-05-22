@@ -20,12 +20,13 @@ import {
   getWorkoutPoints,
   subscribeWorkoutSession,
 } from '../services/workoutTracker';
-import { syncActiveWorkoutWithServer } from '../services/workoutSync';
+import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 
 export default function WorkoutPage({ user, setUser }) {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const workoutId = state?.workoutId ?? getActiveWorkoutId();
+  const [workoutId, setWorkoutId] = useState(null);
+  const [syncing, setSyncing] = useState(true);
   const [live, setLive] = useState({
     distance: 0,
     seconds: 0,
@@ -34,29 +35,33 @@ export default function WorkoutPage({ user, setUser }) {
   });
   const [result, setResult] = useState(null);
   const [finishing, setFinishing] = useState(false);
-  const [syncing, setSyncing] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        const serverId = await syncActiveWorkoutWithServer(api);
+        const localHint = state?.workoutId ?? getActiveWorkoutId();
+        const sync = await syncActiveWorkoutWithServer();
         if (cancelled) return;
 
-        if (!serverId) {
-          alert('Активной тренировки нет. Начните новую с главного экрана.');
+        if (!sync.workoutId) {
+          if (sync.stale && localHint) {
+            alert(
+              'Сохранённая тренировка на сервере не найдена (уже завершена). Начните новую с главной.'
+            );
+          }
           navigate('/', { replace: true });
           return;
         }
 
-        if (Number(serverId) !== Number(workoutId)) {
-          navigate('/workout', { state: { workoutId: serverId }, replace: true });
-          return;
+        if (sync.stale && localHint && Number(localHint) !== sync.workoutId) {
+          alert('Подключена актуальная тренировка с сервера.');
         }
 
-        setActiveWorkoutId(serverId);
-        await startWorkoutSession(serverId, api);
+        setWorkoutId(sync.workoutId);
+        setActiveWorkoutId(sync.workoutId);
+        await startWorkoutSession(sync.workoutId, api);
       } catch (e) {
         if (!cancelled) {
           alert(e.message || 'Не удалось открыть тренировку');
@@ -70,10 +75,10 @@ export default function WorkoutPage({ user, setUser }) {
     return () => {
       cancelled = true;
     };
-  }, [workoutId, navigate]);
+  }, [navigate, state?.workoutId]);
 
   useEffect(() => {
-    if (syncing) return undefined;
+    if (syncing || !workoutId) return undefined;
     return subscribeWorkoutSession(setLive);
   }, [syncing, workoutId]);
 
@@ -129,32 +134,39 @@ export default function WorkoutPage({ user, setUser }) {
         setUser(profile);
       }
     } catch (err) {
+      if (err.code === 'DEVICE_MISMATCH') {
+        setFinishing(false);
+        return;
+      }
       if (
         err.status === 404 ||
         err.code === 'WORKOUT_NOT_ACTIVE' ||
         err.message?.includes('уже завершена') ||
-        err.message?.includes('устарела')
+        err.message?.includes('не найдена')
       ) {
         stopWorkoutSession();
         clearWorkoutLocal(workoutId);
         setActiveWorkoutId(null);
-        alert('Эта тренировка уже завершена. Начните новую с главного экрана.');
+        const sync = await syncActiveWorkoutWithServer();
+        alert(
+          sync.workoutId
+            ? 'Эта тренировка недоступна. На главной откройте текущую активную тренировку.'
+            : 'Тренировка не найдена. Начните новую с главной.'
+        );
         navigate('/', { replace: true });
         return;
       }
       const msg =
-        err.code === 'DEVICE_MISMATCH'
-          ? `${err.message}\n\nВыйдите и войдите снова на этом телефоне.`
-          : err.code === 'DEVICE_REQUIRED'
-            ? 'Обновите приложение RunBonus и повторите вход.'
-            : err.message;
+        err.code === 'DEVICE_REQUIRED'
+          ? 'Обновите приложение RunBonus и повторите вход.'
+          : err.message;
       alert(msg);
       setFinishing(false);
       startWorkoutSession(workoutId, api).catch(() => {});
     }
   };
 
-  if (syncing) {
+  if (syncing || !workoutId) {
     return (
       <IonPage>
         <AppHeader showAvatar={false} />
@@ -194,21 +206,46 @@ export default function WorkoutPage({ user, setUser }) {
 
   return (
     <IonPage>
-      <AppHeader
-        showAvatar={false}
-        badge={liveBadge}
-        onBack={minimizeOrHome}
-      />
+      <AppHeader showAvatar={false} badge={liveBadge} onBack={minimizeOrHome} />
       <IonContent>
         <div className="rb-atmosphere">
           <div className="rb-atmosphere__blob" style={{ top: '20%', left: '10%', width: 300, height: 300 }} />
           <div className="rb-atmosphere__blob" style={{ bottom: '20%', right: '10%', width: 300, height: 300 }} />
         </div>
-        <main className="rb-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', paddingBottom: 40 }}>
-          <div style={{ position: 'relative', width: 256, height: 256, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 48 }}>
+        <main
+          className="rb-main"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '70vh',
+            paddingBottom: 40,
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: 256,
+              height: 256,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 48,
+            }}
+          >
             <div className="workout-pulse-ring" />
             <div className="workout-pulse-ring workout-pulse-ring--inner" style={{ position: 'absolute' }} />
-            <div style={{ zIndex: 10, background: 'var(--rb-surface-container-lowest)', padding: 24, borderRadius: '50%', border: '1px solid rgba(195,244,0,0.3)', boxShadow: '0 0 30px rgba(171,214,0,0.15)' }}>
+            <div
+              style={{
+                zIndex: 10,
+                background: 'var(--rb-surface-container-lowest)',
+                padding: 24,
+                borderRadius: '50%',
+                border: '1px solid rgba(195,244,0,0.3)',
+                boxShadow: '0 0 30px rgba(171,214,0,0.15)',
+              }}
+            >
               <Icon name="directions_run" filled style={{ fontSize: 56, color: 'var(--rb-neon)' }} />
             </div>
           </div>
@@ -217,10 +254,15 @@ export default function WorkoutPage({ user, setUser }) {
             <div className="rb-display font-display font-tabular" style={{ fontSize: 48, color: '#fff' }}>
               {formatDuration(live.seconds)}
             </div>
-            <p className="rb-label" style={{ marginTop: 8 }}>Время</p>
+            <p className="rb-label" style={{ marginTop: 8 }}>
+              Время
+            </p>
           </div>
 
-          <div className="glass-panel" style={{ width: '100%', padding: 'var(--rb-card-padding)', textAlign: 'center', marginBottom: 24 }}>
+          <div
+            className="glass-panel"
+            style={{ width: '100%', padding: 'var(--rb-card-padding)', textAlign: 'center', marginBottom: 24 }}
+          >
             <DistanceBlock distance={live.distance} />
           </div>
 
@@ -246,13 +288,41 @@ export default function WorkoutPage({ user, setUser }) {
 function CelebrateBlock({ result }) {
   return (
     <div className="rb-celebrate" style={{ textAlign: 'center', marginBottom: 32 }}>
-      <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'var(--rb-neon)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 0 20px rgba(195,244,0,0.3)' }}>
+      <div
+        style={{
+          width: 96,
+          height: 96,
+          borderRadius: '50%',
+          background: 'var(--rb-neon)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 24px',
+          boxShadow: '0 0 20px rgba(195,244,0,0.3)',
+        }}
+      >
         <Icon name="check_circle" style={{ fontSize: 48, color: 'var(--rb-on-neon)' }} />
       </div>
       <h1 className="font-display" style={{ fontSize: 32, color: 'var(--rb-neon)', textTransform: 'uppercase', margin: 0 }}>
         {result.title || 'Тренировка завершена!'}
       </h1>
-      <p className="rb-text-muted" style={{ marginTop: 8 }}>Отличный результат</p>
+      {result.level_up?.message && (
+        <p
+          className="rb-headline"
+          style={{
+            marginTop: 16,
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: 'rgba(195,244,0,0.12)',
+            color: 'var(--rb-neon)',
+          }}
+        >
+          {result.level_up.message}
+        </p>
+      )}
+      <p className="rb-text-muted" style={{ marginTop: 8 }}>
+        Отличный результат
+      </p>
     </div>
   );
 }
@@ -263,16 +333,28 @@ function ResultCards({ result }) {
       <div className="glass-card" style={{ gridColumn: '1 / -1', padding: 'var(--rb-card-padding)', textAlign: 'center' }}>
         <span className="rb-label">Дистанция</span>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
-          <span className="rb-display font-display" style={{ fontSize: 40 }}>{Number(result.distance_km).toFixed(1)}</span>
+          <span className="rb-display font-display" style={{ fontSize: 40 }}>
+            {Number(result.distance_km).toFixed(1)}
+          </span>
           <span className="rb-headline">км</span>
         </div>
       </div>
-      <div className="glass-card" style={{ gridColumn: '1 / -1', padding: 'var(--rb-card-padding)', textAlign: 'center', borderColor: 'rgba(195,244,0,0.3)' }}>
+      <div
+        className="glass-card"
+        style={{
+          gridColumn: '1 / -1',
+          padding: 'var(--rb-card-padding)',
+          textAlign: 'center',
+          borderColor: 'rgba(195,244,0,0.3)',
+        }}
+      >
         <span className="rb-label">Бонус</span>
         {result.bonus_credited ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 8 }}>
             <Icon name="stars" filled style={{ fontSize: 36, color: 'var(--rb-neon)' }} />
-            <span className="rb-display font-display" style={{ fontSize: 40 }}>+{Number(result.bonus_earned).toFixed(1)}</span>
+            <span className="rb-display font-display" style={{ fontSize: 40 }}>
+              +{Number(result.bonus_earned).toFixed(1)}
+            </span>
           </div>
         ) : (
           <p className="rb-text-muted" style={{ marginTop: 8 }}>
@@ -288,10 +370,16 @@ function DistanceBlock({ distance }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
-        <span className="rb-display font-display" style={{ fontSize: 40 }}>{distance.toFixed(2)}</span>
-        <span className="rb-headline" style={{ color: 'var(--rb-on-surface-variant)' }}>км</span>
+        <span className="rb-display font-display" style={{ fontSize: 40 }}>
+          {distance.toFixed(2)}
+        </span>
+        <span className="rb-headline" style={{ color: 'var(--rb-on-surface-variant)' }}>
+          км
+        </span>
       </div>
-      <p className="rb-label" style={{ marginTop: 8 }}>Текущая дистанция</p>
+      <p className="rb-label" style={{ marginTop: 8 }}>
+        Текущая дистанция
+      </p>
     </>
   );
 }

@@ -2,13 +2,16 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { authUser, requireActiveUser } from '../middleware/auth.js';
 import { validateWorkout } from '../services/workoutValidation.js';
+import { getDailyEarned, calcBonusAmount, calcRawBonus, applyBonus } from '../services/bonusService.js';
 import {
-  getDailyEarned,
-  getShoeTotalEarned,
-  calcBonusAmount,
-  calcRawBonus,
-  applyBonus,
-} from '../services/bonusService.js';
+  getActiveCustomerLevels,
+  ensureShoeProgress,
+  calcTieredBonus,
+  capBonusByRemaining,
+  applyWorkoutProgress,
+  getLevelForKm,
+  MAX_SHOE_KM,
+} from '../services/customerLevelService.js';
 import { getActiveBonusSettings } from '../services/bonusSettingsService.js';
 import { getActiveBonusFund } from '../services/accountService.js';
 import {
@@ -125,6 +128,30 @@ router.post('/start', authUser, requireActiveUser, async (req, res) => {
     res.status(500).json({ error: CLIENT_START_ERRORS.GENERIC });
   } finally {
     conn.release();
+  }
+});
+
+/** Текущая незавершённая тренировка пользователя (для синхронизации с приложением). */
+router.get('/active', authUser, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, started_at, status FROM workouts
+       WHERE user_id = ? AND status = 'in_progress'
+       ORDER BY started_at DESC LIMIT 1`,
+      [req.userId]
+    );
+    if (!rows.length) {
+      return res.json({ workoutId: null, id: null });
+    }
+    res.json({
+      workoutId: rows[0].id,
+      id: rows[0].id,
+      started_at: rows[0].started_at,
+      status: rows[0].status,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки активной тренировки' });
   }
 });
 
@@ -300,8 +327,13 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         };
       }
     }
-    const pricePerKm = settings.price_per_km;
-    const rawCalculatedBonus = calcRawBonus(distanceKm, pricePerKm);
+    const customerLevels = await getActiveCustomerLevels(conn);
+    let pricePerKm = settings.price_per_km;
+    let rawCalculatedBonus = 0;
+    let bonusBreakdown = null;
+    let levelSnapshot = null;
+    let levelUp = null;
+    let progressKm = 0;
 
     let bonusAmount = 0;
     let finalStatus = validation.status;
@@ -310,19 +342,69 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     if (validation.ok) {
       const today = new Date().toISOString().slice(0, 10);
       const dailyEarned = await getDailyEarned(userId, workout.shoe_id, today);
-      const shoeTotal = await getShoeTotalEarned(userId, workout.shoe_id);
 
-      if (dailyEarned >= settings.daily_limit) {
-        finalStatus = 'rejected';
-        rejectReason = 'Дневной лимит уже достигнут';
-      } else if (shoeTotal >= settings.total_limit_per_shoe) {
-        finalStatus = 'rejected';
-        rejectReason = 'Общий лимит по кроссовкам достигнут';
-      } else if (workout.shoe_status === 'blocked') {
+      if (workout.shoe_status === 'blocked') {
         finalStatus = 'rejected';
         rejectReason = 'Кроссовки заблокированы';
+      } else if (customerLevels.length) {
+        const progress = await ensureShoeProgress(conn, userId, workout.shoe_id);
+        const kmBefore = Number(progress.total_km) || 0;
+
+        if (progress.is_completed || kmBefore >= MAX_SHOE_KM) {
+          finalStatus = 'rejected';
+          rejectReason = 'Лимит километража по этой паре кроссовок достигнут';
+        } else {
+          const tiered = calcTieredBonus(kmBefore, distanceKm, customerLevels);
+          rawCalculatedBonus = tiered.bonus;
+          bonusBreakdown = tiered.breakdown;
+          progressKm = tiered.effectiveKm;
+          const { level } = getLevelForKm(kmBefore, customerLevels);
+          levelSnapshot = {
+            km_before: kmBefore,
+            km_after: tiered.kmAfter,
+            current_level: level?.name ?? null,
+            current_level_code: level?.code ?? null,
+          };
+          pricePerKm =
+            progressKm > 0
+              ? Math.round((rawCalculatedBonus / progressKm) * 100) / 100
+              : level?.price_per_km ?? 0;
+
+          if (dailyEarned >= settings.daily_limit) {
+            finalStatus = 'rejected';
+            rejectReason = 'Дневной лимит уже достигнут';
+            bonusAmount = 0;
+          } else {
+            bonusAmount = capBonusByRemaining(
+              tiered.bonus,
+              progress,
+              dailyEarned,
+              settings.daily_limit
+            );
+
+            if (bonusAmount <= 0) {
+              finalStatus = 'rejected';
+              rejectReason =
+                tiered.bonus <= 0
+                  ? 'Бонус не начисляется для этого километража'
+                  : 'Лимит бонусов исчерпан';
+            } else {
+              const fund = await getActiveBonusFund(conn);
+              if (!fund || Number(fund.current_balance) < bonusAmount) {
+                finalStatus = 'rejected_no_fund';
+                rejectReason = 'Бонус не начислен — недостаточно средств в бонусном фонде';
+                bonusAmount = 0;
+              }
+            }
+          }
+        }
+      } else if (dailyEarned >= settings.daily_limit) {
+        finalStatus = 'rejected';
+        rejectReason = 'Дневной лимит уже достигнут';
       } else {
-        bonusAmount = calcBonusAmount(distanceKm, dailyEarned, shoeTotal, settings);
+        rawCalculatedBonus = calcRawBonus(distanceKm, pricePerKm);
+        bonusAmount = calcBonusAmount(distanceKm, dailyEarned, 0, settings);
+        progressKm = distanceKm;
         if (bonusAmount <= 0) {
           finalStatus = 'rejected';
           rejectReason = 'Лимит бонусов исчерпан';
@@ -341,7 +423,8 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       `UPDATE workouts SET
         distance_km = ?, duration_seconds = ?, avg_speed = ?, max_speed = ?,
         finished_at = ?, status = ?, reject_reason = ?,
-        price_per_km = ?, calculated_bonus = ?
+        price_per_km = ?, calculated_bonus = ?,
+        level_snapshot = ?, bonus_breakdown = ?
        WHERE id = ?`,
       [
         distanceKm,
@@ -353,9 +436,33 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         rejectReason,
         pricePerKm,
         rawCalculatedBonus,
+        levelSnapshot ? JSON.stringify(levelSnapshot) : null,
+        bonusBreakdown ? JSON.stringify(bonusBreakdown) : null,
         workoutId,
       ]
     );
+
+    if (validation.ok && customerLevels.length && progressKm > 0) {
+      const progressResult = await applyWorkoutProgress(
+        conn,
+        userId,
+        workout.shoe_id,
+        progressKm,
+        finalStatus === 'approved' ? bonusAmount : 0
+      );
+      if (progressResult.newLevels?.length) {
+        const top = progressResult.newLevels[progressResult.newLevels.length - 1];
+        levelUp = {
+          level: top.name,
+          message: `Поздравляем! Вы перешли на уровень ${top.name}`,
+        };
+      } else if (progressResult.completed) {
+        levelUp = {
+          level: 'completed',
+          message: 'Вы достигли максимального километража по этой паре кроссовок',
+        };
+      }
+    }
 
     let balanceAfter = null;
     if (bonusAmount > 0 && finalStatus === 'approved') {
@@ -390,6 +497,7 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       distanceKm: validation.distanceKm ?? distanceKm,
       balanceAfter,
       rejectReason,
+      levelUp,
     });
 
     return { status: 200, body: client };
