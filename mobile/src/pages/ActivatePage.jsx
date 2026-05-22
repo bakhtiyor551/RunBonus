@@ -2,10 +2,11 @@ import { useState, useCallback } from 'react';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
+import BottomNavNoShoe from '../components/BottomNavNoShoe';
 import Icon from '../components/Icon';
 import QrScanner, { parseShoeCode } from '../components/QrScanner';
 
-export default function ActivatePage({ onActivated, user }) {
+export default function ActivatePage({ onActivated, user, withNav = false }) {
   const qrAllowed = user?.qrActivationAllowed !== false;
   const [code, setCode] = useState('');
   const [manualCode, setManualCode] = useState('');
@@ -92,6 +93,7 @@ export default function ActivatePage({ onActivated, user }) {
           </form>
           <p className="rb-text-muted" style={{ marginTop: 16, fontSize: 12, textAlign: 'center' }}>Демо: SHOE-DEMO-001</p>
         </main>
+        {withNav && <BottomNavNoShoe />}
       </IonContent>
     </IonPage>
   );

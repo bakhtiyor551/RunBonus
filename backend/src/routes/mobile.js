@@ -1,0 +1,89 @@
+import { Router } from 'express';
+import { pool } from '../db.js';
+import { authUser, requireActiveUser } from '../middleware/auth.js';
+import { validateShoeQr } from '../services/shoeValidateService.js';
+import { listActiveProducts, getProductById, getUserShoeStatus } from '../services/shopService.js';
+import { createOrder, listUserOrders } from '../services/orderService.js';
+
+const router = Router();
+
+router.post('/shoes/validate-qr', async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const { unique_id } = req.body;
+    const result = await validateShoeQr(conn, unique_id);
+    if (!result.valid) {
+      return res.status(400).json({ error: result.error, code: result.code, valid: false });
+    }
+    res.json({ valid: true, message: 'Кроссовки можно активировать', shoe: result.shoe });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка проверки QR' });
+  } finally {
+    conn.release();
+  }
+});
+
+router.get('/shoes/status', authUser, async (req, res) => {
+  try {
+    const status = await getUserShoeStatus(req.userId);
+    res.json(status);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.get('/products', async (_req, res) => {
+  try {
+    const products = await listActiveProducts();
+    res.json(products);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки каталога' });
+  }
+});
+
+router.get('/products/:id', async (req, res) => {
+  try {
+    const product = await getProductById(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Товар не найден' });
+    res.json(product);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.post('/orders', authUser, requireActiveUser, async (req, res) => {
+  try {
+    const { product_id, size, quantity, customer_name, phone, city, address, comment } = req.body;
+    if (!product_id || !customer_name?.trim() || !phone?.trim()) {
+      return res.status(400).json({ error: 'Укажите товар, имя и телефон' });
+    }
+    const order = await createOrder(
+      { product_id, size, quantity, customer_name, phone, city, address, comment },
+      req.userId
+    );
+    res.status(201).json({
+      message: 'Ваш заказ принят. Мы свяжемся с вами для подтверждения.',
+      order,
+    });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось оформить заказ' });
+  }
+});
+
+router.get('/my-orders', authUser, async (req, res) => {
+  try {
+    const orders = await listUserOrders(req.userId);
+    res.json(orders);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки заказов' });
+  }
+});
+
+export default router;

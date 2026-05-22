@@ -783,6 +783,79 @@ select {
   }
 }
 
+.rb-shop-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 400px) {
+  .rb-shop-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.rb-shop-card {
+  width: 100%;
+  text-align: left;
+  border: none;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.rb-shop-card__img {
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rb-shop-card__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rb-shop-card__body {
+  padding: 14px;
+}
+
+.rb-shop-detail-hero {
+  padding: 32px;
+  text-align: center;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rb-shop-detail-hero img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+}
+
+.rb-size-chip {
+  min-width: 44px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--rb-surface-high);
+  color: var(--rb-on-surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rb-size-chip--active {
+  background: var(--rb-neon);
+  color: var(--rb-on-neon);
+  border-color: var(--rb-neon);
+}
+
 .rb-profile-hero {
   text-align: center;
   margin-bottom: 32px;

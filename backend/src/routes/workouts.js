@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { authUser, requireActiveUser } from '../middleware/auth.js';
+import { requireActiveShoe } from '../middleware/requireActiveShoe.js';
 import { validateWorkout } from '../services/workoutValidation.js';
 import { getDailyEarned, calcBonusAmount, calcRawBonus, applyBonus } from '../services/bonusService.js';
 import {
@@ -86,7 +87,7 @@ router.get('/active', authUser, async (req, res) => {
   }
 });
 
-router.post('/start', authUser, requireActiveUser, async (req, res) => {
+router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const shoe = await getActiveShoe(req.userId);

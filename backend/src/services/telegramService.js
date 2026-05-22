@@ -53,3 +53,21 @@ function escapeHtml(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
+
+export function formatOrderTelegramMessage({ order, product }) {
+  const model = product?.name || order.product_name;
+  return (
+    `🛒 <b>Новый заказ кроссовок RunBonus</b>\n\n` +
+    `Клиент: ${escapeHtml(order.customer_name)}\n` +
+    `Телефон: ${escapeHtml(order.phone)}\n` +
+    `Модель: ${escapeHtml(model)}\n` +
+    `Размер: ${escapeHtml(order.size || '—')}\n` +
+    `Количество: ${order.quantity}\n` +
+    `Цена: ${order.total_amount} сомони\n` +
+    `Город: ${escapeHtml(order.city || '—')}\n` +
+    `Адрес: ${escapeHtml(order.address || '—')}\n` +
+    `Комментарий: ${escapeHtml(order.comment || '—')}\n\n` +
+    `Статус: Новый заказ\n` +
+    `ID: #${order.id}`
+  );
+}

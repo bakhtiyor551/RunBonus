@@ -79,7 +79,8 @@ export default function HomePage({ user, setUser }) {
         return;
       }
       if (!user.activeShoe) {
-        navigate('/activate');
+        alert('Сначала активируйте кроссовки RunBonus или закажите их в магазине');
+        navigate(user.needsActivation ? '/shop' : '/activate');
         return;
       }
       const data = await api('/api/workouts/start', { method: 'POST', body: '{}' });

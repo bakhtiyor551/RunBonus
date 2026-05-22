@@ -117,6 +117,10 @@ export default function LoginPage({ onAuth }) {
 
           <p className="rb-login-page__footer">
             <Link to="/register" className="rb-link">Создать аккаунт</Link>
+            <br />
+            <Link to="/shop" className="rb-link" style={{ marginTop: 12, display: 'inline-block' }}>
+              Магазин кроссовок
+            </Link>
           </p>
         </main>
       </IonContent>

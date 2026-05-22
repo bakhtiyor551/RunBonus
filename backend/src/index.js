@@ -14,6 +14,8 @@ import adminRoutes from './routes/admin.js';
 import withdrawalRoutes from './routes/withdrawal.js';
 import adminWithdrawalsRoutes from './routes/adminWithdrawals.js';
 import meRoutes from './routes/me.js';
+import mobileRoutes from './routes/mobile.js';
+import adminShopRoutes from './routes/adminShop.js';
 import { isWithdrawalSchemaReady } from './services/withdrawalService.js';
 
 const app = express();
@@ -51,8 +53,10 @@ app.use('/api/shoes', shoesRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/bonus', bonusRoutes);
 app.use('/api/me', meRoutes);
+app.use('/api/mobile', mobileRoutes);
 app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/shop', adminShopRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 
 app.use((err, _req, res, _next) => {

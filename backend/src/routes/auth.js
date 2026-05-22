@@ -46,9 +46,7 @@ router.post('/register', async (req, res) => {
     if (!password || String(password).length < 4) {
       return res.status(400).json({ error: 'Пароль не менее 4 символов' });
     }
-    if (!unique_id?.trim()) {
-      return res.status(400).json({ error: 'Отсканируйте QR-код кроссовок' });
-    }
+    const hasShoeCode = Boolean(unique_id?.trim());
     if (!name) {
       return res.status(400).json({ error: 'Укажите имя и фамилию' });
     }
@@ -80,7 +78,16 @@ router.post('/register', async (req, res) => {
       [userId]
     );
 
-    const shoe = await activateShoeForUser(conn, userId, unique_id, deviceId);
+    let shoe = null;
+    if (hasShoeCode) {
+      const { validateShoeQr } = await import('../services/shoeValidateService.js');
+      const check = await validateShoeQr(conn, unique_id);
+      if (!check.valid) {
+        await conn.rollback();
+        return res.status(400).json({ error: check.error || 'QR-код недействителен', code: check.code });
+      }
+      shoe = await activateShoeForUser(conn, userId, unique_id, deviceId);
+    }
 
     await conn.commit();
 
@@ -91,6 +98,7 @@ router.post('/register', async (req, res) => {
       token,
       user: profile,
       shoe,
+      redirectToShop: !hasShoeCode,
     });
   } catch (err) {
     await conn.rollback();
@@ -246,7 +254,7 @@ async function buildUserProfile(userId, requestDeviceId = null) {
     activeShoe: activeShoe[0]
       ? { id: activeShoe[0].id, unique_id: activeShoe[0].unique_id, model_name: activeShoe[0].model_name }
       : null,
-    needsActivation: !activeShoe.length,
+    needsActivation: !activeShoe.length || activeShoe[0].status !== 'activated',
     qrActivationAllowed: !isDeviceMismatch(users[0].device_id, requestDeviceId),
   };
 }

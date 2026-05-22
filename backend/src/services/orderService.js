@@ -1,0 +1,255 @@
+import { pool } from '../db.js';
+import { sendTelegramMessage, formatOrderTelegramMessage } from './telegramService.js';
+import { activateShoeForUserAdmin } from './shoeActivationService.js';
+
+const STATUS_LABELS = {
+  new: 'Новый заказ',
+  confirmed: 'Подтверждён',
+  paid: 'Оплачен',
+  delivered: 'Доставлен',
+  cancelled: 'Отменён',
+  qr_issued: 'QR выдан',
+};
+
+export function statusLabel(status) {
+  return STATUS_LABELS[status] || status;
+}
+
+export async function createOrder(data, userId = null) {
+  const {
+    product_id,
+    size,
+    quantity = 1,
+    customer_name,
+    phone,
+    city,
+    address,
+    comment,
+  } = data;
+
+  const qty = Math.max(1, Math.min(10, Number(quantity) || 1));
+
+  const [products] = await pool.query(
+    `SELECT * FROM products WHERE id = ? AND status = 'active'`,
+    [product_id]
+  );
+  if (!products.length) {
+    const err = new Error('Товар не найден');
+    err.status = 404;
+    throw err;
+  }
+  const product = products[0];
+
+  if (size) {
+    const [sizeRows] = await pool.query(
+      `SELECT * FROM product_sizes WHERE product_id = ? AND size = ? AND status = 'active'`,
+      [product_id, size]
+    );
+    if (!sizeRows.length || sizeRows[0].stock_qty < qty) {
+      const err = new Error('Выбранный размер недоступен');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  const price = Number(product.price);
+  const total = Math.round(price * qty * 100) / 100;
+
+  const [result] = await pool.query(
+    `INSERT INTO shop_orders
+       (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+    [
+      userId,
+      product_id,
+      size || null,
+      qty,
+      price,
+      total,
+      customer_name.trim(),
+      phone.trim(),
+      city?.trim() || null,
+      address?.trim() || null,
+      comment?.trim() || null,
+    ]
+  );
+
+  const orderId = result.insertId;
+  const order = await getOrderById(orderId);
+
+  const tgText = formatOrderTelegramMessage({ order, product });
+  await sendTelegramMessage(tgText);
+
+  return order;
+}
+
+export async function getOrderById(id) {
+  const [rows] = await pool.query(
+    `SELECT o.*, p.name AS product_name, p.color AS product_color
+     FROM shop_orders o
+     JOIN products p ON p.id = o.product_id
+     WHERE o.id = ?`,
+    [id]
+  );
+  if (!rows.length) return null;
+  return mapOrderRow(rows[0]);
+}
+
+function mapOrderRow(row) {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    product_id: row.product_id,
+    product_name: row.product_name,
+    product_color: row.product_color,
+    assigned_shoe_id: row.assigned_shoe_id,
+    size: row.size,
+    quantity: row.quantity,
+    price: Number(row.price),
+    total_amount: Number(row.total_amount),
+    customer_name: row.customer_name,
+    phone: row.phone,
+    city: row.city,
+    address: row.address,
+    comment: row.comment,
+    status: row.status,
+    status_label: statusLabel(row.status),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export async function listUserOrders(userId) {
+  const [rows] = await pool.query(
+    `SELECT o.*, p.name AS product_name, p.color AS product_color
+     FROM shop_orders o
+     JOIN products p ON p.id = o.product_id
+     WHERE o.user_id = ?
+     ORDER BY o.created_at DESC`,
+    [userId]
+  );
+  return rows.map(mapOrderRow);
+}
+
+export async function listAdminOrders() {
+  const [rows] = await pool.query(
+    `SELECT o.*, p.name AS product_name, p.color AS product_color,
+            s.unique_id AS assigned_shoe_code
+     FROM shop_orders o
+     JOIN products p ON p.id = o.product_id
+     LEFT JOIN shoes s ON s.id = o.assigned_shoe_id
+     ORDER BY o.created_at DESC
+     LIMIT 500`
+  );
+  return rows.map((r) => ({
+    ...mapOrderRow(r),
+    assigned_shoe_code: r.assigned_shoe_code,
+  }));
+}
+
+export async function updateOrderStatus(orderId, status) {
+  const allowed = ['new', 'confirmed', 'paid', 'delivered', 'cancelled', 'qr_issued'];
+  if (!allowed.includes(status)) {
+    const err = new Error('Недопустимый статус');
+    err.status = 400;
+    throw err;
+  }
+  await pool.query(`UPDATE shop_orders SET status = ? WHERE id = ?`, [status, orderId]);
+  return getOrderById(orderId);
+}
+
+export async function assignQrToOrder(orderId, uniqueIdRaw, adminDeviceId = null) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [orders] = await conn.query(`SELECT * FROM shop_orders WHERE id = ? FOR UPDATE`, [orderId]);
+    if (!orders.length) {
+      const err = new Error('Заказ не найден');
+      err.status = 404;
+      throw err;
+    }
+    const order = orders[0];
+    if (!order.user_id) {
+      const err = new Error('У заказа нет привязанного пользователя приложения');
+      err.status = 400;
+      throw err;
+    }
+
+    const shoe = await activateShoeForUserAdmin(conn, order.user_id, uniqueIdRaw);
+
+    await conn.query(
+      `UPDATE shop_orders SET assigned_shoe_id = ?, status = 'qr_issued' WHERE id = ?`,
+      [shoe.id, orderId]
+    );
+
+    await conn.commit();
+    return { order: await getOrderById(orderId), shoe };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/** Admin CRUD products */
+export async function adminListProducts() {
+  const [products] = await pool.query(`SELECT * FROM products ORDER BY id DESC`);
+  const ids = products.map((p) => p.id);
+  if (!ids.length) return [];
+  const [images] = await pool.query(`SELECT * FROM product_images WHERE product_id IN (?)`, [ids]);
+  const [sizes] = await pool.query(`SELECT * FROM product_sizes WHERE product_id IN (?)`, [ids]);
+  return products.map((p) => ({
+    ...p,
+    price: Number(p.price),
+    images: images.filter((i) => Number(i.product_id) === Number(p.id)),
+    sizes: sizes.filter((s) => Number(s.product_id) === Number(p.id)),
+  }));
+}
+
+export async function adminSaveProduct(data, id = null) {
+  const { name, slug, description, color, price, status, sizes, images } = data;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    let productId = id;
+    if (productId) {
+      await conn.query(
+        `UPDATE products SET name=?, slug=?, description=?, color=?, price=?, status=? WHERE id=?`,
+        [name, slug || null, description || null, color || null, price, status || 'active', productId]
+      );
+      await conn.query(`DELETE FROM product_sizes WHERE product_id = ?`, [productId]);
+      await conn.query(`DELETE FROM product_images WHERE product_id = ?`, [productId]);
+    } else {
+      const [r] = await conn.query(
+        `INSERT INTO products (name, slug, description, color, price, status) VALUES (?,?,?,?,?,?)`,
+        [name, slug || null, description || null, color || null, price, status || 'active']
+      );
+      productId = r.insertId;
+    }
+
+    for (const img of images || []) {
+      if (!img?.image_url) continue;
+      await conn.query(
+        `INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?,?,?)`,
+        [productId, img.image_url, img.sort_order ?? 0]
+      );
+    }
+
+    for (const s of sizes || []) {
+      await conn.query(
+        `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
+        [productId, s.size, s.stock_qty ?? 0, s.status || 'active']
+      );
+    }
+
+    await conn.commit();
+    const [rows] = await pool.query(`SELECT * FROM products WHERE id = ?`, [productId]);
+    return rows[0];
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}

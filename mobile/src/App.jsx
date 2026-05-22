@@ -13,6 +13,9 @@ import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
 import LevelPage from './pages/LevelPage';
+import ShopPage from './pages/ShopPage';
+import ProductDetailPage from './pages/ProductDetailPage';
+import MyOrdersPage from './pages/MyOrdersPage';
 import OfflineModal from './components/OfflineModal';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
 import {
@@ -122,6 +125,8 @@ function App() {
             <Routes>
               <Route path="/login" element={<LoginPage onAuth={onAuth} />} />
               <Route path="/register" element={<RegisterPage onAuth={onAuth} />} />
+              <Route path="/shop" element={<ShopPage limitedMode />} />
+              <Route path="/shop/:id" element={<ProductDetailPage limitedMode />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </BrowserRouter>
@@ -135,14 +140,29 @@ function App() {
     return (
       <>
         <IonApp>
-          <ActivatePage
-            user={user}
-            onActivated={async () => {
-              const profile = await api('/api/auth/me');
-              cacheUser(profile);
-              setUser(profile);
-            }}
-          />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/shop" element={<ShopPage user={user} limitedMode />} />
+              <Route path="/shop/:id" element={<ProductDetailPage user={user} limitedMode />} />
+              <Route path="/orders" element={<MyOrdersPage limitedMode />} />
+              <Route
+                path="/activate"
+                element={
+                  <ActivatePage
+                    user={user}
+                    withNav
+                    onActivated={async () => {
+                      const profile = await api('/api/auth/me');
+                      cacheUser(profile);
+                      setUser(profile);
+                    }}
+                  />
+                }
+              />
+              <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} limitedMode />} />
+              <Route path="*" element={<Navigate to="/shop" replace />} />
+            </Routes>
+          </BrowserRouter>
         </IonApp>
         <OfflineModal />
       </>
@@ -174,6 +194,9 @@ function App() {
             />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/level" element={<LevelPage />} />
+            <Route path="/shop" element={<ShopPage user={user} />} />
+            <Route path="/shop/:id" element={<ProductDetailPage user={user} limitedMode={false} />} />
+            <Route path="/orders" element={<MyOrdersPage limitedMode={false} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

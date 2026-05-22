@@ -10,6 +10,8 @@ const NAV = [
   { id: 7, label: 'Уровни клиентов', icon: 'military_tech' },
   { id: 5, label: 'Списание бонусов', icon: 'payments' },
   { id: 6, label: 'Вывод средств', icon: 'south_west' },
+  { id: 8, label: 'Магазин', icon: 'storefront' },
+  { id: 9, label: 'Заказы', icon: 'shopping_bag' },
 ];
 
 export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {

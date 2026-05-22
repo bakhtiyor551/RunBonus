@@ -1,8 +1,7 @@
 import { assertQrActivationDevice } from './deviceBinding.js';
 import { ensureShoeProgress } from './customerLevelService.js';
 
-export async function activateShoeForUser(conn, userId, uniqueIdRaw, deviceId) {
-  await assertQrActivationDevice(conn, userId, deviceId);
+async function activateShoeCore(conn, userId, uniqueIdRaw) {
   const unique_id = uniqueIdRaw?.trim()?.toUpperCase();
   if (!unique_id) {
     const err = new Error('Введите код');
@@ -61,4 +60,14 @@ export async function activateShoeForUser(conn, userId, uniqueIdRaw, deviceId) {
     unique_id: shoe.unique_id,
     model_name: shoe.model_name,
   };
+}
+
+export async function activateShoeForUser(conn, userId, uniqueIdRaw, deviceId) {
+  await assertQrActivationDevice(conn, userId, deviceId);
+  return activateShoeCore(conn, userId, uniqueIdRaw);
+}
+
+/** Выдача QR админом по заказу — без проверки устройства клиента. */
+export async function activateShoeForUserAdmin(conn, userId, uniqueIdRaw) {
+  return activateShoeCore(conn, userId, uniqueIdRaw);
 }

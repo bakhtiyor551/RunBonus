@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { authUser, requireActiveUser } from '../middleware/auth.js';
+import { requireActiveShoe } from '../middleware/requireActiveShoe.js';
 import {
   listMethods,
   getWithdrawalSettings,
@@ -74,7 +75,7 @@ router.get('/my-requests', authUser, async (req, res) => {
   }
 });
 
-router.post('/requests', authUser, requireActiveUser, async (req, res) => {
+router.post('/requests', authUser, requireActiveUser, requireActiveShoe, async (req, res) => {
   try {
     const result = await createWithdrawalRequest(req.userId, req.body, clientIp(req));
     res.status(201).json({

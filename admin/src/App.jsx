@@ -8,6 +8,8 @@ import QrShoesTab from './QrShoesTab';
 import WithdrawalsTab from './WithdrawalsTab';
 import DashboardTab from './DashboardTab';
 import ClientsTab from './ClientsTab';
+import ShopProductsTab from './ShopProductsTab';
+import ShopOrdersTab from './ShopOrdersTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -120,6 +122,16 @@ export default function App() {
           {tab === 6 && (
             <div className="page-content">
               <WithdrawalsTab />
+            </div>
+          )}
+          {tab === 8 && (
+            <div className="page-content">
+              <ShopProductsTab />
+            </div>
+          )}
+          {tab === 9 && (
+            <div className="page-content">
+              <ShopOrdersTab />
             </div>
           )}
           {tab === 5 && (
