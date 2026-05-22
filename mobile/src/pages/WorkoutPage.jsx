@@ -20,6 +20,7 @@ import {
   getWorkoutPoints,
   subscribeWorkoutSession,
 } from '../services/workoutTracker';
+import { syncActiveWorkoutWithServer } from '../services/workoutSync';
 
 export default function WorkoutPage({ user, setUser }) {
   const { state } = useLocation();
@@ -33,16 +34,48 @@ export default function WorkoutPage({ user, setUser }) {
   });
   const [result, setResult] = useState(null);
   const [finishing, setFinishing] = useState(false);
+  const [syncing, setSyncing] = useState(true);
 
   useEffect(() => {
-    if (!workoutId) {
-      navigate('/');
-      return;
-    }
-    setActiveWorkoutId(workoutId);
-    startWorkoutSession(workoutId, api).catch(() => {});
-    return subscribeWorkoutSession(setLive);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const serverId = await syncActiveWorkoutWithServer(api);
+        if (cancelled) return;
+
+        if (!serverId) {
+          alert('Активной тренировки нет. Начните новую с главного экрана.');
+          navigate('/', { replace: true });
+          return;
+        }
+
+        if (Number(serverId) !== Number(workoutId)) {
+          navigate('/workout', { state: { workoutId: serverId }, replace: true });
+          return;
+        }
+
+        setActiveWorkoutId(serverId);
+        await startWorkoutSession(serverId, api);
+      } catch (e) {
+        if (!cancelled) {
+          alert(e.message || 'Не удалось открыть тренировку');
+          navigate('/', { replace: true });
+        }
+      } finally {
+        if (!cancelled) setSyncing(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [workoutId, navigate]);
+
+  useEffect(() => {
+    if (syncing) return undefined;
+    return subscribeWorkoutSession(setLive);
+  }, [syncing, workoutId]);
 
   const minimizeOrHome = () => {
     if (Capacitor.isNativePlatform()) {
@@ -96,16 +129,17 @@ export default function WorkoutPage({ user, setUser }) {
         setUser(profile);
       }
     } catch (err) {
-      if (err.message?.includes('уже завершена')) {
+      if (
+        err.status === 404 ||
+        err.code === 'WORKOUT_NOT_ACTIVE' ||
+        err.message?.includes('уже завершена') ||
+        err.message?.includes('устарела')
+      ) {
         stopWorkoutSession();
         clearWorkoutLocal(workoutId);
         setActiveWorkoutId(null);
-        setResult({
-          title: 'Тренировка завершена',
-          distance_km: snapDistance,
-          bonus_credited: false,
-          message: 'Тренировка уже была сохранена ранее',
-        });
+        alert('Эта тренировка уже завершена. Начните новую с главного экрана.');
+        navigate('/', { replace: true });
         return;
       }
       const msg =
@@ -119,6 +153,19 @@ export default function WorkoutPage({ user, setUser }) {
       startWorkoutSession(workoutId, api).catch(() => {});
     }
   };
+
+  if (syncing) {
+    return (
+      <IonPage>
+        <AppHeader showAvatar={false} />
+        <IonContent>
+          <main className="rb-main" style={{ paddingTop: 48, textAlign: 'center' }}>
+            <p className="rb-text-muted">Синхронизация тренировки…</p>
+          </main>
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   if (result) {
     return (

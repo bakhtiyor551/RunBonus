@@ -11,8 +11,9 @@ import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
 import { countFinishedWorkouts } from '../utils/workoutStats';
 import { formatBalance, formatWorkoutDate } from '../utils/format';
-import { getActiveWorkoutId, setActiveWorkoutId } from '../services/geolocation';
+import { setActiveWorkoutId } from '../services/geolocation';
 import { getWorkoutSession } from '../services/workoutTracker';
+import { syncActiveWorkoutWithServer } from '../services/workoutSync';
 
 function ActivityRow({ workout, onPress }) {
   const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
@@ -45,14 +46,19 @@ export default function HomePage({ user, setUser }) {
   const [workouts, setWorkouts] = useState([]);
   const [statsModal, setStatsModal] = useState(null);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
-  const [activeWorkoutId, setActiveWorkoutIdState] = useState(() => getActiveWorkoutId());
+  const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
 
   useEffect(() => {
     api('/api/workouts/history').then(setWorkouts).catch(() => {});
+    syncActiveWorkoutWithServer(api)
+      .then((id) => setActiveWorkoutIdState(id ?? getWorkoutSession()?.workoutId ?? null))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    setActiveWorkoutIdState(getActiveWorkoutId() || getWorkoutSession()?.workoutId || null);
+    syncActiveWorkoutWithServer(api)
+      .then((id) => setActiveWorkoutIdState(id ?? getWorkoutSession()?.workoutId ?? null))
+      .catch(() => {});
   }, [location.pathname]);
 
   const totalKm = workouts.reduce((s, w) => s + (Number(w.distance_km) || 0), 0);
