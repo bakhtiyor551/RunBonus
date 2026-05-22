@@ -1,38 +1,12 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Capacitor } from '@capacitor/core';
-import { App } from '@capacitor/app';
 import Icon from './Icon';
-
-function readOnline() {
-  return typeof navigator !== 'undefined' ? navigator.onLine : true;
-}
+import { subscribeConnectivity } from '../services/connectivity';
 
 export default function OfflineModal() {
-  const [online, setOnline] = useState(readOnline);
+  const [online, setOnline] = useState(true);
 
-  useEffect(() => {
-    const sync = () => setOnline(readOnline());
-    window.addEventListener('online', sync);
-    window.addEventListener('offline', sync);
-    document.addEventListener('visibilitychange', sync);
-
-    let removeAppListener;
-    if (Capacitor.isNativePlatform()) {
-      App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) sync();
-      }).then((h) => {
-        removeAppListener = () => h.remove();
-      });
-    }
-
-    return () => {
-      window.removeEventListener('online', sync);
-      window.removeEventListener('offline', sync);
-      document.removeEventListener('visibilitychange', sync);
-      removeAppListener?.();
-    };
-  }, []);
+  useEffect(() => subscribeConnectivity(setOnline), []);
 
   useEffect(() => {
     if (online) return undefined;
