@@ -13,7 +13,7 @@ import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
-import { getActiveWorkoutId } from './services/geolocation';
+import { syncActiveWorkoutWithServer } from './services/activeWorkout';
 import { startWorkoutSession } from './services/workoutTracker';
 
 function App() {
@@ -43,10 +43,11 @@ function App() {
   useEffect(() => {
     if (!user || user.needsActivation) return;
     initWorkoutLifecycle();
-    const activeId = getActiveWorkoutId();
-    if (activeId) {
-      startWorkoutSession(activeId, api).catch(() => {});
-    }
+    syncActiveWorkoutWithServer()
+      .then(({ workoutId }) => {
+        if (workoutId) startWorkoutSession(workoutId, api).catch(() => {});
+      })
+      .catch(() => {});
   }, [user]);
 
   const onAuth = (data) => {

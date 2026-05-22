@@ -109,6 +109,30 @@ router.post('/start', authUser, requireActiveUser, async (req, res) => {
   }
 });
 
+/** Текущая незавершённая тренировка пользователя (для синхронизации с приложением). */
+router.get('/active', authUser, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, started_at, status FROM workouts
+       WHERE user_id = ? AND status = 'in_progress'
+       ORDER BY started_at DESC LIMIT 1`,
+      [req.userId]
+    );
+    if (!rows.length) {
+      return res.json({ workoutId: null, id: null });
+    }
+    res.json({
+      workoutId: rows[0].id,
+      id: rows[0].id,
+      started_at: rows[0].started_at,
+      status: rows[0].status,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки активной тренировки' });
+  }
+});
+
 async function getLastWorkoutPoint(workoutId, conn = pool) {
   const [rows] = await conn.query(
     `SELECT latitude, longitude, speed, accuracy, recorded_at

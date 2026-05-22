@@ -12,6 +12,7 @@ import Icon from '../components/Icon';
 import { countFinishedWorkouts } from '../utils/workoutStats';
 import { formatBalance, formatWorkoutDate } from '../utils/format';
 import { getActiveWorkoutId, setActiveWorkoutId } from '../services/geolocation';
+import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
 
 function ActivityRow({ workout, onPress }) {
@@ -49,6 +50,13 @@ export default function HomePage({ user, setUser }) {
 
   useEffect(() => {
     api('/api/workouts/history').then(setWorkouts).catch(() => {});
+    syncActiveWorkoutWithServer()
+      .then(({ workoutId }) => {
+        setActiveWorkoutIdState(workoutId || getWorkoutSession()?.workoutId || null);
+      })
+      .catch(() => {
+        setActiveWorkoutIdState(getActiveWorkoutId() || getWorkoutSession()?.workoutId || null);
+      });
   }, []);
 
   useEffect(() => {
