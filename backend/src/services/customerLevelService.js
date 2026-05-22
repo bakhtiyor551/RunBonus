@@ -371,7 +371,7 @@ function buildAchievements(history, completed, totalKm, levels, maxKm) {
     id: l.code,
     title: l.name,
     unlocked: codes.has(l.code) || totalKm >= l.from_km,
-    description: `${l.from_km}–${l.to_km} км · ${l.price_per_km} сом/км`,
+    description: `${l.from_km}–${l.to_km} км`,
     color: l.color,
     icon: l.icon,
   }));
