@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
+import RunPage from './pages/RunPage';
 import WorkoutPage from './pages/WorkoutPage';
 import WalletPage from './pages/WalletPage';
 import WithdrawPage from './pages/WithdrawPage';
@@ -15,7 +16,9 @@ import HistoryPage from './pages/HistoryPage';
 import LevelPage from './pages/LevelPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
+import CartPage from './pages/CartPage';
 import MyOrdersPage from './pages/MyOrdersPage';
+import UrbanArPage from './pages/UrbanArPage';
 import OfflineModal from './components/OfflineModal';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
 import {
@@ -83,8 +86,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!user || user.needsActivation) return;
+    if (!user) return;
     initWorkoutLifecycle();
+    if (user.needsActivation) return;
     syncActiveWorkoutWithServer()
       .then(({ workoutId }) => {
         if (workoutId) startWorkoutSession(workoutId, api).catch(() => {});
@@ -125,42 +129,7 @@ function App() {
             <Routes>
               <Route path="/login" element={<LoginPage onAuth={onAuth} />} />
               <Route path="/register" element={<RegisterPage onAuth={onAuth} />} />
-              <Route path="/shop" element={<ShopPage limitedMode />} />
-              <Route path="/shop/:id" element={<ProductDetailPage limitedMode />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-          </BrowserRouter>
-        </IonApp>
-        <OfflineModal />
-      </>
-    );
-  }
-
-  if (user.needsActivation) {
-    return (
-      <>
-        <IonApp>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/shop" element={<ShopPage user={user} limitedMode />} />
-              <Route path="/shop/:id" element={<ProductDetailPage user={user} limitedMode />} />
-              <Route path="/orders" element={<MyOrdersPage limitedMode />} />
-              <Route
-                path="/activate"
-                element={
-                  <ActivatePage
-                    user={user}
-                    withNav
-                    onActivated={async () => {
-                      const profile = await api('/api/auth/me');
-                      cacheUser(profile);
-                      setUser(profile);
-                    }}
-                  />
-                }
-              />
-              <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} limitedMode />} />
-              <Route path="*" element={<Navigate to="/shop" replace />} />
             </Routes>
           </BrowserRouter>
         </IonApp>
@@ -175,6 +144,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
+            <Route path="/run" element={<RunPage user={user} />} />
             <Route path="/wallet" element={<WalletPage user={user} />} />
             <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
@@ -195,8 +165,10 @@ function App() {
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/level" element={<LevelPage />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
-            <Route path="/shop/:id" element={<ProductDetailPage user={user} limitedMode={false} />} />
-            <Route path="/orders" element={<MyOrdersPage limitedMode={false} />} />
+            <Route path="/shop/ar/:slug" element={<UrbanArPage user={user} />} />
+            <Route path="/shop/:id" element={<ProductDetailPage user={user} />} />
+            <Route path="/cart" element={<CartPage user={user} />} />
+            <Route path="/orders" element={<MyOrdersPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

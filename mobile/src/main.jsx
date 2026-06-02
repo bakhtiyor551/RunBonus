@@ -7,13 +7,16 @@ import '@ionic/react/css/structure.css';
 import '@ionic/react/css/typography.css';
 import App from './App.jsx';
 import { initNativeShell } from './nativeShell.js';
+import { disableAppSounds } from './utils/disableAppSounds.js';
 import './theme.css';
 
 setupIonicReact({
   hardwareBackButton: false,
   mode: 'ios',
+  rippleEffect: false,
 });
 
+disableAppSounds();
 initNativeShell();
 
 createRoot(document.getElementById('root')).render(<App />);

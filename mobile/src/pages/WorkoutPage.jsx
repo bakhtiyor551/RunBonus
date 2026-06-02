@@ -22,6 +22,13 @@ import {
 } from '../services/workoutTracker';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 
+/** 0–5 км зелёный, 5–10 оранжевый, 10+ красный */
+function workoutDistanceTier(km) {
+  if (km >= 10) return 'red';
+  if (km >= 5) return 'orange';
+  return 'green';
+}
+
 export default function WorkoutPage({ user, setUser }) {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -204,6 +211,14 @@ export default function WorkoutPage({ user, setUser }) {
     </div>
   );
 
+  const distanceTier = workoutDistanceTier(live.distance);
+  const heroClass =
+    distanceTier === 'red'
+      ? 'rb-workout-hero rb-workout-hero--red'
+      : distanceTier === 'orange'
+        ? 'rb-workout-hero rb-workout-hero--orange'
+        : 'rb-workout-hero';
+
   return (
     <IonPage>
       <AppHeader showAvatar={false} badge={liveBadge} onBack={minimizeOrHome} />
@@ -223,30 +238,11 @@ export default function WorkoutPage({ user, setUser }) {
             paddingBottom: 40,
           }}
         >
-          <div
-            style={{
-              position: 'relative',
-              width: 256,
-              height: 256,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 48,
-            }}
-          >
+          <div className={heroClass}>
             <div className="workout-pulse-ring" />
-            <div className="workout-pulse-ring workout-pulse-ring--inner" style={{ position: 'absolute' }} />
-            <div
-              style={{
-                zIndex: 10,
-                background: 'var(--rb-surface-container-lowest)',
-                padding: 24,
-                borderRadius: '50%',
-                border: '1px solid rgba(195,244,0,0.3)',
-                boxShadow: '0 0 30px rgba(171,214,0,0.15)',
-              }}
-            >
-              <Icon name="directions_run" filled style={{ fontSize: 56, color: 'var(--rb-neon)' }} />
+            <div className="workout-pulse-ring workout-pulse-ring--inner" />
+            <div className="rb-workout-runner-core">
+              <Icon name="directions_run" filled className="rb-workout-runner-icon" />
             </div>
           </div>
 
@@ -263,7 +259,7 @@ export default function WorkoutPage({ user, setUser }) {
             className="glass-panel"
             style={{ width: '100%', padding: 'var(--rb-card-padding)', textAlign: 'center', marginBottom: 24 }}
           >
-            <DistanceBlock distance={live.distance} />
+            <DistanceBlock distance={live.distance} tier={distanceTier} />
           </div>
 
           {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
@@ -366,11 +362,12 @@ function ResultCards({ result }) {
   );
 }
 
-function DistanceBlock({ distance }) {
+function DistanceBlock({ distance, tier = 'green' }) {
+  const tierClass = tier === 'red' ? 'rb-workout-distance--red' : tier === 'orange' ? 'rb-workout-distance--orange' : '';
   return (
-    <>
+    <div className={tierClass}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
-        <span className="rb-display font-display" style={{ fontSize: 40 }}>
+        <span className="rb-display font-display" style={{ fontSize: 40, color: tier === 'green' ? 'var(--rb-neon)' : undefined }}>
           {distance.toFixed(2)}
         </span>
         <span className="rb-headline" style={{ color: 'var(--rb-on-surface-variant)' }}>
@@ -380,6 +377,6 @@ function DistanceBlock({ distance }) {
       <p className="rb-label" style={{ marginTop: 8 }}>
         Текущая дистанция
       </p>
-    </>
+    </div>
   );
 }

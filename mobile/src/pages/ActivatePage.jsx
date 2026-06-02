@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
-import BottomNavNoShoe from '../components/BottomNavNoShoe';
 import Icon from '../components/Icon';
 import QrScanner, { parseShoeCode } from '../components/QrScanner';
 
-export default function ActivatePage({ onActivated, user, withNav = false }) {
+export default function ActivatePage({ onActivated, user }) {
+  const navigate = useNavigate();
   const qrAllowed = user?.qrActivationAllowed !== false;
   const [code, setCode] = useState('');
   const [manualCode, setManualCode] = useState('');
@@ -50,7 +51,7 @@ export default function ActivatePage({ onActivated, user, withNav = false }) {
 
   return (
     <IonPage>
-      <AppHeader showAvatar={false} />
+      <AppHeader showAvatar={false} onBack={() => navigate(-1)} />
       <IonContent fullscreen className="ion-padding">
         <main className="rb-main">
           <h2 className="font-display" style={{ fontSize: 22, textAlign: 'center', marginBottom: 8 }}>Сканируйте QR</h2>
@@ -93,7 +94,6 @@ export default function ActivatePage({ onActivated, user, withNav = false }) {
           </form>
           <p className="rb-text-muted" style={{ marginTop: 16, fontSize: 12, textAlign: 'center' }}>Демо: SHOE-DEMO-001</p>
         </main>
-        {withNav && <BottomNavNoShoe />}
       </IonContent>
     </IonPage>
   );

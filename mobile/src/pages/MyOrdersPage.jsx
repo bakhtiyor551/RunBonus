@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
-import BottomNavNoShoe from '../components/BottomNavNoShoe';
+import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 
 const STATUS_COLORS = {
@@ -14,7 +15,8 @@ const STATUS_COLORS = {
   cancelled: 'var(--rb-error)',
 };
 
-export default function MyOrdersPage({ limitedMode = true }) {
+export default function MyOrdersPage() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,7 +29,7 @@ export default function MyOrdersPage({ limitedMode = true }) {
 
   return (
     <IonPage>
-      <AppHeader />
+      <AppHeader onBack={() => navigate('/shop')} />
       <IonContent>
         <main className="rb-main">
           <h1 className="rb-headline font-display" style={{ marginBottom: 16 }}>
@@ -40,6 +42,9 @@ export default function MyOrdersPage({ limitedMode = true }) {
               <p className="rb-text-muted" style={{ marginTop: 12 }}>
                 Заказов пока нет. Перейдите в магазин.
               </p>
+              <button type="button" className="rb-btn-pill" style={{ marginTop: 16 }} onClick={() => navigate('/shop')}>
+                В магазин
+              </button>
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -60,14 +65,14 @@ export default function MyOrdersPage({ limitedMode = true }) {
                 </p>
                 {o.status === 'qr_issued' && (
                   <p style={{ marginTop: 8, color: 'var(--rb-neon)', fontSize: 13 }}>
-                    QR выдан — активируйте кроссовки во вкладке «Активация»
+                    QR выдан — отсканируйте код на главной или в разделе «Сканировать QR»
                   </p>
                 )}
               </div>
             ))}
           </div>
         </main>
-        {limitedMode && <BottomNavNoShoe />}
+        <BottomNav />
       </IonContent>
     </IonPage>
   );

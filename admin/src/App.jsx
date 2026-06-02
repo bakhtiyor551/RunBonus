@@ -10,6 +10,7 @@ import DashboardTab from './DashboardTab';
 import ClientsTab from './ClientsTab';
 import ShopProductsTab from './ShopProductsTab';
 import ShopOrdersTab from './ShopOrdersTab';
+import ArShoeModelsTab from './ArShoeModelsTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -132,6 +133,11 @@ export default function App() {
           {tab === 9 && (
             <div className="page-content">
               <ShopOrdersTab />
+            </div>
+          )}
+          {tab === 10 && (
+            <div className="page-content">
+              <ArShoeModelsTab />
             </div>
           )}
           {tab === 5 && (

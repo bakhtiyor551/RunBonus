@@ -1,18 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
-import QrScanner, { parseShoeCode } from '../components/QrScanner';
 
-const STEPS_WITH_SHOE = ['Данные', 'QR кроссовок', 'Пароль'];
-const STEPS_NO_SHOE = ['Данные', 'Пароль'];
+const STEP_LABELS = ['Данные', 'Пароль'];
 
-function StepDots({ step, labels }) {
+function StepDots({ step }) {
   return (
     <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 28 }}>
-      {labels.map((label, i) => (
+      {STEP_LABELS.map((label, i) => (
         <div key={label} style={{ textAlign: 'center', flex: 1 }}>
           <div
             style={{
@@ -41,28 +39,14 @@ function StepDots({ step, labels }) {
 }
 
 export default function RegisterPage({ onAuth }) {
-  const [hasShoes, setHasShoes] = useState(null);
   const [step, setStep] = useState(0);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [shoeCode, setShoeCode] = useState('');
-  const [manualCode, setManualCode] = useState('');
   const [password, setPassword] = useState('');
   const [password2, setPassword2] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [validatingQr, setValidatingQr] = useState(false);
-
-  const stepLabels = hasShoes ? STEPS_WITH_SHOE : STEPS_NO_SHOE;
-  const qrStepIndex = hasShoes ? 1 : -1;
-  const passwordStepIndex = hasShoes ? 2 : 1;
-
-  const handleScan = useCallback((code) => {
-    setShoeCode(code);
-    setManualCode(code);
-    setError('');
-  }, []);
 
   const nextFromPersonal = (e) => {
     e.preventDefault();
@@ -75,34 +59,7 @@ export default function RegisterPage({ onAuth }) {
       setError('Укажите номер телефона');
       return;
     }
-    setStep(hasShoes ? 1 : 1);
-  };
-
-  const nextFromQr = async (e) => {
-    e.preventDefault();
-    setError('');
-    const code = parseShoeCode(shoeCode || manualCode);
-    if (!code) {
-      setError('Отсканируйте QR или введите код вручную');
-      return;
-    }
-    setValidatingQr(true);
-    try {
-      const data = await api('/api/mobile/shoes/validate-qr', {
-        method: 'POST',
-        body: JSON.stringify({ unique_id: code }),
-      });
-      if (!data.valid) {
-        setError('QR-код недействителен');
-        return;
-      }
-      setShoeCode(code);
-      setStep(2);
-    } catch (err) {
-      setError(err.message || 'QR-код недействителен');
-    } finally {
-      setValidatingQr(false);
-    }
+    setStep(1);
   };
 
   const finish = async (e) => {
@@ -118,17 +75,14 @@ export default function RegisterPage({ onAuth }) {
     }
     setLoading(true);
     try {
-      const body = {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: phone.trim(),
-        password,
-      };
-      if (hasShoes && shoeCode) body.unique_id = shoeCode;
-
       const data = await api('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+          password,
+        }),
       });
       onAuth(data);
     } catch (err) {
@@ -138,19 +92,11 @@ export default function RegisterPage({ onAuth }) {
     }
   };
 
-  const goBack = () => {
-    if (step === 0 && hasShoes !== null) {
-      setHasShoes(null);
-      return;
-    }
-    if (step > 0) setStep(step - 1);
-  };
-
   return (
     <IonPage>
       <header className="rb-header">
-        {hasShoes !== null && step > 0 ? (
-          <button type="button" className="rb-header__avatar" onClick={goBack} aria-label="Назад">
+        {step > 0 ? (
+          <button type="button" className="rb-header__avatar" onClick={() => setStep(0)} aria-label="Назад">
             <Icon name="arrow_back" />
           </button>
         ) : (
@@ -163,48 +109,16 @@ export default function RegisterPage({ onAuth }) {
       </header>
       <IonContent>
         <main style={{ padding: '16px 24px 32px', maxWidth: 440, margin: '0 auto' }}>
-          {hasShoes === null && (
-            <div className="glass-effect" style={{ padding: 24, borderRadius: 24 }}>
-              <h2 className="font-display" style={{ fontSize: 22, margin: '0 0 12px', textAlign: 'center' }}>
-                У вас уже есть кроссовки RunBonus?
-              </h2>
-              <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 24 }}>
-                Если кроссовки уже куплены — отсканируйте QR. Если нет — закажите в магазине приложения.
-              </p>
-              <button
-                type="button"
-                className="rb-btn-primary"
-                style={{ width: '100%', marginBottom: 12 }}
-                onClick={() => {
-                  setHasShoes(true);
-                  setStep(0);
-                }}
-              >
-                <Icon name="qr_code_scanner" />
-                Да, есть
-              </button>
-              <button
-                type="button"
-                className="rb-btn-pill"
-                style={{ width: '100%' }}
-                onClick={() => {
-                  setHasShoes(false);
-                  setStep(0);
-                }}
-              >
-                <Icon name="storefront" />
-                Нет, хочу заказать
-              </button>
-            </div>
-          )}
+          <StepDots step={step} />
 
-          {hasShoes !== null && <StepDots step={step} labels={stepLabels} />}
-
-          {hasShoes !== null && step === 0 && (
+          {step === 0 && (
             <form onSubmit={nextFromPersonal} className="glass-effect" style={{ padding: 24, borderRadius: 24 }}>
-              <h2 className="font-display" style={{ fontSize: 22, margin: '0 0 20px' }}>
-                Ваши данные
+              <h2 className="font-display" style={{ fontSize: 22, margin: '0 0 8px' }}>
+                Профиль
               </h2>
+              <p className="rb-text-muted" style={{ marginBottom: 20, fontSize: 14 }}>
+                Укажите данные для входа. Магазин и привязка кроссовок — уже внутри приложения.
+              </p>
               <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
                 Имя
               </label>
@@ -238,54 +152,14 @@ export default function RegisterPage({ onAuth }) {
             </form>
           )}
 
-          {hasShoes && step === qrStepIndex && (
-            <form onSubmit={nextFromQr}>
-              <h2 className="font-display" style={{ fontSize: 22, margin: '0 0 8px', textAlign: 'center' }}>
-                Сканируйте QR
-              </h2>
-              <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 20 }}>
-                Наведите камеру на QR-код на кроссовках RunBonus
-              </p>
-              <QrScanner onScan={handleScan} active={step === qrStepIndex} />
-              {shoeCode && (
-                <p style={{ textAlign: 'center', color: 'var(--rb-neon)', marginTop: 12, fontWeight: 600 }}>
-                  Код: {shoeCode}
-                </p>
-              )}
-              <p className="rb-text-muted" style={{ textAlign: 'center', margin: '20px 0 8px', fontSize: 13 }}>
-                или введите код вручную
-              </p>
-              <div className="rb-input-wrap">
-                <input
-                  className="rb-input"
-                  value={manualCode}
-                  onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                  placeholder="SHOE-..."
-                />
-              </div>
-              {error && <p className="rb-text-error">{error}</p>}
-              <button type="submit" className="rb-btn-pill" style={{ width: '100%', marginTop: 16 }} disabled={validatingQr}>
-                {validatingQr ? 'Проверка QR…' : 'Далее'}
-                <Icon name="arrow_forward" />
-              </button>
-            </form>
-          )}
-
-          {hasShoes !== null && step === passwordStepIndex && (
+          {step === 1 && (
             <form onSubmit={finish} className="glass-effect" style={{ padding: 24, borderRadius: 24 }}>
               <h2 className="font-display" style={{ fontSize: 22, margin: '0 0 8px' }}>
-                Завершить регистрацию
+                Пароль
               </h2>
-              {hasShoes && shoeCode && (
-                <p className="rb-text-muted" style={{ marginBottom: 20 }}>
-                  Кроссовки: <strong style={{ color: 'var(--rb-neon)' }}>{shoeCode}</strong>
-                </p>
-              )}
-              {!hasShoes && (
-                <p className="rb-text-muted" style={{ marginBottom: 20 }}>
-                  После регистрации откроется магазин для заказа кроссовок.
-                </p>
-              )}
+              <p className="rb-text-muted" style={{ marginBottom: 20, fontSize: 14 }}>
+                После регистрации вы сразу попадёте на главную. Кроссовки можно купить или привязать по QR в приложении.
+              </p>
               <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
                 Пароль
               </label>
@@ -299,8 +173,8 @@ export default function RegisterPage({ onAuth }) {
                 <input className="rb-input" type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
               </div>
               {error && <p className="rb-text-error">{error}</p>}
-              <button type="submit" className="rb-btn-primary" disabled={loading} style={{ marginTop: 8 }}>
-                {loading ? 'Регистрация…' : 'Завершить регистрацию'}
+              <button type="submit" className="rb-btn-primary" disabled={loading} style={{ marginTop: 8, width: '100%' }}>
+                {loading ? 'Регистрация…' : 'Создать аккаунт'}
               </button>
             </form>
           )}

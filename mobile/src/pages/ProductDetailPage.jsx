@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
-import BottomNavNoShoe from '../components/BottomNavNoShoe';
 import Icon from '../components/Icon';
+import { addToCart } from '../services/cart';
 
-export default function ProductDetailPage({ user, limitedMode = true }) {
+export default function ProductDetailPage({ user }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
@@ -15,6 +15,7 @@ export default function ProductDetailPage({ user, limitedMode = true }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const [cartAdded, setCartAdded] = useState(false);
 
   const [form, setForm] = useState({
     customer_name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.name || '',
@@ -36,6 +37,25 @@ export default function ProductDetailPage({ user, limitedMode = true }) {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const addCart = () => {
+    setError('');
+    if (!size) {
+      setError('Выберите размер');
+      return;
+    }
+    addToCart({
+      productId: product.id,
+      name: product.name,
+      size,
+      color: product.color,
+      price: product.price,
+      image_url: product.image_url,
+      quantity: Number(form.quantity) || 1,
+    });
+    setCartAdded(true);
+    setTimeout(() => setCartAdded(false), 2000);
+  };
+
   const submitOrder = async (e) => {
     e.preventDefault();
     setError('');
@@ -56,7 +76,7 @@ export default function ProductDetailPage({ user, limitedMode = true }) {
       });
       setDone(true);
     } catch (err) {
-      setError(err.message || 'Не удалось отправить заказ');
+      setError(err.message || 'Не удалось оформить заказ');
     } finally {
       setSubmitting(false);
     }
@@ -103,7 +123,6 @@ export default function ProductDetailPage({ user, limitedMode = true }) {
               Мои заказы
             </button>
           </main>
-          {limitedMode && <BottomNavNoShoe />}
         </IonContent>
       </IonPage>
     );
@@ -131,15 +150,31 @@ export default function ProductDetailPage({ user, limitedMode = true }) {
             {product.price} сомони
           </p>
           {product.color && <p className="rb-text-muted">Цвет: {product.color}</p>}
+          <p className="rb-text-muted" style={{ marginTop: 8 }}>
+            {product.in_stock ? 'В наличии' : 'Нет в наличии'}
+          </p>
           <p className="rb-text-muted" style={{ marginTop: 12, lineHeight: 1.5 }}>
             {product.description}
           </p>
-          <p className="rb-text-muted" style={{ marginTop: 12, fontSize: 13 }}>
-            Условия бонусов: бегайте в кроссовках RunBonus — получайте сомони за километры по программе уровней.
-          </p>
+
+          {product.slug === 'urban-sprint' && (
+            <button
+              type="button"
+              className="rb-btn-primary"
+              style={{ width: '100%', marginTop: 20 }}
+              onClick={() =>
+                navigate('/shop/ar/urban-sprint', { state: { productId: product.id } })
+              }
+            >
+              <Icon name="view_in_ar" filled style={{ fontSize: 28 }} />
+              Примерить в AR
+            </button>
+          )}
 
           <section style={{ marginTop: 24 }}>
-            <p className="rb-label" style={{ marginBottom: 8 }}>Размер</p>
+            <p className="rb-label" style={{ marginBottom: 8 }}>
+              Размер
+            </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {availableSizes.map((s) => (
                 <button
@@ -154,7 +189,17 @@ export default function ProductDetailPage({ user, limitedMode = true }) {
             </div>
           </section>
 
-          <form onSubmit={submitOrder} className="glass-card" style={{ padding: 20, marginTop: 24 }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button type="button" className="rb-btn-pill" style={{ flex: 1 }} onClick={addCart}>
+              <Icon name="add_shopping_cart" />
+              {cartAdded ? 'В корзине' : 'В корзину'}
+            </button>
+            <button type="button" className="rb-btn-primary" style={{ flex: 1 }} onClick={() => document.getElementById('order-form')?.requestSubmit()}>
+              Купить
+            </button>
+          </div>
+
+          <form id="order-form" onSubmit={submitOrder} className="glass-card" style={{ padding: 20, marginTop: 24 }}>
             <h2 className="font-display" style={{ fontSize: 18, margin: '0 0 16px' }}>
               Оформить заказ
             </h2>
@@ -194,26 +239,12 @@ export default function ProductDetailPage({ user, limitedMode = true }) {
                 />
               </div>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
-                Комментарий
-              </label>
-              <div className="rb-input-wrap">
-                <input
-                  className="rb-input"
-                  value={form.comment}
-                  onChange={(e) => setForm({ ...form, comment: e.target.value })}
-                  placeholder="Необязательно"
-                />
-              </div>
-            </div>
             {error && <p className="rb-text-error">{error}</p>}
             <button type="submit" className="rb-btn-primary" disabled={submitting} style={{ width: '100%' }}>
-              {submitting ? 'Отправка…' : 'Отправить заказ'}
+              {submitting ? 'Оформление…' : 'Купить'}
             </button>
           </form>
         </main>
-        {limitedMode && <BottomNavNoShoe />}
       </IonContent>
     </IonPage>
   );
