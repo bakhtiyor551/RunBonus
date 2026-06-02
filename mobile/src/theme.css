@@ -368,6 +368,15 @@ select {
   max-width: 96px;
 }
 
+.rb-bottom-nav--5 a {
+  padding: 6px 4px;
+  max-width: 72px;
+}
+
+.rb-bottom-nav--5 .rb-bottom-nav__label {
+  font-size: 10px;
+}
+
 .rb-bottom-nav__label {
   max-width: 100%;
   overflow: hidden;

@@ -18,11 +18,6 @@ const STATUS_CLASS = {
 export default function WithdrawPage({ user, setUser }) {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user?.needsActivation) {
-      navigate('/shop', { replace: true });
-    }
-  }, [user, navigate]);
   const [methods, setMethods] = useState([]);
   const [settings, setSettings] = useState({ min_amount: 20, enabled: true, max_daily_amount: 100 });
   const [wallet, setWallet] = useState({

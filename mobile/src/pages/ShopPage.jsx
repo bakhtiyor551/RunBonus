@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
-import BottomNavNoShoe from '../components/BottomNavNoShoe';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
+import { cartCount } from '../services/cart';
 
 function ProductCard({ product, onOpen }) {
   const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
@@ -25,7 +25,7 @@ function ProductCard({ product, onOpen }) {
         </p>
         {product.color && (
           <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 12 }}>
-            {product.color}
+            Цвет: {product.color}
           </p>
         )}
         {sizes.length > 0 && (
@@ -41,10 +41,11 @@ function ProductCard({ product, onOpen }) {
   );
 }
 
-export default function ShopPage({ user, limitedMode = false }) {
+export default function ShopPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cartItems, setCartItems] = useState(cartCount());
 
   useEffect(() => {
     api('/api/mobile/products')
@@ -53,20 +54,58 @@ export default function ShopPage({ user, limitedMode = false }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const Nav = limitedMode ? BottomNavNoShoe : BottomNav;
+  useEffect(() => {
+    const refresh = () => setCartItems(cartCount());
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, []);
 
   return (
     <IonPage>
       <AppHeader />
       <IonContent>
         <main className="rb-main">
-          <h1 className="rb-headline font-display" style={{ marginBottom: 8 }}>
-            Магазин RunBonus
-          </h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+            <h1 className="rb-headline font-display" style={{ margin: 0 }}>
+              Магазин RunBonus
+            </h1>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button type="button" className="rb-btn-pill" style={{ padding: '8px 12px', fontSize: 12 }} onClick={() => navigate('/orders')}>
+                Заказы
+              </button>
+              <button
+                type="button"
+                className="rb-btn-pill"
+                style={{ padding: '8px 12px', fontSize: 12, position: 'relative' }}
+                onClick={() => navigate('/cart')}
+              >
+                <Icon name="shopping_cart" />
+                {cartItems > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      background: 'var(--rb-neon)',
+                      color: 'var(--rb-on-neon)',
+                      borderRadius: 10,
+                      fontSize: 10,
+                      minWidth: 18,
+                      height: 18,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {cartItems}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
           <p className="rb-text-muted" style={{ marginBottom: 24 }}>
-            {limitedMode
-              ? 'Закажите кроссовки с QR — после доставки активируйте их в приложении.'
-              : 'Кроссовки с программой бонусов за километры.'}
+            Кроссовки с программой бонусов за километры. После доставки привяжите QR на главной или во вкладке «Бег».
           </p>
 
           {loading && <p className="rb-text-muted">Загрузка…</p>}
@@ -78,8 +117,7 @@ export default function ShopPage({ user, limitedMode = false }) {
             ))}
           </div>
         </main>
-        {limitedMode && <Nav />}
-        {!limitedMode && user && <Nav />}
+        <BottomNav />
       </IonContent>
     </IonPage>
   );

@@ -4,12 +4,12 @@ import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
-import BottomNavNoShoe from '../components/BottomNavNoShoe';
+import ShoeBindBanner from '../components/ShoeBindBanner';
 import Icon from '../components/Icon';
 import { formatBalance } from '../utils/format';
 import { compressImageFile, resolveAvatarUrl } from '../utils/avatar';
 
-export default function ProfilePage({ user, setUser, onLogout, limitedMode = false }) {
+export default function ProfilePage({ user, setUser, onLogout }) {
   const navigate = useNavigate();
   const fileRef = useRef(null);
   const shoe = user.activeShoe;
@@ -103,13 +103,7 @@ export default function ProfilePage({ user, setUser, onLogout, limitedMode = fal
       <AppHeader showAvatar={false} />
       <IonContent>
         <main className="rb-main">
-          {limitedMode && (
-            <div className="glass-card rb-detail-sheet__alert" style={{ marginBottom: 20, padding: 14 }}>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.45 }}>
-                Активируйте кроссовки после получения заказа — тогда откроются тренировки и бонусы.
-              </p>
-            </div>
-          )}
+          <ShoeBindBanner user={user} />
           <section className="rb-profile-hero">
             <input
               ref={fileRef}
@@ -255,7 +249,7 @@ export default function ProfilePage({ user, setUser, onLogout, limitedMode = fal
             </>
           )}
         </main>
-        {limitedMode ? <BottomNavNoShoe /> : <BottomNav />}
+        <BottomNav />
       </IonContent>
     </IonPage>
   );

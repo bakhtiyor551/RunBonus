@@ -4,6 +4,7 @@ import { IonPage, IonContent } from '@ionic/react';
 import { api, cacheUser } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
+import ShoeBindBanner from '../components/ShoeBindBanner';
 import ProgressRing from '../components/ProgressRing';
 import StatsDetailModal from '../components/StatsDetailModal';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
@@ -78,9 +79,9 @@ export default function HomePage({ user, setUser }) {
         alert('Нужно подключение к интернету');
         return;
       }
-      if (!user.activeShoe) {
-        alert('Сначала активируйте кроссовки RunBonus или закажите их в магазине');
-        navigate(user.needsActivation ? '/shop' : '/activate');
+      if (!user.activeShoe || user.needsActivation) {
+        alert('Привяжите кроссовки RunBonus по QR, чтобы получать бонусы за бег.');
+        navigate('/activate');
         return;
       }
       const data = await api('/api/workouts/start', { method: 'POST', body: '{}' });
@@ -107,6 +108,8 @@ export default function HomePage({ user, setUser }) {
       <AppHeader />
       <IonContent>
         <main className="rb-main">
+          <ShoeBindBanner user={user} />
+
           <section style={{ marginBottom: 32 }}>
             <div className="glass-card" style={{ padding: 'var(--rb-card-padding)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
