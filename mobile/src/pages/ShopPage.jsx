@@ -128,7 +128,7 @@ export default function ShopPage() {
             type="button"
             className="glass-card rb-urban-ar-banner"
             style={{ width: '100%', marginBottom: 24, padding: 16, textAlign: 'left', border: 'none', cursor: 'pointer', color: 'inherit' }}
-            onClick={() => navigate('/shop/ar/urban-sprint')}
+            onClick={() => navigate('/shop/360/urban-sprint')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Icon name="view_in_ar" filled style={{ fontSize: 36, color: 'var(--rb-neon)' }} />
@@ -154,7 +154,7 @@ export default function ShopPage() {
                 product={p}
                 onOpen={(id) => navigate(`/shop/${id}`)}
                 onAr={(prod) =>
-                  navigate(`/shop/ar/${prod.slug || 'urban-sprint'}`, { state: { productId: prod.id } })
+                  navigate(`/shop/360/${prod.slug || 'urban-sprint'}`, { state: { productId: prod.id } })
                 }
               />
             ))}
