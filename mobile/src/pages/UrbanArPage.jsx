@@ -19,6 +19,10 @@ const MODES = [
   { id: 'photo', label: 'Фото' },
 ];
 
+function open360(navigate, slug, productId) {
+  navigate(`/shop/360/${slug}`, { state: { productId } });
+}
+
 export default function UrbanArPage({ user }) {
   const { slug = 'urban-sprint' } = useParams();
   const navigate = useNavigate();
@@ -199,9 +203,9 @@ export default function UrbanArPage({ user }) {
             </button>
             <button
               type="button"
-              className={`rb-ar-page__icon-btn${autoRotate ? ' rb-ar-page__icon-btn--neon' : ''}`}
-              onClick={() => setAutoRotate((r) => !r)}
-              aria-label="360° обзор"
+              className="rb-ar-page__icon-btn rb-ar-page__icon-btn--neon"
+              onClick={() => open360(navigate, slug, productId)}
+              aria-label="360° по фото"
             >
               <Icon name="360" />
             </button>

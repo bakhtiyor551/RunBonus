@@ -158,17 +158,30 @@ export default function ProductDetailPage({ user }) {
           </p>
 
           {product.slug === 'urban-sprint' && (
-            <button
-              type="button"
-              className="rb-btn-primary"
-              style={{ width: '100%', marginTop: 20 }}
-              onClick={() =>
-                navigate('/shop/ar/urban-sprint', { state: { productId: product.id } })
-              }
-            >
-              <Icon name="view_in_ar" filled style={{ fontSize: 28 }} />
-              Примерить в AR
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
+              <button
+                type="button"
+                className="rb-btn-primary"
+                style={{ width: '100%' }}
+                onClick={() =>
+                  navigate('/shop/360/urban-sprint', { state: { productId: product.id } })
+                }
+              >
+                <Icon name="360" filled style={{ fontSize: 28 }} />
+                360° просмотр
+              </button>
+              <button
+                type="button"
+                className="rb-btn-pill"
+                style={{ width: '100%' }}
+                onClick={() =>
+                  navigate('/shop/ar/urban-sprint', { state: { productId: product.id } })
+                }
+              >
+                <Icon name="view_in_ar" />
+                Примерить в AR
+              </button>
+            </div>
           )}
 
           <section style={{ marginTop: 24 }}>
