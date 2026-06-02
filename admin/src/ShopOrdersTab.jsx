@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from './api';
 
-const STATUSES = ['new', 'confirmed', 'paid', 'qr_issued', 'delivered', 'cancelled'];
+const STATUS_OPTIONS = [
+  { value: 'new', label: 'Новый' },
+  { value: 'confirmed', label: 'Подтверждён' },
+  { value: 'paid', label: 'Оплачен' },
+  { value: 'qr_issued', label: 'QR выдан' },
+  { value: 'delivered', label: 'Доставлен' },
+  { value: 'cancelled', label: 'Отменён' },
+];
 
 export default function ShopOrdersTab() {
   const [orders, setOrders] = useState([]);
@@ -79,9 +86,9 @@ export default function ShopOrdersTab() {
                   <td>{o.total_amount}</td>
                   <td>
                     <select value={o.status} onChange={(e) => setStatus(o.id, e.target.value)}>
-                      {STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
                         </option>
                       ))}
                     </select>

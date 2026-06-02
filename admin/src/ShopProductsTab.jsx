@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from './api';
+import Icon from './components/Icon';
 
 const emptyForm = {
   name: '',
@@ -12,11 +13,82 @@ const emptyForm = {
   images: [{ image_url: '', sort_order: 0 }],
 };
 
+const STATUS_LABELS = {
+  active: 'Активен',
+  inactive: 'Отключён',
+};
+
+function productImageUrl(product) {
+  return product?.images?.[0]?.image_url || product?.image_url || '';
+}
+
+function productSizesList(product) {
+  return (product?.sizes || [])
+    .filter((s) => s.status !== 'inactive' && Number(s.stock_qty) > 0)
+    .map((s) => s.size);
+}
+
+function ShopProductCard({ product, selected, onEdit, onDeactivate }) {
+  const imageUrl = productImageUrl(product);
+  const sizes = productSizesList(product);
+  const active = product.status === 'active';
+  const inStock = sizes.length > 0;
+
+  return (
+    <article
+      className={`shop-product-card glass-card${selected ? ' entity-card--selected' : ''}`}
+    >
+      <div className="shop-product-card__img">
+        {imageUrl ? (
+          <img src={imageUrl} alt="" />
+        ) : (
+          <Icon name="directions_run" style={{ fontSize: 40, color: 'var(--primary-fixed)' }} />
+        )}
+      </div>
+      <div className="shop-product-card__body">
+        <div className="entity-card__head">
+          <span className="shop-product-card__id">#{product.id}</span>
+          <span className={`chip ${active ? 'entity-card__status--ok' : 'entity-card__status--muted'}`}>
+            {STATUS_LABELS[product.status] || product.status}
+          </span>
+        </div>
+        <h3 className="entity-card__title">{product.name || 'Без названия'}</h3>
+        <div className="entity-card__highlight">
+          <span className="entity-card__highlight-label">Цена</span>
+          <span className="entity-card__highlight-value">
+            {product.price != null && product.price !== '' ? `${product.price} сом.` : '—'}
+          </span>
+        </div>
+        {product.color && <p className="entity-card__meta">Цвет: {product.color}</p>}
+        {sizes.length > 0 && (
+          <p className="entity-card__meta">Размеры: {sizes.join(', ')}</p>
+        )}
+        <span className={`chip shop-product-card__stock ${inStock ? 'entity-card__status--ok' : 'entity-card__status--bad'}`}>
+          {inStock ? 'В наличии' : 'Нет в наличии'}
+        </span>
+        {onEdit && (
+          <div className="entity-card__actions">
+            <button type="button" className="btn btn--sm" onClick={() => onEdit(product)}>
+              Изменить
+            </button>
+            {active && onDeactivate && (
+              <button type="button" className="btn btn--sm btn--ghost" onClick={() => onDeactivate(product.id)}>
+                Отключить
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
 export default function ShopProductsTab() {
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(true);
 
   const load = () => {
     setLoading(true);
@@ -30,8 +102,19 @@ export default function ShopProductsTab() {
     load();
   }, []);
 
+  const previewProduct = {
+    id: editId || '…',
+    name: form.name,
+    price: form.price,
+    color: form.color,
+    status: form.status,
+    images: form.images,
+    sizes: form.sizes.filter((s) => s.size?.trim()),
+  };
+
   const startEdit = (p) => {
     setEditId(p.id);
+    setShowForm(true);
     setForm({
       name: p.name,
       slug: p.slug || '',
@@ -42,6 +125,12 @@ export default function ShopProductsTab() {
       sizes: p.sizes?.length ? p.sizes : emptyForm.sizes,
       images: p.images?.length ? p.images : emptyForm.images,
     });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditId(null);
   };
 
   const save = async (e) => {
@@ -49,131 +138,165 @@ export default function ShopProductsTab() {
     const payload = {
       ...form,
       price: Number(form.price),
-      sizes: form.sizes.filter((s) => s.size),
-      images: form.images.filter((i) => i.image_url),
+      sizes: form.sizes.filter((s) => s.size?.trim()),
+      images: form.images.filter((i) => i.image_url?.trim()),
     };
     if (editId) {
       await adminApi(`/api/admin/shop/products/${editId}`, { method: 'PUT', body: JSON.stringify(payload) });
     } else {
       await adminApi('/api/admin/shop/products', { method: 'POST', body: JSON.stringify(payload) });
     }
-    setForm(emptyForm);
-    setEditId(null);
+    resetForm();
     load();
   };
 
   const deactivate = async (id) => {
     if (!confirm('Отключить товар?')) return;
     await adminApi(`/api/admin/shop/products/${id}`, { method: 'DELETE' });
+    if (editId === id) resetForm();
     load();
   };
 
+  const sizesValue = form.sizes.map((s) => s.size).filter(Boolean).join(',');
+
   return (
-    <div className="page-content">
-      <div className="glass-card card">
-        <h2>Магазин — товары</h2>
-        <p className="hint">Кроссовки в мобильном приложении</p>
+    <div className="page-content shop-products-page">
+      <div className="shop-products-page__header">
+        <div>
+          <h2 className="shop-products-page__title">Магазин — товары</h2>
+          <p className="hint">Кроссовки в мобильном приложении</p>
+        </div>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={() => {
+            if (showForm && !editId) {
+              setShowForm(false);
+              resetForm();
+            } else {
+              resetForm();
+              setShowForm(true);
+            }
+          }}
+        >
+          {showForm && !editId ? 'Скрыть форму' : '+ Новый товар'}
+        </button>
+      </div>
 
-        <form className="settings-form" onSubmit={save} style={{ marginBottom: 24 }}>
+      {showForm && (
+        <div className="glass-card card shop-products-editor">
           <h3>{editId ? `Редактировать #${editId}` : 'Новый товар'}</h3>
-          <label>
-            Название
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          </label>
-          <label>
-            Slug
-            <input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
-          </label>
-          <label>
-            Цена (сомони)
-            <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
-          </label>
-          <label>
-            Цвет
-            <input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="Black / Green" />
-          </label>
-          <label>
-            Описание
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
-          </label>
-          <label>
-            URL фото
-            <input
-              value={form.images[0]?.image_url || ''}
-              onChange={(e) => setForm({ ...form, images: [{ image_url: e.target.value, sort_order: 0 }] })}
-            />
-          </label>
-          <label>
-            Размеры (через запятую)
-            <input
-              placeholder="39,40,41,42,43"
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  sizes: e.target.value.split(',').map((s) => ({
-                    size: s.trim(),
-                    stock_qty: 5,
-                    status: 'active',
-                  })),
-                })
-              }
-              defaultValue={form.sizes.map((s) => s.size).join(',')}
-            />
-          </label>
-          <label>
-            Статус
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
-            </select>
-          </label>
-          <button type="submit" className="btn btn--primary">
-            {editId ? 'Сохранить' : 'Добавить'}
-          </button>
-          {editId && (
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => {
-                setEditId(null);
-                setForm(emptyForm);
-              }}
-            >
-              Отмена
-            </button>
-          )}
-        </form>
-
-        {loading && <p>Загрузка…</p>}
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Название</th>
-              <th>Цена</th>
-              <th>Статус</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((p) => (
-              <tr key={p.id}>
-                <td>{p.id}</td>
-                <td>{p.name}</td>
-                <td>{p.price} сом.</td>
-                <td>{p.status}</td>
-                <td>
-                  <button type="button" className="btn btn--sm" onClick={() => startEdit(p)}>
-                    Изменить
-                  </button>{' '}
-                  <button type="button" className="btn btn--sm btn--ghost" onClick={() => deactivate(p.id)}>
-                    Выкл.
+          <div className="shop-products-editor__grid">
+            <form className="settings-form shop-products-form" onSubmit={save}>
+              <label>
+                Название
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </label>
+              <label>
+                Slug
+                <input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+              </label>
+              <label>
+                Цена (сомони)
+                <input
+                  type="number"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  required
+                />
+              </label>
+              <label>
+                Цвет
+                <input
+                  value={form.color}
+                  onChange={(e) => setForm({ ...form, color: e.target.value })}
+                  placeholder="Black / Green"
+                />
+              </label>
+              <label>
+                Описание
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={3}
+                />
+              </label>
+              <label>
+                URL фото
+                <input
+                  value={form.images[0]?.image_url || ''}
+                  onChange={(e) =>
+                    setForm({ ...form, images: [{ image_url: e.target.value, sort_order: 0 }] })
+                  }
+                />
+              </label>
+              <label>
+                Размеры (через запятую)
+                <input
+                  placeholder="39,40,41,42,43"
+                  value={sizesValue}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      sizes: e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                        .map((size) => ({
+                          size,
+                          stock_qty: 5,
+                          status: 'active',
+                        })),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Статус
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                  <option value="active">Активен</option>
+                  <option value="inactive">Отключён</option>
+                </select>
+              </label>
+              <div className="shop-products-form__actions">
+                <button type="submit" className="btn btn--primary">
+                  {editId ? 'Сохранить' : 'Добавить'}
+                </button>
+                {editId && (
+                  <button type="button" className="btn btn--ghost" onClick={resetForm}>
+                    Отмена
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                )}
+              </div>
+            </form>
+
+            <div className="shop-products-editor__preview">
+              <p className="hint shop-products-editor__preview-label">Превью карточки в приложении</p>
+              <ShopProductCard product={previewProduct} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="glass-card card">
+        <h3>Каталог ({products.length})</h3>
+        {loading && <p>Загрузка…</p>}
+        {!loading && !products.length && (
+          <p className="hint" style={{ marginTop: 12 }}>
+            Товаров пока нет. Добавьте первый через форму выше.
+          </p>
+        )}
+        <div className="entity-cards-grid shop-products-grid">
+          {products.map((p) => (
+            <ShopProductCard
+              key={p.id}
+              product={p}
+              selected={editId === p.id}
+              onEdit={startEdit}
+              onDeactivate={deactivate}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS product_sizes (
 
 CREATE TABLE IF NOT EXISTS shop_orders (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  user_id BIGINT NULL,
+  user_id INT NULL,
   product_id BIGINT NOT NULL,
   assigned_shoe_id INT NULL,
   size VARCHAR(20) NULL,
