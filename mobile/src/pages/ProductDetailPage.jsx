@@ -157,6 +157,20 @@ export default function ProductDetailPage({ user }) {
             {product.description}
           </p>
 
+          {product.slug === 'urban-sprint' && (
+            <button
+              type="button"
+              className="rb-btn-primary"
+              style={{ width: '100%', marginTop: 20 }}
+              onClick={() =>
+                navigate('/shop/ar/urban-sprint', { state: { productId: product.id } })
+              }
+            >
+              <Icon name="view_in_ar" filled style={{ fontSize: 28 }} />
+              Примерить в AR
+            </button>
+          )}
+
           <section style={{ marginTop: 24 }}>
             <p className="rb-label" style={{ marginBottom: 8 }}>
               Размер

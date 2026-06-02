@@ -24,6 +24,7 @@
     "@capacitor/ios": "^6.2.1",
     "@capacitor/network": "^6.0.4",
     "@capacitor/status-bar": "^6.0.3",
+    "@google/model-viewer": "^4.3.0",
     "@ionic/react": "^8.3.2",
     "html5-qrcode": "^2.3.8",
     "ionicons": "^7.4.0",

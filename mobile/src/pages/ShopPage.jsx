@@ -7,10 +7,12 @@ import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import { cartCount } from '../services/cart';
 
-function ProductCard({ product, onOpen }) {
+function ProductCard({ product, onOpen, onAr }) {
   const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
+  const hasAr = product.slug === 'urban-sprint';
   return (
-    <button type="button" className="glass-card rb-shop-card" onClick={() => onOpen(product.id)}>
+    <div className="glass-card rb-shop-card rb-shop-card--wrap">
+    <button type="button" className="rb-shop-card__tap" onClick={() => onOpen(product.id)}>
       <div className="rb-shop-card__img">
         {product.image_url ? (
           <img src={product.image_url} alt="" />
@@ -38,6 +40,20 @@ function ProductCard({ product, onOpen }) {
         </span>
       </div>
     </button>
+    {hasAr && (
+      <button
+        type="button"
+        className="rb-shop-card__ar-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          onAr(product);
+        }}
+      >
+        <Icon name="view_in_ar" />
+        Примерить в AR
+      </button>
+    )}
+    </div>
   );
 }
 
@@ -104,16 +120,43 @@ export default function ShopPage() {
               </button>
             </div>
           </div>
-          <p className="rb-text-muted" style={{ marginBottom: 24 }}>
+          <p className="rb-text-muted" style={{ marginBottom: 16 }}>
             Кроссовки с программой бонусов за километры. После доставки привяжите QR на главной или во вкладке «Бег».
           </p>
+
+          <button
+            type="button"
+            className="glass-card rb-urban-ar-banner"
+            style={{ width: '100%', marginBottom: 24, padding: 16, textAlign: 'left', border: 'none', cursor: 'pointer', color: 'inherit' }}
+            onClick={() => navigate('/shop/ar/urban-sprint')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Icon name="view_in_ar" filled style={{ fontSize: 36, color: 'var(--rb-neon)' }} />
+              <div>
+                <strong className="font-display" style={{ fontSize: 17 }}>
+                  Примерь Urban Sprint у себя дома
+                </strong>
+                <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                  AR-примерка и 3D-обзор 360° · 4 цвета
+                </p>
+              </div>
+              <Icon name="chevron_right" style={{ marginLeft: 'auto' }} />
+            </div>
+          </button>
 
           {loading && <p className="rb-text-muted">Загрузка…</p>}
           {!loading && !products.length && <p className="rb-text-muted">Товары скоро появятся</p>}
 
           <div className="rb-shop-grid">
             {products.map((p) => (
-              <ProductCard key={p.id} product={p} onOpen={(id) => navigate(`/shop/${id}`)} />
+              <ProductCard
+                key={p.id}
+                product={p}
+                onOpen={(id) => navigate(`/shop/${id}`)}
+                onAr={(prod) =>
+                  navigate(`/shop/ar/${prod.slug || 'urban-sprint'}`, { state: { productId: prod.id } })
+                }
+              />
             ))}
           </div>
         </main>

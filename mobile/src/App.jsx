@@ -18,6 +18,7 @@ import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import MyOrdersPage from './pages/MyOrdersPage';
+import UrbanArPage from './pages/UrbanArPage';
 import OfflineModal from './components/OfflineModal';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
 import {
@@ -164,6 +165,7 @@ function App() {
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/level" element={<LevelPage />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
+            <Route path="/shop/ar/:slug" element={<UrbanArPage user={user} />} />
             <Route path="/shop/:id" element={<ProductDetailPage user={user} />} />
             <Route path="/cart" element={<CartPage user={user} />} />
             <Route path="/orders" element={<MyOrdersPage />} />
