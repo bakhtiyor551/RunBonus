@@ -3,9 +3,11 @@ import { normalizeCategoryId, categoryMapKey } from '../utils/categoryId.js';
 import {
   listActiveShopCategories,
   listAllShopCategoriesAdmin,
+  listCatalogShopCategories,
+  categoryDisplayName,
 } from './shopCategoryService.js';
 
-export { listActiveShopCategories, listAllShopCategoriesAdmin };
+export { listActiveShopCategories, listAllShopCategoriesAdmin, listCatalogShopCategories };
 
 let colorsTableReady = null;
 
@@ -55,7 +57,11 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
     color: defaultColor,
     colors: colorList,
     category_id: normalizeCategoryId(category?.id ?? row.category_id) ?? null,
-    category_name: category?.name ?? null,
+    category_name:
+      category?.name ??
+      (row.category_id != null && String(row.category_id).trim() !== ''
+        ? categoryDisplayName(row.category_id, null)
+        : null),
     price: Number(row.price),
     status: row.status,
     in_stock: activeSizes.length > 0,
@@ -71,7 +77,7 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
 }
 
 async function loadCategoriesMap() {
-  const cats = await listActiveShopCategories();
+  const cats = await listCatalogShopCategories();
   return new Map(
     cats.map((c) => {
       const key = categoryMapKey(c.id);

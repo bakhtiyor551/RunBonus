@@ -26,12 +26,32 @@ function normalizeCategories(list) {
   return list.map(normalizeCategory).filter(Boolean);
 }
 
+const CATEGORY_NAME_FALLBACK = {
+  1: 'Бег',
+  2: 'Город',
+  3: 'Трейл',
+  running: 'Бег',
+  urban: 'Город',
+  trail: 'Трейл',
+};
+
+export function categoryLabelFromProduct(product) {
+  const name = String(product?.category_name || '').trim();
+  if (name) return name;
+  const id = product?.category_id;
+  if (id == null || id === '') return '';
+  const key = String(id);
+  return CATEGORY_NAME_FALLBACK[id] ?? CATEGORY_NAME_FALLBACK[key] ?? CATEGORY_NAME_FALLBACK[key.toLowerCase()] ?? key;
+}
+
 export function categoriesFromProducts(products) {
   const map = new Map();
   for (const p of products || []) {
+    const label = categoryLabelFromProduct(p);
+    if (!label && (p.category_id == null || p.category_id === '')) continue;
     const cat = normalizeCategory({
       id: p.category_id,
-      name: p.category_name,
+      name: label || p.category_id,
       slug: p.category_id,
     });
     if (cat) map.set(String(cat.id), cat);
