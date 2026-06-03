@@ -26,7 +26,8 @@ export function validateOrderForm(form, paymentMethods, { requireAddress = true 
   if (!form.payment_method) return 'Выберите способ оплаты';
   const pm = getPaymentMethod(paymentMethods, form.payment_method);
   if (!pm) return 'Выберите способ оплаты';
-  if (pm.needsDetails && !form.payment_details?.trim()) {
+  // Мобильный перевод: кошелёк и чек — в модальном окне после «Оформить»
+  if (form.payment_method !== 'mobile' && pm.needsDetails && !form.payment_details?.trim()) {
     return pm.detailsLabel || 'Укажите данные для оплаты';
   }
   return null;

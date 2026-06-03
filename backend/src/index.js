@@ -34,7 +34,7 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Id'],
   })
 );
-app.use(express.json({ limit: '3mb' }));
+app.use(express.json({ limit: '12mb' }));
 app.use('/uploads', express.static(UPLOADS_ROOT));
 app.use('/api/uploads', express.static(UPLOADS_ROOT));
 

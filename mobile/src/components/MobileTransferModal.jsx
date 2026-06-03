@@ -3,21 +3,13 @@ import { api } from '../api';
 import DetailSheet from './DetailSheet';
 import Icon from './Icon';
 import { showToast } from '../utils/toast';
+import { compressReceiptImage } from '../utils/compressImage';
 
 const ACCOUNTS_FALLBACK = [
   { id: 'alif', provider: 'Alif Mobi', number: '+992 90 000 00 01', holder: 'RunBonus' },
   { id: 'dc', provider: 'DC Wallet', number: '+992 90 000 00 02', holder: 'RunBonus' },
   { id: 'eskhata', provider: 'Эсхата Онлайн', number: '+992 90 000 00 03', holder: 'RunBonus' },
 ];
-
-function readImageAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
-    reader.readAsDataURL(file);
-  });
-}
 
 export function validateMobileTransfer({ senderWallet, confirmed, receiptDataUrl }) {
   if (!senderWallet?.trim()) return 'Укажите номер кошелька, с которого вы перевели';
@@ -70,7 +62,7 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
       return;
     }
     try {
-      const dataUrl = await readImageAsDataUrl(file);
+      const dataUrl = await compressReceiptImage(file);
       setReceiptDataUrl(dataUrl);
       setReceiptPreview(dataUrl);
     } catch {
@@ -85,7 +77,7 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
       await showToast(err);
       return;
     }
-    onConfirm({
+    await onConfirm({
       payment_details: senderWallet.trim(),
       payment_receipt_base64: receiptDataUrl,
     });

@@ -34,6 +34,7 @@ export async function createOrder(data, userId = null) {
     payment_method,
     payment_details,
     payment_receipt_base64,
+    payment_receipt_url: paymentReceiptUrlInput,
   } = data;
 
   if (!payment_method || !isValidPaymentMethod(payment_method)) {
@@ -47,7 +48,7 @@ export async function createOrder(data, userId = null) {
       err.status = 400;
       throw err;
     }
-    if (!payment_receipt_base64) {
+    if (!payment_receipt_base64 && !paymentReceiptUrlInput) {
       const err = new Error('Загрузите чек перевода');
       err.status = 400;
       throw err;
@@ -86,35 +87,53 @@ export async function createOrder(data, userId = null) {
   const price = Number(product.price);
   const total = Math.round(price * qty * 100) / 100;
 
-  const [result] = await pool.query(
-    `INSERT INTO shop_orders
-       (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
-    [
-      userId,
-      product_id,
-      size || null,
-      qty,
-      price,
-      total,
-      customer_name.trim(),
-      phone.trim(),
-      city?.trim() || null,
-      address?.trim() || null,
-      comment?.trim() || null,
-      payment_method,
-      payment_details?.trim() || null,
-    ]
-  );
+  const baseValues = [
+    userId,
+    product_id,
+    size || null,
+    qty,
+    price,
+    total,
+    customer_name.trim(),
+    phone.trim(),
+    city?.trim() || null,
+    address?.trim() || null,
+    comment?.trim() || null,
+  ];
+
+  let result;
+  try {
+    [result] = await pool.query(
+      `INSERT INTO shop_orders
+         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+      [...baseValues, payment_method, payment_details?.trim() || null]
+    );
+  } catch (err) {
+    if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+    [result] = await pool.query(
+      `INSERT INTO shop_orders
+         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+      baseValues
+    );
+  }
 
   const orderId = result.insertId;
 
-  if (payment_method === 'mobile' && payment_receipt_base64) {
-    const receiptUrl = saveOrderReceiptFromDataUrl(orderId, payment_receipt_base64);
-    await pool.query(`UPDATE shop_orders SET payment_receipt_url = ? WHERE id = ?`, [
-      receiptUrl,
-      orderId,
-    ]);
+  let receiptUrl = paymentReceiptUrlInput || null;
+  if (payment_method === 'mobile' && !receiptUrl && payment_receipt_base64) {
+    receiptUrl = saveOrderReceiptFromDataUrl(orderId, payment_receipt_base64);
+  }
+  if (receiptUrl) {
+    try {
+      await pool.query(`UPDATE shop_orders SET payment_receipt_url = ? WHERE id = ?`, [
+        receiptUrl,
+        orderId,
+      ]);
+    } catch (err) {
+      if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+    }
   }
 
   const order = await getOrderById(orderId);
