@@ -157,20 +157,6 @@ export default function ProductDetailPage({ user }) {
             {product.description}
           </p>
 
-          {product.slug === 'urban-sprint' && (
-            <button
-              type="button"
-              className="rb-btn-primary"
-              style={{ width: '100%', marginTop: 20 }}
-              onClick={() =>
-                navigate('/shop/360/urban-sprint', { state: { productId: product.id } })
-              }
-            >
-              <Icon name="360" filled style={{ fontSize: 28 }} />
-              360° просмотр
-            </button>
-          )}
-
           <section style={{ marginTop: 24 }}>
             <p className="rb-label" style={{ marginBottom: 8 }}>
               Размер

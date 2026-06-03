@@ -7,7 +7,6 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
-import RunPage from './pages/RunPage';
 import WorkoutPage from './pages/WorkoutPage';
 import WalletPage from './pages/WalletPage';
 import WithdrawPage from './pages/WithdrawPage';
@@ -18,7 +17,6 @@ import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import MyOrdersPage from './pages/MyOrdersPage';
-import Urban360Page from './pages/Urban360Page';
 import OfflineModal from './components/OfflineModal';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
 import {
@@ -144,7 +142,6 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
-            <Route path="/run" element={<RunPage user={user} />} />
             <Route path="/wallet" element={<WalletPage user={user} />} />
             <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
@@ -165,7 +162,6 @@ function App() {
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/level" element={<LevelPage />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
-            <Route path="/shop/360/:slug" element={<Urban360Page />} />
             <Route path="/shop/:id" element={<ProductDetailPage user={user} />} />
             <Route path="/cart" element={<CartPage user={user} />} />
             <Route path="/orders" element={<MyOrdersPage />} />

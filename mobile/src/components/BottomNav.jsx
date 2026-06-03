@@ -3,7 +3,7 @@ import Icon from './Icon';
 
 const tabs = [
   { to: '/', label: 'Главная', icon: 'home', end: true },
-  { to: '/run', label: 'Бег', icon: 'directions_run' },
+  { to: '/level', label: 'Уровень', icon: 'military_tech' },
   { to: '/wallet', label: 'Кошелёк', icon: 'account_balance_wallet' },
   { to: '/shop', label: 'Магазин', icon: 'storefront' },
   { to: '/profile', label: 'Профиль', icon: 'person' },

@@ -4,7 +4,8 @@ const EARTH_RADIUS_KM = 6371;
 const COORD_EPS = 1e-6;
 
 export const MAX_GPS_ACCURACY_M = 50;
-export const MAX_GPS_SPEED_KMH = 25;
+/** Лимит по умолчанию + 1 км/ч допуск (см. workoutValidation GPS_SPEED_TOLERANCE_KMH) */
+export const MAX_GPS_SPEED_KMH = 19;
 
 function toRad(deg) {
   return (deg * Math.PI) / 180;
