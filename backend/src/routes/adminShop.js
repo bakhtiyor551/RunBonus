@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { authAdmin } from '../middleware/auth.js';
+import { adminListProducts, adminSaveProduct } from '../services/shopService.js';
 import {
   adminListProducts,
   adminSaveProduct,
   adminDeleteProduct,
   listAllShopCategoriesAdmin,
-} from '../services/shopService.js';
+  createShopCategory,
+  updateShopCategory,
+  setShopCategoryStatus,
+} from '../services/shopCategoryService.js';
 import {
   listAdminOrders,
   getOrderById,
@@ -33,6 +37,39 @@ router.get('/categories', authAdmin, async (_req, res) => {
     const categories = await listAllShopCategoriesAdmin();
     res.json(categories);
   } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.post('/categories', authAdmin, async (req, res) => {
+  try {
+    const category = await createShopCategory(req.body);
+    res.status(201).json(category);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сохранения' });
+  }
+});
+
+router.put('/categories/:id', authAdmin, async (req, res) => {
+  try {
+    const category = await updateShopCategory(req.params.id, req.body);
+    res.json(category);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сохранения' });
+  }
+});
+
+router.patch('/categories/:id/status', authAdmin, async (req, res) => {
+  try {
+    const category = await setShopCategoryStatus(req.params.id, req.body.status);
+    res.json(category);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error(err);
     res.status(500).json({ error: 'Ошибка' });
   }

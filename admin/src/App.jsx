@@ -9,6 +9,7 @@ import WithdrawalsTab from './WithdrawalsTab';
 import DashboardTab from './DashboardTab';
 import ClientsTab from './ClientsTab';
 import ShopProductsTab from './ShopProductsTab';
+import ShopCategoriesTab from './ShopCategoriesTab';
 import ShopOrdersTab from './ShopOrdersTab';
 import PaymentMethodsTab from './PaymentMethodsTab';
 import Sidebar from './components/Sidebar';
@@ -128,6 +129,11 @@ export default function App() {
           {tab === 8 && (
             <div className="page-content">
               <ShopProductsTab />
+            </div>
+          )}
+          {tab === 11 && (
+            <div className="page-content">
+              <ShopCategoriesTab />
             </div>
           )}
           {tab === 9 && (
