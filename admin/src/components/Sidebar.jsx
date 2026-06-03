@@ -12,6 +12,7 @@ const NAV = [
   { id: 6, label: 'Вывод средств', icon: 'south_west' },
   { id: 8, label: 'Магазин', icon: 'storefront' },
   { id: 9, label: 'Заказы', icon: 'shopping_bag' },
+  { id: 10, label: 'Способы оплаты', icon: 'payments' },
 ];
 
 export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {

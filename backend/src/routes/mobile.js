@@ -5,6 +5,7 @@ import { validateShoeQr } from '../services/shoeValidateService.js';
 import { listActiveProducts, getProductById, getUserShoeStatus } from '../services/shopService.js';
 import { createOrder, listUserOrders } from '../services/orderService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
+import { listActivePaymentMethods } from '../services/paymentMethodService.js';
 import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
 import { getWalletSummary } from '../services/withdrawalService.js';
 import { MOBILE_PAYMENT_ACCOUNTS } from '../constants/mobilePaymentAccounts.js';
@@ -62,10 +63,12 @@ router.get('/products/:id', async (req, res) => {
 router.get('/payment-methods', authUser, async (req, res) => {
   try {
     const summary = await getWalletSummary(pool, req.userId);
-    res.json({
-      methods: PAYMENT_METHODS,
-      available_bonus: summary.available_balance,
+    const available_bonus = summary.available_balance;
+    const methods = await listActivePaymentMethods({
+      hideBonusIfNoBalance: true,
+      availableBonus: available_bonus,
     });
+    res.json({ methods, available_bonus });
   } catch (err) {
     console.error(err);
     res.json({ methods: PAYMENT_METHODS, available_bonus: 0 });

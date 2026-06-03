@@ -5,7 +5,8 @@ import {
   isValidPaymentMethod,
   paymentMethodLabel,
   paymentMethodNeedsDetails,
-} from '../constants/paymentMethods.js';
+  paymentMethodUsesTransferModal,
+} from './paymentMethodService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { spendBonus } from './bonusService.js';
 import { getWalletSummary } from './withdrawalService.js';
@@ -39,7 +40,7 @@ export async function createOrder(data, userId = null) {
     payment_receipt_url: paymentReceiptUrlInput,
   } = data;
 
-  if (!payment_method || !isValidPaymentMethod(payment_method)) {
+  if (!payment_method || !(await isValidPaymentMethod(payment_method))) {
     const err = new Error('Выберите способ оплаты');
     err.status = 400;
     throw err;
@@ -53,7 +54,8 @@ export async function createOrder(data, userId = null) {
     return createOrderPaidWithBonus(data, userId);
   }
 
-  if (payment_method === 'mobile') {
+  const usesTransfer = await paymentMethodUsesTransferModal(payment_method);
+  if (usesTransfer || payment_method === 'mobile') {
     if (!payment_details?.trim()) {
       const err = new Error('Укажите номер кошелька, с которого вы перевели');
       err.status = 400;
@@ -64,7 +66,7 @@ export async function createOrder(data, userId = null) {
       err.status = 400;
       throw err;
     }
-  } else if (paymentMethodNeedsDetails(payment_method) && !payment_details?.trim()) {
+  } else if ((await paymentMethodNeedsDetails(payment_method)) && !payment_details?.trim()) {
     const err = new Error('Укажите данные для выбранного способа оплаты');
     err.status = 400;
     throw err;
@@ -133,7 +135,8 @@ export async function createOrder(data, userId = null) {
   const orderId = result.insertId;
 
   let receiptUrl = paymentReceiptUrlInput || null;
-  if (payment_method === 'mobile' && !receiptUrl && payment_receipt_base64) {
+  const needsReceipt = usesTransfer || payment_method === 'mobile';
+  if (needsReceipt && !receiptUrl && payment_receipt_base64) {
     receiptUrl = saveOrderReceiptFromDataUrl(orderId, payment_receipt_base64);
   }
   if (receiptUrl) {
@@ -278,7 +281,7 @@ export async function getOrderById(id) {
   return mapOrderRow(rows[0]);
 }
 
-function mapOrderRow(row) {
+async function mapOrderRow(row) {
   return {
     id: row.id,
     user_id: row.user_id,
@@ -296,7 +299,7 @@ function mapOrderRow(row) {
     address: row.address,
     comment: row.comment,
     payment_method: row.payment_method,
-    payment_method_label: paymentMethodLabel(row.payment_method),
+    payment_method_label: await paymentMethodLabel(row.payment_method),
     payment_details: row.payment_details,
     payment_receipt_url: row.payment_receipt_url || null,
     status: row.status,
@@ -315,7 +318,7 @@ export async function listUserOrders(userId) {
      ORDER BY o.created_at DESC`,
     [userId]
   );
-  return rows.map(mapOrderRow);
+  return Promise.all(rows.map(mapOrderRow));
 }
 
 export async function listAdminOrders() {
@@ -328,10 +331,12 @@ export async function listAdminOrders() {
      ORDER BY o.created_at DESC
      LIMIT 500`
   );
-  return rows.map((r) => ({
-    ...mapOrderRow(r),
-    assigned_shoe_code: r.assigned_shoe_code,
-  }));
+  return Promise.all(
+    rows.map(async (r) => ({
+      ...(await mapOrderRow(r)),
+      assigned_shoe_code: r.assigned_shoe_code,
+    }))
+  );
 }
 
 export async function updateOrderStatus(orderId, status) {

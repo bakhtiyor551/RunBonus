@@ -1829,6 +1829,43 @@ code {
   font-size: 14px;
 }
 
+.payment-methods-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.payment-method-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-method-card__code {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--on-surface-variant);
+}
+
+.payment-method-card__flags {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--on-surface-variant);
+}
+
+.settings-form__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-direction: row !important;
+  cursor: pointer;
+}
+
+.settings-form__checkbox input {
+  width: auto;
+}
+
 .tx-card {
   gap: 8px;
 }
