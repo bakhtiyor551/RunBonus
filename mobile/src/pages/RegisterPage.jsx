@@ -4,8 +4,9 @@ import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
+import OtpInput from '../components/OtpInput';
 
-const STEP_LABELS = ['Данные', 'Пароль'];
+const STEP_LABELS = ['Данные', 'Код из SMS'];
 
 function StepDots({ step }) {
   return (
@@ -43,13 +44,12 @@ export default function RegisterPage({ onAuth }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [password2, setPassword2] = useState('');
+  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendSec, setResendSec] = useState(0);
 
-  const nextFromPersonal = (e) => {
-    e.preventDefault();
+  const sendCode = async () => {
     setError('');
     if (!firstName.trim() || !lastName.trim()) {
       setError('Укажите имя и фамилию');
@@ -59,29 +59,52 @@ export default function RegisterPage({ onAuth }) {
       setError('Укажите номер телефона');
       return;
     }
-    setStep(1);
+    setLoading(true);
+    try {
+      await api('/api/auth/sms/send', {
+        method: 'POST',
+        body: JSON.stringify({ phone: phone.trim(), purpose: 'register' }),
+      });
+      setStep(1);
+      setOtp('');
+      setResendSec(60);
+      const t = setInterval(() => {
+        setResendSec((s) => {
+          if (s <= 1) {
+            clearInterval(t);
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendCode = async () => {
+    if (resendSec > 0) return;
+    await sendCode();
   };
 
   const finish = async (e) => {
     e.preventDefault();
     setError('');
-    if (password.length < 4) {
-      setError('Пароль не менее 4 символов');
-      return;
-    }
-    if (password !== password2) {
-      setError('Пароли не совпадают');
+    if (otp.length !== 6) {
+      setError('Введите код из SMS (6 цифр)');
       return;
     }
     setLoading(true);
     try {
-      const data = await api('/api/auth/register', {
+      const data = await api('/api/auth/sms/register', {
         method: 'POST',
         body: JSON.stringify({
+          phone: phone.trim(),
+          code: otp,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          phone: phone.trim(),
-          password,
         }),
       });
       onAuth(data);
@@ -112,12 +135,19 @@ export default function RegisterPage({ onAuth }) {
           <StepDots step={step} />
 
           {step === 0 && (
-            <form onSubmit={nextFromPersonal} className="glass-effect" style={{ padding: 24, borderRadius: 24 }}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendCode();
+              }}
+              className="glass-effect"
+              style={{ padding: 24, borderRadius: 24 }}
+            >
               <h2 className="font-display" style={{ fontSize: 22, margin: '0 0 8px' }}>
-                Профиль
+                Регистрация
               </h2>
               <p className="rb-text-muted" style={{ marginBottom: 20, fontSize: 14 }}>
-                Укажите данные для входа. Магазин и привязка кроссовок — уже внутри приложения.
+                Укажите данные — отправим SMS с кодом подтверждения.
               </p>
               <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
                 Имя
@@ -140,14 +170,13 @@ export default function RegisterPage({ onAuth }) {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+992 …"
+                  placeholder="+992 90 123 4567"
                   required
                 />
               </div>
               {error && <p className="rb-text-error">{error}</p>}
-              <button type="submit" className="rb-btn-pill" style={{ width: '100%', marginTop: 16 }}>
-                Далее
-                <Icon name="arrow_forward" />
+              <button type="submit" className="rb-btn-primary" disabled={loading} style={{ width: '100%', marginTop: 16 }}>
+                {loading ? 'Отправка…' : 'Получить код'}
               </button>
             </form>
           )}
@@ -155,26 +184,24 @@ export default function RegisterPage({ onAuth }) {
           {step === 1 && (
             <form onSubmit={finish} className="glass-effect" style={{ padding: 24, borderRadius: 24 }}>
               <h2 className="font-display" style={{ fontSize: 22, margin: '0 0 8px' }}>
-                Пароль
+                Код из SMS
               </h2>
-              <p className="rb-text-muted" style={{ marginBottom: 20, fontSize: 14 }}>
-                После регистрации вы сразу попадёте на главную. Кроссовки можно купить или привязать по QR в приложении.
+              <p className="rb-text-muted" style={{ marginBottom: 8, fontSize: 14 }}>
+                Введите 6 цифр, отправленных на {phone}
               </p>
-              <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
-                Пароль
-              </label>
-              <div className="rb-input-wrap" style={{ marginBottom: 14 }}>
-                <input className="rb-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              </div>
-              <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
-                Повторите пароль
-              </label>
-              <div className="rb-input-wrap" style={{ marginBottom: 14 }}>
-                <input className="rb-input" type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
-              </div>
+              <OtpInput value={otp} onChange={setOtp} disabled={loading} />
               {error && <p className="rb-text-error">{error}</p>}
-              <button type="submit" className="rb-btn-primary" disabled={loading} style={{ marginTop: 8, width: '100%' }}>
-                {loading ? 'Регистрация…' : 'Создать аккаунт'}
+              <button type="submit" className="rb-btn-primary" disabled={loading} style={{ width: '100%', marginTop: 8 }}>
+                {loading ? 'Проверка…' : 'Создать аккаунт'}
+              </button>
+              <button
+                type="button"
+                className="rb-btn-pill"
+                style={{ width: '100%', marginTop: 12 }}
+                disabled={loading || resendSec > 0}
+                onClick={resendCode}
+              >
+                {resendSec > 0 ? `Повтор через ${resendSec} с` : 'Отправить код снова'}
               </button>
             </form>
           )}

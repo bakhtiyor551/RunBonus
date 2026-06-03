@@ -126,7 +126,7 @@ function apiErrorMessage(data, status) {
   if (typeof data === 'string' && data.includes('Cannot GET')) {
     return 'Ошибка API: запрос ушёл как GET вместо POST (редирект домена). Пересоберите приложение с IP в настройках.';
   }
-  return status === 401 ? 'Неверный телефон или пароль' : 'Ошибка запроса';
+  return status === 401 ? 'Ошибка авторизации' : 'Ошибка запроса';
 }
 
 let forcedLogoutHandler = null;
@@ -200,7 +200,7 @@ async function requestFetch(url, options = {}) {
   const fetchOptions = { ...options, headers };
   let res;
   try {
-    res = await fetch(fetchOptions);
+    res = await fetch(url, fetchOptions);
   } catch (e) {
     if (e?.message?.includes('CORS') || e?.name === 'TypeError') {
       throw networkError(

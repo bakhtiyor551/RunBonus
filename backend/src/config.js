@@ -21,4 +21,12 @@ export const config = {
   },
   /** Публичный URL API для ссылок и Telegram (например https://runbonus.online) */
   publicApiUrl: (process.env.PUBLIC_API_URL || process.env.API_PUBLIC_URL || '').replace(/\/$/, ''),
+  sms: {
+    login: process.env.SMS_LOGIN || '',
+    token: process.env.SMS_TOKEN || '',
+    sender: process.env.SMS_SENDER || 'RunBonus',
+    server: (process.env.SMS_SERVER || 'https://api.osonsms.com').replace(/\/$/, ''),
+    /** Если задано — SMS не отправляется, в ответе API вернётся dev_code (только NODE_ENV !== production) */
+    devCode: process.env.SMS_DEV_CODE || '',
+  },
 };

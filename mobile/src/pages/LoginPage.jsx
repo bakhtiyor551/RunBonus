@@ -4,13 +4,16 @@ import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
+import OtpInput from '../components/OtpInput';
 
 export default function LoginPage({ onAuth }) {
+  const [step, setStep] = useState(0);
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendSec, setResendSec] = useState(0);
 
   useEffect(() => {
     const msg = sessionStorage.getItem('auth_notice');
@@ -20,23 +23,54 @@ export default function LoginPage({ onAuth }) {
     }
   }, []);
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const startResendTimer = () => {
+    setResendSec(60);
+    const t = setInterval(() => {
+      setResendSec((s) => {
+        if (s <= 1) {
+          clearInterval(t);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
+  const sendCode = async (e) => {
+    e?.preventDefault();
     setError('');
-    const phoneNorm = phone.trim();
-    if (!phoneNorm) {
+    if (!phone.trim()) {
       setError('Введите номер телефона');
-      return;
-    }
-    if (!password) {
-      setError('Введите пароль');
       return;
     }
     setLoading(true);
     try {
-      const data = await api('/api/auth/login', {
+      await api('/api/auth/sms/send', {
         method: 'POST',
-        body: JSON.stringify({ phone: phoneNorm, password }),
+        body: JSON.stringify({ phone: phone.trim(), purpose: 'login' }),
+      });
+      setStep(1);
+      setOtp('');
+      startResendTimer();
+    } catch (err) {
+      setError(err.message || 'Не удалось отправить SMS');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (otp.length !== 6) {
+      setError('Введите код из SMS (6 цифр)');
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await api('/api/auth/sms/login', {
+        method: 'POST',
+        body: JSON.stringify({ phone: phone.trim(), code: otp }),
       });
       onAuth(data);
     } catch (err) {
@@ -53,70 +87,85 @@ export default function LoginPage({ onAuth }) {
         <div className="rb-atmosphere__blob" style={{ top: '40%', left: '-20%', width: '70%', height: '70%', opacity: 0.4 }} />
       </div>
       <header className="rb-header">
-        <div className="rb-header__brand">
-          <BoltIcon size="md" />
-          <h1 className="rb-header__logo">RunBonus</h1>
-        </div>
+        {step > 0 ? (
+          <button type="button" className="rb-header__avatar" onClick={() => setStep(0)} aria-label="Назад">
+            <Icon name="arrow_back" />
+          </button>
+        ) : (
+          <div className="rb-header__brand">
+            <BoltIcon size="md" />
+            <h1 className="rb-header__logo">RunBonus</h1>
+          </div>
+        )}
+        <div style={{ width: 40 }} />
       </header>
       <IonContent fullscreen>
         <main className="rb-login-page">
           <div className="rb-login-page__hero">
             <h1 className="font-display rb-login-page__title">Бегай. Зарабатывай.</h1>
-            <p className="rb-text-muted">Войдите по телефону и паролю</p>
+            <p className="rb-text-muted">Вход по SMS-коду</p>
           </div>
 
-          <form className="glass-effect rb-login-form" onSubmit={submit} autoComplete="on">
-            <label className="rb-login-form__label">
-              Телефон (логин)
-              <div className="rb-input-wrap">
-                <input
-                  className="rb-input rb-login-form__input"
-                  type="tel"
-                  name="phone"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+992 …"
-                  required
-                />
-              </div>
-            </label>
+          {step === 0 && (
+            <form className="glass-effect rb-login-form" onSubmit={sendCode} autoComplete="on">
+              <label className="rb-login-form__label">
+                Телефон
+                <div className="rb-input-wrap">
+                  <input
+                    className="rb-input rb-login-form__input"
+                    type="tel"
+                    name="phone"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+992 90 123 4567"
+                    required
+                  />
+                </div>
+              </label>
 
-            <label className="rb-login-form__label">
-              Пароль
-              <div className="rb-input-wrap">
-                <input
-                  className="rb-input rb-login-form__input"
-                  type="password"
-                  name="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-            </label>
+              {notice && (
+                <p className="rb-text-muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
+                  {notice}
+                </p>
+              )}
+              {error && <p className="rb-text-error">{error}</p>}
 
-            {notice && (
-              <p className="rb-text-muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
-                {notice}
+              <button type="submit" className="rb-btn-pill rb-login-form__submit" disabled={loading}>
+                {loading ? 'Отправка…' : 'Получить код'}
+                <Icon name="arrow_forward" />
+              </button>
+            </form>
+          )}
+
+          {step === 1 && (
+            <form className="glass-effect rb-login-form" onSubmit={submitOtp}>
+              <p className="rb-text-muted" style={{ fontSize: 14, margin: 0 }}>
+                Код отправлен на {phone}
               </p>
-            )}
-            {error && <p className="rb-text-error">{error}</p>}
-
-            <button type="submit" className="rb-btn-pill rb-login-form__submit" disabled={loading}>
-              {loading ? 'Вход…' : 'Войти'}
-              <Icon name="arrow_forward" />
-            </button>
-          </form>
+              <OtpInput value={otp} onChange={setOtp} disabled={loading} />
+              {error && <p className="rb-text-error">{error}</p>}
+              <button type="submit" className="rb-btn-pill rb-login-form__submit" disabled={loading}>
+                {loading ? 'Вход…' : 'Войти'}
+                <Icon name="arrow_forward" />
+              </button>
+              <button
+                type="button"
+                className="rb-btn-pill"
+                style={{ width: '100%' }}
+                disabled={loading || resendSec > 0}
+                onClick={() => sendCode()}
+              >
+                {resendSec > 0 ? `Повтор через ${resendSec} с` : 'Отправить код снова'}
+              </button>
+            </form>
+          )}
 
           <p className="rb-login-page__footer">
-            <Link to="/register" className="rb-link">Создать аккаунт</Link>
+            <Link to="/register" className="rb-link">
+              Создать аккаунт
+            </Link>
           </p>
         </main>
       </IonContent>
