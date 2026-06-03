@@ -7,53 +7,37 @@ import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import { cartCount } from '../services/cart';
 
-function ProductCard({ product, onOpen, on360 }) {
+function ProductCard({ product, onOpen }) {
   const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
-  const has360 = product.slug === 'urban-sprint';
   return (
-    <div className="glass-card rb-shop-card rb-shop-card--wrap">
-      <button type="button" className="rb-shop-card__tap" onClick={() => onOpen(product.id)}>
-        <div className="rb-shop-card__img">
-          {product.image_url ? (
-            <img src={product.image_url} alt="" />
-          ) : (
-            <Icon name="directions_run" filled style={{ fontSize: 40, color: 'var(--rb-neon)' }} />
-          )}
-        </div>
-        <div className="rb-shop-card__body">
-          <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 600 }}>{product.name}</h3>
-          <p className="rb-display font-display" style={{ margin: '0 0 6px', fontSize: 22, color: 'var(--rb-neon)' }}>
-            {product.price} <span style={{ fontSize: 14 }}>сомони</span>
+    <button type="button" className="glass-card rb-shop-card" onClick={() => onOpen(product.id)}>
+      <div className="rb-shop-card__img">
+        {product.image_url ? (
+          <img src={product.image_url} alt="" />
+        ) : (
+          <Icon name="directions_run" filled style={{ fontSize: 40, color: 'var(--rb-neon)' }} />
+        )}
+      </div>
+      <div className="rb-shop-card__body">
+        <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 600 }}>{product.name}</h3>
+        <p className="rb-display font-display" style={{ margin: '0 0 6px', fontSize: 22, color: 'var(--rb-neon)' }}>
+          {product.price} <span style={{ fontSize: 14 }}>сомони</span>
+        </p>
+        {product.color && (
+          <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 12 }}>
+            Цвет: {product.color}
           </p>
-          {product.color && (
-            <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 12 }}>
-              Цвет: {product.color}
-            </p>
-          )}
-          {sizes.length > 0 && (
-            <p className="rb-label" style={{ margin: 0, textTransform: 'none', fontSize: 11 }}>
-              Размеры: {sizes.join(', ')}
-            </p>
-          )}
-          <span className="rb-badge-live" style={{ marginTop: 8, fontSize: 10 }}>
-            {product.in_stock ? 'В наличии' : 'Нет в наличии'}
-          </span>
-        </div>
-      </button>
-      {has360 && (
-        <button
-          type="button"
-          className="rb-shop-card__360-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            on360(product);
-          }}
-        >
-          <Icon name="360" />
-          360° просмотр
-        </button>
-      )}
-    </div>
+        )}
+        {sizes.length > 0 && (
+          <p className="rb-label" style={{ margin: 0, textTransform: 'none', fontSize: 11 }}>
+            Размеры: {sizes.join(', ')}
+          </p>
+        )}
+        <span className="rb-badge-live" style={{ marginTop: 8, fontSize: 10 }}>
+          {product.in_stock ? 'В наличии' : 'Нет в наличии'}
+        </span>
+      </div>
+    </button>
   );
 }
 
@@ -120,43 +104,16 @@ export default function ShopPage() {
               </button>
             </div>
           </div>
-          <p className="rb-text-muted" style={{ marginBottom: 16 }}>
-            Кроссовки с программой бонусов за километры. После доставки привяжите QR на главной или во вкладке «Бег».
+          <p className="rb-text-muted" style={{ marginBottom: 24 }}>
+            Кроссовки с программой бонусов за километры. После доставки привяжите QR на главной.
           </p>
-
-          <button
-            type="button"
-            className="glass-card rb-urban-ar-banner"
-            style={{ width: '100%', marginBottom: 24, padding: 16, textAlign: 'left', border: 'none', cursor: 'pointer', color: 'inherit' }}
-            onClick={() => navigate('/shop/360/urban-sprint')}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Icon name="360" filled style={{ fontSize: 36, color: 'var(--rb-neon)' }} />
-              <div>
-                <strong className="font-display" style={{ fontSize: 17 }}>
-                  Urban Sprint — 360° просмотр
-                </strong>
-                <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                  Поверните и рассмотрите кроссовки со всех сторон
-                </p>
-              </div>
-              <Icon name="chevron_right" style={{ marginLeft: 'auto' }} />
-            </div>
-          </button>
 
           {loading && <p className="rb-text-muted">Загрузка…</p>}
           {!loading && !products.length && <p className="rb-text-muted">Товары скоро появятся</p>}
 
           <div className="rb-shop-grid">
             {products.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onOpen={(id) => navigate(`/shop/${id}`)}
-                on360={(prod) =>
-                  navigate(`/shop/360/${prod.slug || 'urban-sprint'}`, { state: { productId: prod.id } })
-                }
-              />
+              <ProductCard key={p.id} product={p} onOpen={(id) => navigate(`/shop/${id}`)} />
             ))}
           </div>
         </main>
