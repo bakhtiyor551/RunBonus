@@ -1,5 +1,5 @@
 import { pool } from '../db.js';
-import { sendTelegramMessage, formatOrderTelegramMessage } from './telegramService.js';
+import { notifyOrderToTelegram } from './telegramService.js';
 import { activateShoeForUserAdmin } from './shoeActivationService.js';
 import {
   isValidPaymentMethod,
@@ -138,8 +138,7 @@ export async function createOrder(data, userId = null) {
 
   const order = await getOrderById(orderId);
 
-  const tgText = formatOrderTelegramMessage({ order, product });
-  await sendTelegramMessage(tgText);
+  await notifyOrderToTelegram({ order, product });
 
   return order;
 }
