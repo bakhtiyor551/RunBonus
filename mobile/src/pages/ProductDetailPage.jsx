@@ -9,6 +9,7 @@ import PaymentMethodPicker from '../components/PaymentMethodPicker';
 import QuantityStepper from '../components/QuantityStepper';
 import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
 import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
+import { showToast } from '../utils/toast';
 
 export default function ProductDetailPage({ user }) {
   const { id } = useParams();
@@ -16,7 +17,6 @@ export default function ProductDetailPage({ user }) {
   const [product, setProduct] = useState(null);
   const [size, setSize] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS_FALLBACK);
   const [form, setForm] = useState(() => emptyOrderForm(user));
 
@@ -47,25 +47,23 @@ export default function ProductDetailPage({ user }) {
     quantity: Number(form.quantity) || 1,
   });
 
-  const addCartAndGo = () => {
-    setError('');
+  const addCartAndGo = async () => {
     if (!size) {
-      setError('Выберите размер');
+      await showToast('Выберите размер');
       return;
     }
     addToCart(buildCartItem());
     navigate('/cart');
   };
 
-  const buyToCart = () => {
-    setError('');
+  const buyToCart = async () => {
     if (!size) {
-      setError('Выберите размер');
+      await showToast('Выберите размер');
       return;
     }
     const formErr = validateOrderForm(form, paymentMethods, { requireAddress: true });
     if (formErr) {
-      setError(formErr);
+      await showToast(formErr);
       return;
     }
     addToCart(buildCartItem());
@@ -224,7 +222,6 @@ export default function ProductDetailPage({ user }) {
                 />
               </div>
             </div>
-            {error && <p className="rb-text-error">{error}</p>}
           </div>
         </main>
       </IonContent>

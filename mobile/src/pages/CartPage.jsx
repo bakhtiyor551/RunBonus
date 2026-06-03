@@ -9,6 +9,8 @@ import Icon from '../components/Icon';
 import QuantityStepper from '../components/QuantityStepper';
 import { getCart, removeFromCart, clearCart, setCartItemQuantity } from '../services/cart';
 import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
+import MobileTransferModal from '../components/MobileTransferModal';
+import { showToast } from '../utils/toast';
 import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
 
 export default function CartPage({ user }) {
@@ -17,8 +19,8 @@ export default function CartPage({ user }) {
   const [items, setItems] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS_FALLBACK);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [mobileModalOpen, setMobileModalOpen] = useState(false);
 
   const [form, setForm] = useState(() => ({
     ...emptyOrderForm(user),
@@ -37,18 +39,7 @@ export default function CartPage({ user }) {
 
   const total = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
 
-  const checkout = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!items.length) {
-      setError('Корзина пуста');
-      return;
-    }
-    const formErr = validateOrderForm(form, paymentMethods, { requireAddress: true });
-    if (formErr) {
-      setError(formErr);
-      return;
-    }
+  const placeOrders = async (mobilePayment = null) => {
     setSubmitting(true);
     try {
       const payload = {
@@ -58,7 +49,8 @@ export default function CartPage({ user }) {
         address: form.address.trim(),
         comment: form.comment.trim(),
         payment_method: form.payment_method,
-        payment_details: form.payment_details?.trim() || '',
+        payment_details: mobilePayment?.payment_details || form.payment_details?.trim() || '',
+        payment_receipt_base64: mobilePayment?.payment_receipt_base64 || null,
       };
       for (const item of items) {
         await api('/api/mobile/orders', {
@@ -72,12 +64,31 @@ export default function CartPage({ user }) {
         });
       }
       clearCart();
+      setMobileModalOpen(false);
       setDone(true);
     } catch (err) {
-      setError(err.message || 'Не удалось оформить заказ');
+      await showToast(err.message || 'Не удалось оформить заказ');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const checkout = async (e) => {
+    e.preventDefault();
+    if (!items.length) {
+      await showToast('Корзина пуста');
+      return;
+    }
+    const formErr = validateOrderForm(form, paymentMethods, { requireAddress: true });
+    if (formErr) {
+      await showToast(formErr);
+      return;
+    }
+    if (form.payment_method === 'mobile') {
+      setMobileModalOpen(true);
+      return;
+    }
+    await placeOrders();
   };
 
   if (done) {
@@ -218,7 +229,6 @@ export default function CartPage({ user }) {
                     />
                   </div>
                 </div>
-                {error && <p className="rb-text-error">{error}</p>}
                 <button type="submit" className="rb-btn-primary" disabled={submitting} style={{ width: '100%' }}>
                   {submitting ? 'Оформление…' : 'Оформить заказ'}
                 </button>
@@ -228,6 +238,14 @@ export default function CartPage({ user }) {
         </main>
         <BottomNav />
       </IonContent>
+
+      <MobileTransferModal
+        open={mobileModalOpen}
+        totalAmount={total}
+        submitting={submitting}
+        onClose={() => !submitting && setMobileModalOpen(false)}
+        onConfirm={placeOrders}
+      />
     </IonPage>
   );
 }
