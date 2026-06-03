@@ -1527,6 +1527,30 @@ html.cap-ios .rb-main {
   margin-top: 16px;
 }
 
+.rb-otp-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.rb-otp-cell {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--rb-surface-high);
+  color: var(--rb-on-surface);
+}
+
+.rb-otp-cell:focus {
+  border-color: var(--rb-neon);
+  outline: none;
+}
+
 .rb-text-error {
   color: var(--rb-error);
   font-size: 14px;

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
@@ -18,8 +19,119 @@ import {
   isDeviceMismatch,
   unbindDeviceOnLogout,
 } from '../services/deviceBinding.js';
+import { sendVerificationCode, verifyCode } from '../services/smsOtpService.js';
+import { isSmsEnabled } from '../services/smsService.js';
 
 const router = Router();
+
+router.get('/sms/status', (_req, res) => {
+  res.json({ enabled: isSmsEnabled() });
+});
+
+router.post('/sms/send', async (req, res) => {
+  try {
+    const { phone, purpose } = req.body;
+    if (!purpose || !['register', 'login'].includes(purpose)) {
+      return res.status(400).json({ error: 'Укажите purpose: register или login' });
+    }
+    const result = await sendVerificationCode(phone, purpose);
+    res.json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось отправить SMS' });
+  }
+});
+
+router.post('/sms/register', async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const { phone, code, firstName, lastName } = req.body;
+    if (!firstName?.trim() || !lastName?.trim()) {
+      return res.status(400).json({ error: 'Укажите имя и фамилию' });
+    }
+
+    const phoneNorm = await verifyCode(phone, 'register', code);
+    const deviceId = getDeviceIdFromRequest(req);
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Не удалось определить устройство' });
+    }
+
+    const name = buildDisplayName(firstName.trim(), lastName.trim());
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
+
+    await conn.beginTransaction();
+
+    const [result] = await conn.query(
+      `INSERT INTO users (name, first_name, last_name, phone, password_hash, city, device_id, device_bound_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [name, firstName.trim(), lastName.trim(), phoneNorm, passwordHash, 'Не указан', deviceId]
+    );
+
+    const userId = result.insertId;
+    await conn.query(
+      'INSERT INTO user_bonus_wallets (user_id, balance, blocked_balance, total_earned, total_spent, total_withdrawn) VALUES (?, 0, 0, 0, 0, 0)',
+      [userId]
+    );
+
+    await conn.commit();
+
+    const token = jwt.sign({ userId }, config.jwtSecret, { expiresIn: '30d' });
+    const profile = await buildUserProfile(userId, deviceId);
+
+    res.status(201).json({
+      token,
+      user: profile,
+      redirectToShop: true,
+    });
+  } catch (err) {
+    await conn.rollback();
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка регистрации' });
+  } finally {
+    conn.release();
+  }
+});
+
+router.post('/sms/login', async (req, res) => {
+  try {
+    const { phone, code } = req.body;
+    const phoneNorm = await verifyCode(phone, 'login', code);
+
+    const [rows] = await pool.query('SELECT * FROM users WHERE phone = ?', [phoneNorm]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const user = rows[0];
+    if (user.status === 'blocked') {
+      return res.status(403).json({ error: 'Аккаунт заблокирован' });
+    }
+
+    const deviceId = getDeviceIdFromRequest(req);
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Не удалось определить устройство' });
+    }
+
+    const bindResult = await bindDeviceOnLogin(pool, user.id, deviceId);
+    const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '30d' });
+    const profile = await buildUserProfile(user.id, deviceId);
+
+    res.json({
+      token,
+      user: profile,
+      device_changed: bindResult.device_changed,
+      message: bindResult.device_changed
+        ? 'Аккаунт привязан к этому телефону. Другие устройства отключены.'
+        : undefined,
+    });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка входа' });
+  }
+});
 
 router.post('/register', async (req, res) => {
   const conn = await pool.getConnection();
