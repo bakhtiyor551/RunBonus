@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
 import QuantityStepper from '../components/QuantityStepper';
+import ColorPicker from '../components/ColorPicker';
 import { addToCart } from '../services/cart';
 import { showToast } from '../utils/toast';
 
@@ -13,8 +14,16 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [size, setSize] = useState('');
+  const [selectedColor, setSelectedColor] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  const colors = product?.colors?.length ? product.colors : product?.color ? [{ label: product.color }] : [];
+
+  const displayImage = useMemo(() => {
+    if (selectedColor?.image_url) return selectedColor.image_url;
+    return product?.image_url || null;
+  }, [product, selectedColor]);
 
   useEffect(() => {
     api(`/api/mobile/products/${id}`)
@@ -22,6 +31,8 @@ export default function ProductDetailPage() {
         setProduct(p);
         const first = (p.sizes || []).find((s) => s.in_stock);
         if (first) setSize(first.size);
+        const colorList = p.colors?.length ? p.colors : p.color ? [{ label: p.color }] : [];
+        if (colorList.length) setSelectedColor(colorList[0]);
       })
       .catch(() => setProduct(null))
       .finally(() => setLoading(false));
@@ -32,13 +43,18 @@ export default function ProductDetailPage() {
       await showToast('Выберите размер');
       return;
     }
+    if (colors.length > 0 && !selectedColor?.label) {
+      await showToast('Выберите цвет');
+      return;
+    }
     addToCart({
       productId: product.id,
       name: product.name,
       size,
-      color: product.color,
+      color: selectedColor?.label || product.color || '',
+      color_id: selectedColor?.id ?? null,
       price: product.price,
-      image_url: product.image_url,
+      image_url: displayImage || product.image_url,
       quantity: Number(quantity) || 1,
     });
     navigate('/cart');
@@ -78,8 +94,8 @@ export default function ProductDetailPage() {
       <IonContent>
         <main className="rb-main">
           <div className="rb-shop-detail-hero glass-card">
-            {product.image_url ? (
-              <img src={product.image_url} alt="" />
+            {displayImage ? (
+              <img src={displayImage} alt="" />
             ) : (
               <Icon name="directions_run" filled style={{ fontSize: 72, color: 'var(--rb-neon)' }} />
             )}
@@ -88,10 +104,14 @@ export default function ProductDetailPage() {
           <h1 className="rb-headline font-display" style={{ margin: '16px 0 4px' }}>
             {product.name}
           </h1>
+          {product.category_name && (
+            <span className="rb-badge-live" style={{ marginBottom: 8, display: 'inline-block' }}>
+              {product.category_name}
+            </span>
+          )}
           <p className="rb-display font-display" style={{ color: 'var(--rb-neon)', fontSize: 28, margin: '0 0 8px' }}>
             {product.price} сомони
           </p>
-          {product.color && <p className="rb-text-muted">Цвет: {product.color}</p>}
           <p className="rb-text-muted" style={{ marginTop: 8 }}>
             {product.in_stock ? 'В наличии' : 'Нет в наличии'}
           </p>
@@ -99,7 +119,17 @@ export default function ProductDetailPage() {
             {product.description}
           </p>
 
-          <section style={{ marginTop: 24 }}>
+          {colors.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <ColorPicker
+                colors={colors}
+                value={selectedColor?.label}
+                onChange={setSelectedColor}
+              />
+            </div>
+          )}
+
+          <section style={{ marginTop: colors.length ? 0 : 24 }}>
             <p className="rb-label" style={{ marginBottom: 8 }}>
               Размер
             </p>

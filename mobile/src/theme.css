@@ -932,6 +932,81 @@ select {
   border-color: var(--rb-neon);
 }
 
+.rb-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rb-color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--rb-surface-high);
+  color: var(--rb-on-surface);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rb-color-chip--active {
+  border-color: var(--rb-neon);
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+}
+
+.rb-color-chip__swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.rb-color-chip__label {
+  max-width: 140px;
+  text-align: left;
+}
+
+.rb-shop-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.rb-shop-category-chip {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: var(--rb-radius-full);
+  border: 1px solid rgba(68, 73, 51, 0.5);
+  background: var(--rb-surface-high);
+  color: var(--rb-on-surface-variant);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rb-shop-category-chip--active {
+  border-color: var(--rb-neon);
+  background: rgba(195, 244, 0, 0.15);
+  color: var(--rb-neon);
+}
+
+.rb-shop-card__category {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--rb-neon-dim);
+  margin-bottom: 4px;
+}
+
 .rb-profile-hero {
   text-align: center;
   margin-bottom: 32px;
@@ -1883,6 +1958,11 @@ html.cap-ios .rb-main {
   gap: 10px;
 }
 
+.rb-mobile-account--selected {
+  border-color: rgba(195, 244, 0, 0.45);
+  box-shadow: 0 0 0 1px rgba(195, 244, 0, 0.2);
+}
+
 .rb-mobile-account {
   display: flex;
   align-items: center;
@@ -1937,10 +2017,14 @@ html.cap-ios .rb-main {
   border: 2px dashed rgba(195, 244, 0, 0.35);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
-  cursor: pointer;
   text-align: center;
   font-size: 14px;
   color: var(--rb-on-surface-variant);
+}
+
+.rb-receipt-upload--has-preview {
+  min-height: auto;
+  padding: 12px;
 }
 
 .rb-receipt-upload__preview {
@@ -1948,5 +2032,32 @@ html.cap-ios .rb-main {
   max-height: 200px;
   border-radius: 8px;
   object-fit: contain;
+}
+
+.rb-receipt-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.rb-receipt-actions__btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.rb-receipt-remove {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: center;
 }
 

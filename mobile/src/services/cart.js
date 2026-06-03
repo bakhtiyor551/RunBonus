@@ -20,7 +20,12 @@ export function cartCount() {
 
 export function addToCart(item) {
   const cart = getCart();
-  const idx = cart.findIndex((i) => i.productId === item.productId && i.size === item.size);
+  const idx = cart.findIndex(
+    (i) =>
+      i.productId === item.productId &&
+      i.size === item.size &&
+      (i.color || '') === (item.color || '')
+  );
   if (idx >= 0) {
     cart[idx].quantity = (Number(cart[idx].quantity) || 1) + (Number(item.quantity) || 1);
   } else {

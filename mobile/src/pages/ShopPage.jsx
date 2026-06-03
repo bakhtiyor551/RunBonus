@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
@@ -9,6 +9,12 @@ import { cartCount } from '../services/cart';
 
 function ProductCard({ product, onOpen }) {
   const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
+  const colorLabels = (product.colors || []).map((c) => c.label).filter(Boolean);
+  const colorsText =
+    colorLabels.length > 1
+      ? colorLabels.join(', ')
+      : colorLabels[0] || product.color || '';
+
   return (
     <button type="button" className="glass-card rb-shop-card" onClick={() => onOpen(product.id)}>
       <div className="rb-shop-card__img">
@@ -19,18 +25,16 @@ function ProductCard({ product, onOpen }) {
         )}
       </div>
       <div className="rb-shop-card__body">
+        {product.category_name && (
+          <span className="rb-shop-card__category">{product.category_name}</span>
+        )}
         <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 600 }}>{product.name}</h3>
         <p className="rb-display font-display" style={{ margin: '0 0 6px', fontSize: 22, color: 'var(--rb-neon)' }}>
           {product.price} <span style={{ fontSize: 14 }}>сомони</span>
         </p>
-        {product.category_name && (
-          <p className="rb-label" style={{ margin: '0 0 4px', textTransform: 'none', fontSize: 11 }}>
-            {product.category_name}
-          </p>
-        )}
-        {product.color && (
+        {colorsText && (
           <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 12 }}>
-            Цвет: {product.color}
+            {colorLabels.length > 1 ? `Цвета: ${colorsText}` : `Цвет: ${colorsText}`}
           </p>
         )}
         {sizes.length > 0 && (
@@ -48,28 +52,26 @@ function ProductCard({ product, onOpen }) {
 
 export default function ShopPage() {
   const navigate = useNavigate();
-  const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('');
+  const [products, setProducts] = useState([]);
+  const [categoryId, setCategoryId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cartItems, setCartItems] = useState(cartCount);
 
   useEffect(() => {
-    api('/api/mobile/product-categories')
+    api('/api/mobile/shop-categories')
       .then(setCategories)
       .catch(() => setCategories([]));
   }, []);
 
   useEffect(() => {
     setLoading(true);
-    const path = activeCategory
-      ? `/api/mobile/products?category=${encodeURIComponent(activeCategory)}`
-      : '/api/mobile/products';
-    api(path)
+    const q = categoryId ? `?category_id=${categoryId}` : '';
+    api(`/api/mobile/products${q}`)
       .then(setProducts)
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [activeCategory]);
+  }, [categoryId]);
 
   useEffect(() => {
     const refresh = () => setCartItems(cartCount());
@@ -80,6 +82,11 @@ export default function ShopPage() {
       window.removeEventListener('focus', refresh);
     };
   }, []);
+
+  const categoryTabs = useMemo(
+    () => [{ id: null, name: 'Все' }, ...categories],
+    [categories]
+  );
 
   return (
     <IonPage>
@@ -126,24 +133,17 @@ export default function ShopPage() {
             </div>
           </div>
           <p className="rb-text-muted" style={{ marginBottom: 16 }}>
-            Одежда и кроссовки RunBonus. После покупки кроссовок привяжите QR на главной.
+            Кроссовки с программой бонусов за километры. После доставки привяжите QR на главной.
           </p>
 
-          {categories.length > 0 && (
-            <div className="rb-shop-categories" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-              <button
-                type="button"
-                className={`rb-shop-category-pill${activeCategory === '' ? ' rb-shop-category-pill--active' : ''}`}
-                onClick={() => setActiveCategory('')}
-              >
-                Все
-              </button>
-              {categories.map((c) => (
+          {categoryTabs.length > 1 && (
+            <div className="rb-shop-categories">
+              {categoryTabs.map((c) => (
                 <button
-                  key={c.id}
+                  key={c.id ?? 'all'}
                   type="button"
-                  className={`rb-shop-category-pill${activeCategory === c.id ? ' rb-shop-category-pill--active' : ''}`}
-                  onClick={() => setActiveCategory(c.id)}
+                  className={`rb-shop-category-chip${categoryId === c.id ? ' rb-shop-category-chip--active' : ''}`}
+                  onClick={() => setCategoryId(c.id)}
                 >
                   {c.name}
                 </button>
@@ -152,11 +152,11 @@ export default function ShopPage() {
           )}
 
           {loading && <p className="rb-text-muted">Загрузка…</p>}
-          {!loading && !products.length && <p className="rb-text-muted">Товары скоро появятся</p>}
+          {!loading && !products.length && <p className="rb-text-muted">В этой категории пока нет товаров</p>}
 
           <div className="rb-shop-grid">
             {products.map((p) => (
-              <ProductCard key={p.id} product={p} onOpen={(id) => navigate(`/shop/${id}`)} />
+              <ProductCard key={p.id} product={p} onOpen={(pid) => navigate(`/shop/${pid}`)} />
             ))}
           </div>
         </main>

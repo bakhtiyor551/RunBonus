@@ -78,7 +78,9 @@ export function formatOrderTelegramMessage({ order, product }, { withReceiptNote
       order.payment_method === 'bonus' ? ' ✓' : ''
     }\n` +
     (order.payment_details
-      ? `Кошелёк клиента: ${escapeHtml(order.payment_details)}\n`
+      ? order.payment_method === 'mobile'
+        ? `Реквизиты перевода:\n${escapeHtml(order.payment_details)}\n`
+        : `Данные оплаты: ${escapeHtml(order.payment_details)}\n`
       : '') +
     (withReceiptNote && order.payment_receipt_url ? `📎 Чек оплаты — на фото ниже\n` : '') +
     `\n` +

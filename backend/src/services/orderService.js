@@ -34,6 +34,7 @@ export async function createOrder(data, userId = null) {
   const {
     product_id,
     size,
+    color: orderColor,
     quantity = 1,
     customer_name,
     phone,
@@ -125,6 +126,7 @@ export async function createOrder(data, userId = null) {
     userId,
     product_id,
     size || null,
+    orderColor?.trim() || null,
     qty,
     price,
     total,
@@ -141,8 +143,8 @@ export async function createOrder(data, userId = null) {
   try {
     [result] = await pool.query(
       `INSERT INTO shop_orders
-         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, delivery_fee, comment, payment_method, payment_details, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+         (user_id, product_id, size, order_color, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, delivery_fee, comment, payment_method, payment_details, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
       [...baseValues, payment_method, payment_details?.trim() || null]
     );
   } catch (err) {
@@ -198,6 +200,7 @@ async function createOrderPaidWithBonus(data, userId) {
   const {
     product_id,
     size,
+    color: orderColor,
     quantity = 1,
     customer_name,
     phone,
@@ -256,6 +259,7 @@ async function createOrderPaidWithBonus(data, userId) {
       userId,
       product_id,
       size || null,
+      orderColor?.trim() || null,
       qty,
       price,
       total,
@@ -272,8 +276,8 @@ async function createOrderPaidWithBonus(data, userId) {
     try {
       [result] = await conn.query(
         `INSERT INTO shop_orders
-           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, delivery_fee, comment, payment_method, payment_details, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bonus', ?, 'paid')`,
+           (user_id, product_id, size, order_color, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, delivery_fee, comment, payment_method, payment_details, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bonus', ?, 'paid')`,
         [...baseValues, paymentDetails]
       );
     } catch (err) {
@@ -349,7 +353,8 @@ async function mapOrderRow(row) {
     user_id: row.user_id,
     product_id: row.product_id,
     product_name: row.product_name,
-    product_color: row.product_color,
+    product_color: row.order_color || row.product_color,
+    order_color: row.order_color || null,
     assigned_shoe_id: row.assigned_shoe_id,
     size: row.size,
     quantity: row.quantity,
@@ -455,119 +460,4 @@ export async function assignQrToOrder(orderId, uniqueIdRaw, adminDeviceId = null
   }
 }
 
-/** Admin CRUD products */
-export async function adminListProducts() {
-  const [products] = await pool.query(
-    `SELECT p.*, c.name AS category_name
-     FROM products p
-     LEFT JOIN product_categories c ON c.id COLLATE utf8mb4_unicode_ci = p.category_id
-     ORDER BY p.id DESC`
-  );
-  const ids = products.map((p) => p.id);
-  if (!ids.length) return [];
-  const [images] = await pool.query(`SELECT * FROM product_images WHERE product_id IN (?)`, [ids]);
-  const [sizes] = await pool.query(`SELECT * FROM product_sizes WHERE product_id IN (?)`, [ids]);
-  return products.map((p) => ({
-    ...p,
-    price: Number(p.price),
-    category_id: p.category_id || null,
-    category_name: p.category_name || null,
-    images: images.filter((i) => Number(i.product_id) === Number(p.id)),
-    sizes: sizes.filter((s) => Number(s.product_id) === Number(p.id)),
-  }));
-}
-
-export async function adminSaveProduct(data, id = null) {
-  const { name, slug, category_id, description, color, price, status, sizes, images } = data;
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-    let productId = id;
-    if (productId) {
-      await conn.query(
-        `UPDATE products SET name=?, slug=?, category_id=?, description=?, color=?, price=?, status=? WHERE id=?`,
-        [
-          name,
-          slug || null,
-          category_id || null,
-          description || null,
-          color || null,
-          price,
-          status || 'active',
-          productId,
-        ]
-      );
-      await conn.query(`DELETE FROM product_sizes WHERE product_id = ?`, [productId]);
-      await conn.query(`DELETE FROM product_images WHERE product_id = ?`, [productId]);
-    } else {
-      const [r] = await conn.query(
-        `INSERT INTO products (name, slug, category_id, description, color, price, status) VALUES (?,?,?,?,?,?,?)`,
-        [
-          name,
-          slug || null,
-          category_id || null,
-          description || null,
-          color || null,
-          price,
-          status || 'active',
-        ]
-      );
-      productId = r.insertId;
-    }
-
-    for (const img of images || []) {
-      if (!img?.image_url) continue;
-      await conn.query(
-        `INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?,?,?)`,
-        [productId, img.image_url, img.sort_order ?? 0]
-      );
-    }
-
-    for (const s of sizes || []) {
-      await conn.query(
-        `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
-        [productId, s.size, s.stock_qty ?? 0, s.status || 'active']
-      );
-    }
-
-    await conn.commit();
-    const [rows] = await pool.query(`SELECT * FROM products WHERE id = ?`, [productId]);
-    return rows[0];
-  } catch (e) {
-    await conn.rollback();
-    throw e;
-  } finally {
-    conn.release();
-  }
-}
-
-export async function adminDeleteProduct(id) {
-  const productId = Number(id);
-  if (!productId) {
-    const err = new Error('Неверный ID товара');
-    err.status = 400;
-    throw err;
-  }
-
-  const [existing] = await pool.query(`SELECT id, name FROM products WHERE id = ?`, [productId]);
-  if (!existing.length) {
-    const err = new Error('Товар не найден');
-    err.status = 404;
-    throw err;
-  }
-
-  const [orders] = await pool.query(
-    `SELECT COUNT(*) AS c FROM shop_orders WHERE product_id = ?`,
-    [productId]
-  );
-  if (Number(orders[0]?.c) > 0) {
-    const err = new Error(
-      'Нельзя удалить: по этому товару есть заказы. Отключите его (статус «Отключён») вместо удаления.'
-    );
-    err.status = 409;
-    throw err;
-  }
-
-  await pool.query(`DELETE FROM products WHERE id = ?`, [productId]);
-  return { ok: true, id: productId, name: existing[0].name };
-}
+export { adminListProducts, adminSaveProduct } from './shopService.js';

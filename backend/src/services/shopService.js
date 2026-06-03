@@ -1,7 +1,59 @@
 import { pool } from '../db.js';
+import { SHOP_CATEGORIES_FALLBACK } from '../constants/shopCategories.js';
 
-function mapProductRow(row, images = [], sizes = []) {
+let categoriesTableReady = null;
+let colorsTableReady = null;
+
+async function hasCategoriesTable() {
+  if (categoriesTableReady != null) return categoriesTableReady;
+  try {
+    await pool.query(`SELECT 1 FROM shop_categories LIMIT 1`);
+    categoriesTableReady = true;
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') categoriesTableReady = false;
+    else throw err;
+  }
+  return categoriesTableReady;
+}
+
+async function hasColorsTable() {
+  if (colorsTableReady != null) return colorsTableReady;
+  try {
+    await pool.query(`SELECT 1 FROM product_colors LIMIT 1`);
+    colorsTableReady = true;
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') colorsTableReady = false;
+    else throw err;
+  }
+  return colorsTableReady;
+}
+
+function mapColorRow(row) {
+  return {
+    id: row.id,
+    label: row.label,
+    hex_code: row.hex_code || null,
+    image_url: row.image_url || null,
+    sort_order: Number(row.sort_order) || 0,
+    status: row.status,
+  };
+}
+
+function mapProductRow(row, images = [], sizes = [], colors = [], category = null) {
   const activeSizes = sizes.filter((s) => s.status === 'active' && s.stock_qty > 0);
+  const activeColors = colors.filter((c) => c.status === 'active');
+  const colorList = activeColors.length
+    ? activeColors.map(mapColorRow)
+    : row.color
+      ? [{ id: null, label: row.color, hex_code: null, image_url: null }]
+      : [];
+
+  const defaultColor = colorList[0]?.label || row.color || null;
+  const heroImage =
+    colorList.find((c) => c.image_url)?.image_url ||
+    images[0]?.image_url ||
+    null;
+
   return {
     id: row.id,
     name: row.name,
@@ -9,7 +61,10 @@ function mapProductRow(row, images = [], sizes = []) {
     category_id: row.category_id || null,
     category_name: row.category_name || null,
     description: row.description,
-    color: row.color,
+    color: defaultColor,
+    colors: colorList,
+    category_id: category?.id ?? row.category_id ?? null,
+    category_name: category?.name ?? null,
     price: Number(row.price),
     status: row.status,
     in_stock: activeSizes.length > 0,
@@ -20,21 +75,57 @@ function mapProductRow(row, images = [], sizes = []) {
       in_stock: s.status === 'active' && s.stock_qty > 0,
     })),
     images: images.map((i) => i.image_url).filter(Boolean),
-    image_url: images[0]?.image_url || null,
+    image_url: heroImage,
   };
 }
 
-export async function listActiveProducts(categoryId = null) {
-  let sql = `SELECT p.*, c.name AS category_name
-     FROM products p
-     LEFT JOIN product_categories c ON c.id COLLATE utf8mb4_unicode_ci = p.category_id
-     WHERE p.status = 'active'`;
+async function loadCategoriesMap() {
+  const hasTable = await hasCategoriesTable();
+  if (!hasTable) {
+    return new Map(SHOP_CATEGORIES_FALLBACK.map((c) => [c.id, c]));
+  }
+  const [rows] = await pool.query(
+    `SELECT * FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
+  );
+  return new Map(rows.map((r) => [r.id, r]));
+}
+
+async function loadColorsForProductIds(ids) {
+  if (!ids.length) return [];
+  const hasTable = await hasColorsTable();
+  if (!hasTable) return [];
+  const [rows] = await pool.query(
+    `SELECT * FROM product_colors WHERE product_id IN (?) ORDER BY sort_order, id`,
+    [ids]
+  );
+  return rows;
+}
+
+export async function listActiveShopCategories() {
+  const hasTable = await hasCategoriesTable();
+  if (!hasTable) return SHOP_CATEGORIES_FALLBACK;
+  const [rows] = await pool.query(
+    `SELECT id, name, slug, sort_order FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
+  );
+  return rows.length ? rows : SHOP_CATEGORIES_FALLBACK;
+}
+
+export async function listAllShopCategoriesAdmin() {
+  const hasTable = await hasCategoriesTable();
+  if (!hasTable) return SHOP_CATEGORIES_FALLBACK;
+  const [rows] = await pool.query(`SELECT * FROM shop_categories ORDER BY sort_order, id`);
+  return rows;
+}
+
+export async function listActiveProducts({ categoryId = null } = {}) {
+  let sql = `SELECT * FROM products WHERE status = 'active'`;
   const params = [];
   if (categoryId) {
-    sql += ` AND p.category_id COLLATE utf8mb4_unicode_ci = ?`;
+    sql += ` AND category_id = ?`;
     params.push(categoryId);
   }
-  sql += ` ORDER BY p.id ASC`;
+  sql += ` ORDER BY id ASC`;
+
   const [products] = await pool.query(sql, params);
   if (!products.length) return [];
 
@@ -47,12 +138,16 @@ export async function listActiveProducts(categoryId = null) {
     `SELECT * FROM product_sizes WHERE product_id IN (?) ORDER BY size`,
     [ids]
   );
+  const colorRows = await loadColorsForProductIds(ids);
+  const catMap = await loadCategoriesMap();
 
   return products.map((p) =>
     mapProductRow(
       p,
       images.filter((i) => i.product_id === p.id),
-      sizes.filter((s) => s.product_id === p.id)
+      sizes.filter((s) => s.product_id === p.id),
+      colorRows.filter((c) => c.product_id === p.id),
+      p.category_id ? catMap.get(Number(p.category_id)) : null
     )
   );
 }
@@ -74,7 +169,10 @@ export async function getProductById(id) {
     `SELECT * FROM product_sizes WHERE product_id = ? ORDER BY size`,
     [id]
   );
-  return mapProductRow(rows[0], images, sizes);
+  const colorRows = await loadColorsForProductIds([id]);
+  const catMap = await loadCategoriesMap();
+  const category = rows[0].category_id ? catMap.get(Number(rows[0].category_id)) : null;
+  return mapProductRow(rows[0], images, sizes, colorRows, category);
 }
 
 export async function getUserShoeStatus(userId) {
@@ -101,4 +199,148 @@ export async function getUserShoeStatus(userId) {
       activated_at: shoe.activated_at,
     },
   };
+}
+
+export async function adminListProducts() {
+  const [products] = await pool.query(`SELECT * FROM products ORDER BY id DESC`);
+  const ids = products.map((p) => p.id);
+  if (!ids.length) return [];
+
+  const [images] = await pool.query(`SELECT * FROM product_images WHERE product_id IN (?)`, [ids]);
+  const [sizes] = await pool.query(`SELECT * FROM product_sizes WHERE product_id IN (?)`, [ids]);
+  const colorRows = await loadColorsForProductIds(ids);
+  const catMap = await loadCategoriesMap();
+
+  return products.map((p) => ({
+    ...mapProductRow(
+      p,
+      images.filter((i) => Number(i.product_id) === Number(p.id)),
+      sizes.filter((s) => Number(s.product_id) === Number(p.id)),
+      colorRows.filter((c) => Number(c.product_id) === Number(p.id)),
+      p.category_id ? catMap.get(Number(p.category_id)) : null
+    ),
+    slug: p.slug,
+    description: p.description,
+    status: p.status,
+  }));
+}
+
+export async function adminSaveProduct(data, id = null) {
+  const { name, slug, description, color, price, status, sizes, images, category_id, colors } = data;
+  const colorRows = Array.isArray(colors) ? colors.filter((c) => c?.label?.trim()) : [];
+  const primaryColor = colorRows[0]?.label?.trim() || color?.trim() || null;
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    let productId = id;
+    const catId = category_id ? Number(category_id) : null;
+
+    if (productId) {
+      await conn.query(
+        `UPDATE products SET name=?, slug=?, description=?, color=?, price=?, status=?, category_id=? WHERE id=?`,
+        [name, slug || null, description || null, primaryColor, price, status || 'active', catId, productId]
+      );
+      await conn.query(`DELETE FROM product_sizes WHERE product_id = ?`, [productId]);
+      await conn.query(`DELETE FROM product_images WHERE product_id = ?`, [productId]);
+      if (await hasColorsTable()) {
+        await conn.query(`DELETE FROM product_colors WHERE product_id = ?`, [productId]);
+      }
+    } else {
+      const [r] = await conn.query(
+        `INSERT INTO products (name, slug, description, color, price, status, category_id) VALUES (?,?,?,?,?,?,?)`,
+        [name, slug || null, description || null, primaryColor, price, status || 'active', catId]
+      );
+      productId = r.insertId;
+    }
+
+    for (const img of images || []) {
+      if (!img?.image_url) continue;
+      await conn.query(
+        `INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?,?,?)`,
+        [productId, img.image_url, img.sort_order ?? 0]
+      );
+    }
+
+    for (const s of sizes || []) {
+      await conn.query(
+        `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
+        [productId, s.size, s.stock_qty ?? 0, s.status || 'active']
+      );
+    }
+
+    if (await hasColorsTable()) {
+      for (let i = 0; i < colorRows.length; i++) {
+        const c = colorRows[i];
+        await conn.query(
+          `INSERT INTO product_colors (product_id, label, hex_code, image_url, sort_order, status)
+           VALUES (?,?,?,?,?,?)`,
+          [
+            productId,
+            c.label.trim(),
+            c.hex_code?.trim() || null,
+            c.image_url?.trim() || null,
+            c.sort_order ?? (i + 1) * 10,
+            c.status === 'inactive' ? 'inactive' : 'active',
+          ]
+        );
+      }
+    }
+
+    await conn.commit();
+    const [rows] = await pool.query(`SELECT * FROM products WHERE id = ?`, [productId]);
+    return rows[0];
+  } catch (e) {
+    await conn.rollback();
+    if (e.code === 'ER_BAD_FIELD_ERROR' && String(e.message).includes('category_id')) {
+      return adminSaveProductLegacy(data, id);
+    }
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+async function adminSaveProductLegacy(data, id = null) {
+  const { name, slug, description, color, price, status, sizes, images } = data;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    let productId = id;
+    if (productId) {
+      await conn.query(
+        `UPDATE products SET name=?, slug=?, description=?, color=?, price=?, status=? WHERE id=?`,
+        [name, slug || null, description || null, color || null, price, status || 'active', productId]
+      );
+      await conn.query(`DELETE FROM product_sizes WHERE product_id = ?`, [productId]);
+      await conn.query(`DELETE FROM product_images WHERE product_id = ?`, [productId]);
+    } else {
+      const [r] = await conn.query(
+        `INSERT INTO products (name, slug, description, color, price, status) VALUES (?,?,?,?,?,?)`,
+        [name, slug || null, description || null, color || null, price, status || 'active']
+      );
+      productId = r.insertId;
+    }
+    for (const img of images || []) {
+      if (!img?.image_url) continue;
+      await conn.query(
+        `INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?,?,?)`,
+        [productId, img.image_url, img.sort_order ?? 0]
+      );
+    }
+    for (const s of sizes || []) {
+      await conn.query(
+        `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
+        [productId, s.size, s.stock_qty ?? 0, s.status || 'active']
+      );
+    }
+    await conn.commit();
+    const [rows] = await pool.query(`SELECT * FROM products WHERE id = ?`, [productId]);
+    return rows[0];
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
 }

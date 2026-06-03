@@ -3,7 +3,9 @@ import { authAdmin } from '../middleware/auth.js';
 import {
   adminListProducts,
   adminSaveProduct,
-  adminDeleteProduct,
+  listAllShopCategoriesAdmin,
+} from '../services/shopService.js';
+import {
   listAdminOrders,
   getOrderById,
   updateOrderStatus,
@@ -25,46 +27,13 @@ import {
 
 const router = Router();
 
-router.get('/product-categories', authAdmin, async (_req, res) => {
+router.get('/categories', authAdmin, async (_req, res) => {
   try {
-    const categories = await listAllProductCategoriesAdmin();
+    const categories = await listAllShopCategoriesAdmin();
     res.json(categories);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Ошибка загрузки категорий' });
-  }
-});
-
-router.post('/product-categories', authAdmin, async (req, res) => {
-  try {
-    const category = await createProductCategory(req.body);
-    res.status(201).json(category);
-  } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка создания' });
-  }
-});
-
-router.put('/product-categories/:id', authAdmin, async (req, res) => {
-  try {
-    const category = await updateProductCategory(req.params.id, req.body);
-    res.json(category);
-  } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка сохранения' });
-  }
-});
-
-router.patch('/product-categories/:id/status', authAdmin, async (req, res) => {
-  try {
-    const category = await setProductCategoryStatus(req.params.id, req.body.status);
-    res.json(category);
-  } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка обновления статуса' });
+    res.status(500).json({ error: 'Ошибка' });
   }
 });
 
