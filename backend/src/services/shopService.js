@@ -1,71 +1,13 @@
 import { pool } from '../db.js';
-import { SHOP_CATEGORIES_FALLBACK } from '../constants/shopCategories.js';
 import { normalizeCategoryId, categoryMapKey } from '../utils/categoryId.js';
+import {
+  listActiveShopCategories,
+  listAllShopCategoriesAdmin,
+} from './shopCategoryService.js';
 
-let categoriesTableReady = null;
+export { listActiveShopCategories, listAllShopCategoriesAdmin };
+
 let colorsTableReady = null;
-let categoriesEnsured = null;
-
-async function hasCategoriesTable() {
-  if (categoriesTableReady != null) return categoriesTableReady;
-  try {
-    await pool.query(`SELECT 1 FROM shop_categories LIMIT 1`);
-    categoriesTableReady = true;
-  } catch (err) {
-    if (err.code === 'ER_NO_SUCH_TABLE') categoriesTableReady = false;
-    else throw err;
-  }
-  return categoriesTableReady;
-}
-
-/** Создать таблицу и базовые категории, если миграция 016 ещё не применялась. */
-async function ensureShopCategories() {
-  if (categoriesEnsured) return categoriesEnsured;
-  categoriesEnsured = (async () => {
-    try {
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS shop_categories (
-          id BIGINT AUTO_INCREMENT PRIMARY KEY,
-          name VARCHAR(128) NOT NULL,
-          slug VARCHAR(64) NULL,
-          sort_order INT NOT NULL DEFAULT 0,
-          status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          KEY idx_shop_categories_status (status),
-          KEY idx_shop_categories_sort (sort_order)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-      `);
-      categoriesTableReady = true;
-      const [rows] = await pool.query(`SELECT COUNT(*) AS c FROM shop_categories`);
-      if (Number(rows[0]?.c) === 0) {
-        for (const c of SHOP_CATEGORIES_FALLBACK) {
-          await pool.query(
-            `INSERT INTO shop_categories (id, name, slug, sort_order, status) VALUES (?, ?, ?, ?, 'active')`,
-            [c.id, c.name, c.slug, c.sort_order]
-          );
-        }
-      }
-      try {
-        await pool.query(`ALTER TABLE products ADD COLUMN category_id BIGINT NULL`);
-      } catch (err) {
-        if (err.code !== 'ER_DUP_FIELDNAME') throw err;
-      }
-      await pool.query(`
-        UPDATE products SET category_id = CASE slug
-          WHEN 'runner-pro' THEN 1
-          WHEN 'urban-sprint' THEN 2
-          WHEN 'trail-max' THEN 3
-          ELSE category_id
-        END
-        WHERE slug IN ('runner-pro', 'urban-sprint', 'trail-max') AND (category_id IS NULL OR category_id = 0)
-      `).catch(() => {});
-    } catch (err) {
-      console.error('ensureShopCategories:', err.message);
-    }
-    return true;
-  })();
-  return categoriesEnsured;
-}
 
 async function hasColorsTable() {
   if (colorsTableReady != null) return colorsTableReady;
@@ -129,23 +71,13 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
 }
 
 async function loadCategoriesMap() {
-  await ensureShopCategories();
-  try {
-    const [rows] = await pool.query(
-      `SELECT * FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
-    );
-    if (rows.length) {
-      return new Map(
-        rows.map((r) => {
-          const key = categoryMapKey(r.id);
-          return key ? [key, r] : null;
-        }).filter(Boolean)
-      );
-    }
-  } catch (err) {
-    if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
-  }
-  return new Map(SHOP_CATEGORIES_FALLBACK.map((c) => [c.id, c]));
+  const cats = await listActiveShopCategories();
+  return new Map(
+    cats.map((c) => {
+      const key = categoryMapKey(c.id);
+      return key ? [key, { id: c.id, name: c.name, slug: c.slug }] : null;
+    }).filter(Boolean)
+  );
 }
 
 async function loadColorsForProductIds(ids) {
@@ -159,63 +91,20 @@ async function loadColorsForProductIds(ids) {
   return rows;
 }
 
-function mapCategoryRow(r) {
-  return {
-    id: normalizeCategoryId(r.id),
-    name: r.name,
-    slug: r.slug || (typeof r.id === 'string' ? r.id : null),
-    sort_order: Number(r.sort_order) || 0,
-  };
-}
-
 function resolveCategory(catMap, categoryId) {
   if (categoryId == null || categoryId === '') return null;
   const key = categoryMapKey(categoryId);
   return catMap.get(key) || catMap.get(String(categoryId)) || null;
 }
 
-export async function listActiveShopCategories() {
-  await ensureShopCategories();
-  try {
-    const [rows] = await pool.query(
-      `SELECT id, name, slug, sort_order FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
-    );
-    if (rows.length) return rows.map(mapCategoryRow);
-  } catch (err) {
-    if (err.code !== 'ER_NO_SUCH_TABLE') console.error('listActiveShopCategories:', err.message);
-  }
-  return SHOP_CATEGORIES_FALLBACK.map(mapCategoryRow);
-}
-
-export async function listAllShopCategoriesAdmin() {
-  await ensureShopCategories();
-  try {
-    const [rows] = await pool.query(
-      `SELECT c.*,
-        (SELECT COUNT(*) FROM products p
-         WHERE CAST(p.category_id AS CHAR) = CAST(c.id AS CHAR) AND p.status = 'active') AS product_count
-       FROM shop_categories c
-       ORDER BY c.sort_order, c.id`
-    );
-    return rows.map((r) => ({
-      ...mapCategoryRow(r),
-      status: r.status,
-      product_count: Number(r.product_count) || 0,
-    }));
-  } catch (err) {
-    if (err.code !== 'ER_NO_SUCH_TABLE') console.error('listAllShopCategoriesAdmin:', err.message);
-  }
-  return SHOP_CATEGORIES_FALLBACK.map((c) => ({ ...mapCategoryRow(c), status: 'active', product_count: 0 }));
-}
-
 export async function listActiveProducts({ categoryId = null } = {}) {
-  await ensureShopCategories();
+  const filterId = categoryId != null ? normalizeCategoryId(categoryId) : null;
 
   let products = [];
   const baseSql = `SELECT * FROM products WHERE status = 'active'`;
-  if (categoryId) {
+  if (filterId) {
     try {
-      const [rows] = await pool.query(`${baseSql} AND category_id = ? ORDER BY id ASC`, [categoryId]);
+      const [rows] = await pool.query(`${baseSql} AND category_id = ? ORDER BY id ASC`, [filterId]);
       products = rows;
     } catch (err) {
       if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;

@@ -170,8 +170,11 @@ export default function ShopPage() {
           )}
 
           {loading && <p className="rb-text-muted">Загрузка…</p>}
-          {!loading && !products.length && !categoriesError && (
-            <p className="rb-text-muted">В этой категории пока нет товаров</p>
+          {!loading && categoryId != null && !products.length && !categoriesError && (
+            <p className="rb-text-muted">В этой категории пока нет товаров. Назначьте категорию товару в админке.</p>
+          )}
+          {!loading && categoryId == null && !products.length && !categoriesError && (
+            <p className="rb-text-muted">Товары скоро появятся</p>
           )}
 
           <div className="rb-shop-grid">

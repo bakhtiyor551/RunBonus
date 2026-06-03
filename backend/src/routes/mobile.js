@@ -6,8 +6,8 @@ import {
   listActiveProducts,
   getProductById,
   getUserShoeStatus,
-  listActiveShopCategories,
 } from '../services/shopService.js';
+import { listActiveShopCategories } from '../services/shopCategoryService.js';
 import { createOrder, listUserOrders } from '../services/orderService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { listActivePaymentMethods } from '../services/paymentMethodService.js';
