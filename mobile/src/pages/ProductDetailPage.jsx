@@ -5,7 +5,10 @@ import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
 import { addToCart } from '../services/cart';
+import PaymentMethodPicker from '../components/PaymentMethodPicker';
+import QuantityStepper from '../components/QuantityStepper';
 import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
+import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
 
 export default function ProductDetailPage({ user }) {
   const { id } = useParams();
@@ -14,7 +17,14 @@ export default function ProductDetailPage({ user }) {
   const [size, setSize] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS_FALLBACK);
   const [form, setForm] = useState(() => emptyOrderForm(user));
+
+  useEffect(() => {
+    api('/api/mobile/payment-methods')
+      .then(setPaymentMethods)
+      .catch(() => setPaymentMethods(PAYMENT_METHODS_FALLBACK));
+  }, []);
 
   useEffect(() => {
     api(`/api/mobile/products/${id}`)
@@ -53,7 +63,7 @@ export default function ProductDetailPage({ user }) {
       setError('Выберите размер');
       return;
     }
-    const formErr = validateOrderForm(form, { requireAddress: true });
+    const formErr = validateOrderForm(form, paymentMethods, { requireAddress: true });
     if (formErr) {
       setError(formErr);
       return;
@@ -67,6 +77,8 @@ export default function ProductDetailPage({ user }) {
           city: form.city.trim(),
           address: form.address.trim(),
           comment: form.comment.trim(),
+          payment_method: form.payment_method,
+          payment_details: form.payment_details?.trim() || '',
         },
       },
     });
@@ -146,19 +158,11 @@ export default function ProductDetailPage({ user }) {
           </section>
 
           <div style={{ marginBottom: 12, marginTop: 20 }}>
-            <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
-              Количество
-            </label>
-            <div className="rb-input-wrap">
-              <input
-                className="rb-input"
-                type="number"
-                min={1}
-                max={5}
-                value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-              />
-            </div>
+            <QuantityStepper
+              label="Количество"
+              value={form.quantity}
+              onChange={(q) => setForm({ ...form, quantity: q })}
+            />
           </div>
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
@@ -199,6 +203,14 @@ export default function ProductDetailPage({ user }) {
                 </div>
               </div>
             ))}
+            <PaymentMethodPicker
+              methods={paymentMethods}
+              value={form.payment_method}
+              onChange={(id) => setForm({ ...form, payment_method: id })}
+              details={form.payment_details}
+              onDetailsChange={(v) => setForm({ ...form, payment_details: v })}
+            />
+
             <div style={{ marginBottom: 12 }}>
               <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
                 Комментарий

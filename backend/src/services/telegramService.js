@@ -66,7 +66,12 @@ export function formatOrderTelegramMessage({ order, product }) {
     `Цена: ${order.total_amount} сомони\n` +
     `Город: ${escapeHtml(order.city || '—')}\n` +
     `Адрес: ${escapeHtml(order.address || '—')}\n` +
-    `Комментарий: ${escapeHtml(order.comment || '—')}\n\n` +
+    `Комментарий: ${escapeHtml(order.comment || '—')}\n` +
+    `Оплата: ${escapeHtml(order.payment_method_label || order.payment_method || '—')}\n` +
+    (order.payment_details
+      ? `Данные оплаты: ${escapeHtml(order.payment_details)}\n`
+      : '') +
+    `\n` +
     `Статус: Новый заказ\n` +
     `ID: #${order.id}`
   );

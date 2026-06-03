@@ -1,6 +1,11 @@
 import { pool } from '../db.js';
 import { sendTelegramMessage, formatOrderTelegramMessage } from './telegramService.js';
 import { activateShoeForUserAdmin } from './shoeActivationService.js';
+import {
+  isValidPaymentMethod,
+  paymentMethodLabel,
+  paymentMethodNeedsDetails,
+} from '../constants/paymentMethods.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
@@ -25,7 +30,20 @@ export async function createOrder(data, userId = null) {
     city,
     address,
     comment,
+    payment_method,
+    payment_details,
   } = data;
+
+  if (!payment_method || !isValidPaymentMethod(payment_method)) {
+    const err = new Error('Выберите способ оплаты');
+    err.status = 400;
+    throw err;
+  }
+  if (paymentMethodNeedsDetails(payment_method) && !payment_details?.trim()) {
+    const err = new Error('Укажите данные для выбранного способа оплаты');
+    err.status = 400;
+    throw err;
+  }
 
   const qty = Math.max(1, Math.min(10, Number(quantity) || 1));
 
@@ -57,8 +75,8 @@ export async function createOrder(data, userId = null) {
 
   const [result] = await pool.query(
     `INSERT INTO shop_orders
-       (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+       (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
     [
       userId,
       product_id,
@@ -71,6 +89,8 @@ export async function createOrder(data, userId = null) {
       city?.trim() || null,
       address?.trim() || null,
       comment?.trim() || null,
+      payment_method,
+      payment_details?.trim() || null,
     ]
   );
 
@@ -112,6 +132,9 @@ function mapOrderRow(row) {
     city: row.city,
     address: row.address,
     comment: row.comment,
+    payment_method: row.payment_method,
+    payment_method_label: paymentMethodLabel(row.payment_method),
+    payment_details: row.payment_details,
     status: row.status,
     status_label: statusLabel(row.status),
     created_at: row.created_at,

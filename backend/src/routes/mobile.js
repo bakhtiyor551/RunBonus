@@ -4,6 +4,7 @@ import { authUser, requireActiveUser } from '../middleware/auth.js';
 import { validateShoeQr } from '../services/shoeValidateService.js';
 import { listActiveProducts, getProductById, getUserShoeStatus } from '../services/shopService.js';
 import { createOrder, listUserOrders } from '../services/orderService.js';
+import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
 
 const router = Router();
 
@@ -55,14 +56,40 @@ router.get('/products/:id', async (req, res) => {
   }
 });
 
+router.get('/payment-methods', (_req, res) => {
+  res.json(PAYMENT_METHODS);
+});
+
 router.post('/orders', authUser, requireActiveUser, async (req, res) => {
   try {
-    const { product_id, size, quantity, customer_name, phone, city, address, comment } = req.body;
+    const {
+      product_id,
+      size,
+      quantity,
+      customer_name,
+      phone,
+      city,
+      address,
+      comment,
+      payment_method,
+      payment_details,
+    } = req.body;
     if (!product_id || !customer_name?.trim() || !phone?.trim()) {
       return res.status(400).json({ error: 'Укажите товар, имя и телефон' });
     }
     const order = await createOrder(
-      { product_id, size, quantity, customer_name, phone, city, address, comment },
+      {
+        product_id,
+        size,
+        quantity,
+        customer_name,
+        phone,
+        city,
+        address,
+        comment,
+        payment_method,
+        payment_details,
+      },
       req.userId
     );
     res.status(201).json({

@@ -62,6 +62,7 @@ export default function ShopOrdersTab() {
                 <th>Товар</th>
                 <th>Размер</th>
                 <th>Сумма</th>
+                <th>Оплата</th>
                 <th>Статус</th>
                 <th>Комментарий</th>
                 <th>QR</th>
@@ -77,6 +78,12 @@ export default function ShopOrdersTab() {
                   <td>{o.product_name}</td>
                   <td>{o.size}</td>
                   <td>{o.total_amount}</td>
+                  <td>
+                    {o.payment_method_label || o.payment_method || '—'}
+                    {o.payment_details ? (
+                      <div style={{ fontSize: 11, opacity: 0.8 }}>{o.payment_details}</div>
+                    ) : null}
+                  </td>
                   <td>
                     <select value={o.status} onChange={(e) => setStatus(o.id, e.target.value)}>
                       {STATUSES.map((s) => (

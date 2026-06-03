@@ -1696,3 +1696,87 @@ html.cap-ios .rb-main {
   color: #ff8a80;
 }
 
+.rb-payment-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(195, 244, 0, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--rb-on-surface);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rb-payment-option--active {
+  border-color: var(--rb-neon);
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+}
+
+.rb-payment-option .material-symbols-outlined {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.rb-qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rb-qty-stepper--compact {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.rb-qty-stepper__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(195, 244, 0, 0.25);
+  border-radius: 12px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rb-qty-stepper__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+  cursor: pointer;
+}
+
+.rb-qty-stepper__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.rb-qty-stepper--compact .rb-qty-stepper__btn {
+  width: 36px;
+  height: 36px;
+}
+
+.rb-qty-stepper__btn .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.rb-qty-stepper__value {
+  min-width: 36px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--rb-on-surface);
+}
+

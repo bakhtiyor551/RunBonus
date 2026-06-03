@@ -29,6 +29,16 @@ export function addToCart(item) {
   return cart;
 }
 
+export function setCartItemQuantity(index, quantity) {
+  const cart = getCart();
+  const q = Math.min(5, Math.max(1, Number(quantity) || 1));
+  if (cart[index]) {
+    cart[index].quantity = q;
+    saveCart(cart);
+  }
+  return cart;
+}
+
 export function removeFromCart(index) {
   const cart = getCart();
   cart.splice(index, 1);

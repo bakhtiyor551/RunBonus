@@ -4,14 +4,18 @@ import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
+import PaymentMethodPicker from '../components/PaymentMethodPicker';
 import Icon from '../components/Icon';
-import { getCart, removeFromCart, clearCart } from '../services/cart';
+import QuantityStepper from '../components/QuantityStepper';
+import { getCart, removeFromCart, clearCart, setCartItemQuantity } from '../services/cart';
 import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
+import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
 
 export default function CartPage({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [items, setItems] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS_FALLBACK);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -21,10 +25,14 @@ export default function CartPage({ user }) {
     ...(location.state?.checkoutForm || {}),
   }));
 
-  const refreshCart = () => setItems(getCart());
+  useEffect(() => {
+    api('/api/mobile/payment-methods')
+      .then(setPaymentMethods)
+      .catch(() => setPaymentMethods(PAYMENT_METHODS_FALLBACK));
+  }, []);
 
   useEffect(() => {
-    refreshCart();
+    setItems(getCart());
   }, [location.key]);
 
   const total = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
@@ -36,7 +44,7 @@ export default function CartPage({ user }) {
       setError('Корзина пуста');
       return;
     }
-    const formErr = validateOrderForm(form, { requireAddress: true });
+    const formErr = validateOrderForm(form, paymentMethods, { requireAddress: true });
     if (formErr) {
       setError(formErr);
       return;
@@ -49,6 +57,8 @@ export default function CartPage({ user }) {
         city: form.city.trim(),
         address: form.address.trim(),
         comment: form.comment.trim(),
+        payment_method: form.payment_method,
+        payment_details: form.payment_details?.trim() || '',
       };
       for (const item of items) {
         await api('/api/mobile/orders', {
@@ -80,7 +90,7 @@ export default function CartPage({ user }) {
             <h2 className="font-display" style={{ marginTop: 16 }}>
               Заказ оформлен
             </h2>
-            <p className="rb-text-muted">Мы свяжемся с вами для подтверждения.</p>
+            <p className="rb-text-muted">Мы свяжемся с вами для подтверждения и оплаты.</p>
             <button type="button" className="rb-btn-pill" style={{ marginTop: 24 }} onClick={() => navigate('/orders')}>
               Мои заказы
             </button>
@@ -133,11 +143,16 @@ export default function CartPage({ user }) {
                     )}
                     <div style={{ flex: 1 }}>
                       <strong>{item.name}</strong>
-                      <p className="rb-text-muted" style={{ margin: '4px 0', fontSize: 13 }}>
+                      <p className="rb-text-muted" style={{ margin: '4px 0 8px', fontSize: 13 }}>
                         Размер {item.size}
-                        {item.color ? ` · ${item.color}` : ''} · ×{item.quantity}
+                        {item.color ? ` · ${item.color}` : ''}
                       </p>
-                      <p className="rb-display font-display" style={{ margin: 0, fontSize: 18, color: 'var(--rb-neon)' }}>
+                      <QuantityStepper
+                        compact
+                        value={item.quantity}
+                        onChange={(q) => setItems(setCartItemQuantity(idx, q))}
+                      />
+                      <p className="rb-display font-display" style={{ margin: '8px 0 0', fontSize: 18, color: 'var(--rb-neon)' }}>
                         {(Number(item.price) || 0) * (Number(item.quantity) || 1)} сомони
                       </p>
                     </div>
@@ -181,6 +196,15 @@ export default function CartPage({ user }) {
                     </div>
                   </div>
                 ))}
+
+                <PaymentMethodPicker
+                  methods={paymentMethods}
+                  value={form.payment_method}
+                  onChange={(id) => setForm({ ...form, payment_method: id })}
+                  details={form.payment_details}
+                  onDetailsChange={(v) => setForm({ ...form, payment_details: v })}
+                />
+
                 <div style={{ marginBottom: 12 }}>
                   <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
                     Комментарий
