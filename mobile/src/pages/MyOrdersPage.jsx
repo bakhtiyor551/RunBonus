@@ -60,6 +60,12 @@ export default function MyOrdersPage() {
                 <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
                   Размер {o.size || '—'} · {o.total_amount} сомони
                 </p>
+                {(o.payment_method_label || o.payment_method) && (
+                  <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                    Оплата: {o.payment_method_label || o.payment_method}
+                    {o.payment_details ? ` · ${o.payment_details}` : ''}
+                  </p>
+                )}
                 <p className="rb-label" style={{ margin: '8px 0 0', textTransform: 'none' }}>
                   {new Date(o.created_at).toLocaleString('ru-RU')}
                 </p>

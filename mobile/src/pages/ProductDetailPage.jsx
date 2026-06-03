@@ -5,6 +5,10 @@ import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
 import { addToCart } from '../services/cart';
+import PaymentMethodPicker from '../components/PaymentMethodPicker';
+import QuantityStepper from '../components/QuantityStepper';
+import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
+import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
 
 export default function ProductDetailPage({ user }) {
   const { id } = useParams();
@@ -12,19 +16,15 @@ export default function ProductDetailPage({ user }) {
   const [product, setProduct] = useState(null);
   const [size, setSize] = useState('');
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
   const [error, setError] = useState('');
-  const [cartAdded, setCartAdded] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS_FALLBACK);
+  const [form, setForm] = useState(() => emptyOrderForm(user));
 
-  const [form, setForm] = useState({
-    customer_name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.name || '',
-    phone: user?.phone || '',
-    city: user?.city || '',
-    address: '',
-    quantity: 1,
-    comment: '',
-  });
+  useEffect(() => {
+    api('/api/mobile/payment-methods')
+      .then(setPaymentMethods)
+      .catch(() => setPaymentMethods(PAYMENT_METHODS_FALLBACK));
+  }, []);
 
   useEffect(() => {
     api(`/api/mobile/products/${id}`)
@@ -37,49 +37,51 @@ export default function ProductDetailPage({ user }) {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const addCart = () => {
+  const buildCartItem = () => ({
+    productId: product.id,
+    name: product.name,
+    size,
+    color: product.color,
+    price: product.price,
+    image_url: product.image_url,
+    quantity: Number(form.quantity) || 1,
+  });
+
+  const addCartAndGo = () => {
     setError('');
     if (!size) {
       setError('Выберите размер');
       return;
     }
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      size,
-      color: product.color,
-      price: product.price,
-      image_url: product.image_url,
-      quantity: Number(form.quantity) || 1,
-    });
-    setCartAdded(true);
-    setTimeout(() => setCartAdded(false), 2000);
+    addToCart(buildCartItem());
+    navigate('/cart');
   };
 
-  const submitOrder = async (e) => {
-    e.preventDefault();
+  const buyToCart = () => {
     setError('');
     if (!size) {
       setError('Выберите размер');
       return;
     }
-    setSubmitting(true);
-    try {
-      await api('/api/mobile/orders', {
-        method: 'POST',
-        body: JSON.stringify({
-          product_id: product.id,
-          size,
-          quantity: Number(form.quantity) || 1,
-          ...form,
-        }),
-      });
-      setDone(true);
-    } catch (err) {
-      setError(err.message || 'Не удалось оформить заказ');
-    } finally {
-      setSubmitting(false);
+    const formErr = validateOrderForm(form, paymentMethods, { requireAddress: true });
+    if (formErr) {
+      setError(formErr);
+      return;
     }
+    addToCart(buildCartItem());
+    navigate('/cart', {
+      state: {
+        checkoutForm: {
+          customer_name: form.customer_name.trim(),
+          phone: form.phone.trim(),
+          city: form.city.trim(),
+          address: form.address.trim(),
+          comment: form.comment.trim(),
+          payment_method: form.payment_method,
+          payment_details: form.payment_details?.trim() || '',
+        },
+      },
+    });
   };
 
   if (loading) {
@@ -102,26 +104,6 @@ export default function ProductDetailPage({ user }) {
         <IonContent>
           <main className="rb-main">
             <p className="rb-text-muted">Товар не найден</p>
-          </main>
-        </IonContent>
-      </IonPage>
-    );
-  }
-
-  if (done) {
-    return (
-      <IonPage>
-        <AppHeader onBack={() => navigate('/orders')} />
-        <IonContent>
-          <main className="rb-main" style={{ textAlign: 'center', paddingTop: 40 }}>
-            <Icon name="check_circle" filled style={{ fontSize: 64, color: 'var(--rb-neon)' }} />
-            <h2 className="font-display" style={{ marginTop: 16 }}>
-              Ваш заказ принят
-            </h2>
-            <p className="rb-text-muted">Мы свяжемся с вами для подтверждения.</p>
-            <button type="button" className="rb-btn-pill" style={{ marginTop: 24 }} onClick={() => navigate('/orders')}>
-              Мои заказы
-            </button>
           </main>
         </IonContent>
       </IonPage>
@@ -175,25 +157,37 @@ export default function ProductDetailPage({ user }) {
             </div>
           </section>
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-            <button type="button" className="rb-btn-pill" style={{ flex: 1 }} onClick={addCart}>
+          <div style={{ marginBottom: 12, marginTop: 20 }}>
+            <QuantityStepper
+              label="Количество"
+              value={form.quantity}
+              onChange={(q) => setForm({ ...form, quantity: q })}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+            <button type="button" className="rb-btn-pill" style={{ flex: 1 }} onClick={addCartAndGo}>
               <Icon name="add_shopping_cart" />
-              {cartAdded ? 'В корзине' : 'В корзину'}
+              В корзину
             </button>
-            <button type="button" className="rb-btn-primary" style={{ flex: 1 }} onClick={() => document.getElementById('order-form')?.requestSubmit()}>
+            <button type="button" className="rb-btn-primary" style={{ flex: 1 }} onClick={buyToCart}>
+              <Icon name="shopping_cart" />
               Купить
             </button>
           </div>
 
-          <form id="order-form" onSubmit={submitOrder} className="glass-card" style={{ padding: 20, marginTop: 24 }}>
-            <h2 className="font-display" style={{ fontSize: 18, margin: '0 0 16px' }}>
-              Оформить заказ
+          <div className="glass-card" style={{ padding: 20 }}>
+            <h2 className="font-display" style={{ fontSize: 18, margin: '0 0 8px' }}>
+              Данные для доставки
             </h2>
+            <p className="rb-text-muted" style={{ margin: '0 0 16px', fontSize: 13, lineHeight: 1.45 }}>
+              Заполните поля перед «Купить». Оформление заказа — в корзине после проверки.
+            </p>
             {[
-              ['customer_name', 'Имя', 'text'],
-              ['phone', 'Телефон', 'tel'],
-              ['city', 'Город', 'text'],
-              ['address', 'Адрес доставки', 'text'],
+              ['customer_name', 'Имя', 'text', true],
+              ['phone', 'Телефон', 'tel', true],
+              ['city', 'Город', 'text', true],
+              ['address', 'Адрес доставки', 'text', true],
             ].map(([key, label, type]) => (
               <div key={key} style={{ marginBottom: 12 }}>
                 <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
@@ -205,31 +199,33 @@ export default function ProductDetailPage({ user }) {
                     type={type}
                     value={form[key]}
                     onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                    required={key !== 'address'}
                   />
                 </div>
               </div>
             ))}
+            <PaymentMethodPicker
+              methods={paymentMethods}
+              value={form.payment_method}
+              onChange={(id) => setForm({ ...form, payment_method: id })}
+              details={form.payment_details}
+              onDetailsChange={(v) => setForm({ ...form, payment_details: v })}
+            />
+
             <div style={{ marginBottom: 12 }}>
               <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
-                Количество
+                Комментарий
               </label>
               <div className="rb-input-wrap">
                 <input
                   className="rb-input"
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={form.quantity}
-                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  value={form.comment}
+                  onChange={(e) => setForm({ ...form, comment: e.target.value })}
+                  placeholder="Необязательно"
                 />
               </div>
             </div>
             {error && <p className="rb-text-error">{error}</p>}
-            <button type="submit" className="rb-btn-primary" disabled={submitting} style={{ width: '100%' }}>
-              {submitting ? 'Оформление…' : 'Купить'}
-            </button>
-          </form>
+          </div>
         </main>
       </IonContent>
     </IonPage>
