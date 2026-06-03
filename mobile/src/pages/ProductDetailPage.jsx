@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
-import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import QuantityStepper from '../components/QuantityStepper';
 import { addToCart } from '../services/cart';
@@ -28,7 +27,7 @@ export default function ProductDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const addToCartClick = async () => {
+  const addToCartAndGo = async () => {
     if (!size) {
       await showToast('Выберите размер');
       return;
@@ -42,7 +41,7 @@ export default function ProductDetailPage() {
       image_url: product.image_url,
       quantity: Number(quantity) || 1,
     });
-    await showToast('Добавлено в корзину', { color: 'success', duration: 1800 });
+    navigate('/cart');
   };
 
   if (loading) {
@@ -50,10 +49,9 @@ export default function ProductDetailPage() {
       <IonPage>
         <AppHeader onBack={() => navigate(-1)} />
         <IonContent>
-          <main className="rb-main rb-main--product-detail">
+          <main className="rb-main">
             <p className="rb-text-muted">Загрузка…</p>
           </main>
-          <BottomNav />
         </IonContent>
       </IonPage>
     );
@@ -64,10 +62,9 @@ export default function ProductDetailPage() {
       <IonPage>
         <AppHeader onBack={() => navigate(-1)} />
         <IonContent>
-          <main className="rb-main rb-main--product-detail">
+          <main className="rb-main">
             <p className="rb-text-muted">Товар не найден</p>
           </main>
-          <BottomNav />
         </IonContent>
       </IonPage>
     );
@@ -79,7 +76,7 @@ export default function ProductDetailPage() {
     <IonPage>
       <AppHeader onBack={() => navigate(-1)} />
       <IonContent>
-        <main className="rb-main rb-main--product-detail">
+        <main className="rb-main">
           <div className="rb-shop-detail-hero glass-card">
             {product.image_url ? (
               <img src={product.image_url} alt="" />
@@ -120,23 +117,15 @@ export default function ProductDetailPage() {
             </div>
           </section>
 
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 20, marginBottom: 24 }}>
             <QuantityStepper label="Количество" value={quantity} onChange={setQuantity} />
           </div>
 
-          <p className="rb-text-muted" style={{ marginTop: 16, fontSize: 13, lineHeight: 1.45 }}>
-            Оформление заказа — во вкладке «Корзина» внизу экрана.
-          </p>
-        </main>
-
-        <div className="rb-shop-fixed-bar">
-          <button type="button" className="rb-btn-primary rb-shop-fixed-bar__btn" onClick={addToCartClick}>
+          <button type="button" className="rb-btn-primary" style={{ width: '100%' }} onClick={addToCartAndGo}>
             <Icon name="add_shopping_cart" />
             В корзину
           </button>
-        </div>
-
-        <BottomNav />
+        </main>
       </IonContent>
     </IonPage>
   );
