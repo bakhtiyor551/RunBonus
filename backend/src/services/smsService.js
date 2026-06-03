@@ -56,6 +56,16 @@ export async function sendSms(phone992, message) {
   return { msg_id: data.msg_id, txn_id: txnId };
 }
 
+/** Текст SMS с хешем приложения для автоподстановки кода на Android/iOS */
+export function buildOtpMessage(code) {
+  const codeStr = String(code).replace(/\D/g, '').slice(0, 6);
+  const hash = config.sms.appHash;
+  if (hash) {
+    return `<#> RunBonus: код ${codeStr}. Никому не сообщайте.\n${hash}`;
+  }
+  return `RunBonus: код ${codeStr}. Никому не сообщайте.`;
+}
+
 export function sendOtpSms(phoneRaw, code) {
   const phone = normalizePhone(phoneRaw);
   if (!phone) {
@@ -63,8 +73,7 @@ export function sendOtpSms(phoneRaw, code) {
     err.status = 400;
     throw err;
   }
-  const message = `RunBonus: код ${code}. Никому не сообщайте.`;
-  return sendSms(phone, message);
+  return sendSms(phone, buildOtpMessage(code));
 }
 
 export function isSmsEnabled() {

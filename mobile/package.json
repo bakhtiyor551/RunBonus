@@ -14,7 +14,8 @@
     "cap:ios": "npm run cap:sync && npx cap sync ios",
     "cap:open": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
-    "icons": "node scripts/generate-icons.mjs && npx @capacitor/assets generate --iconBackgroundColor \"#131313\" --splashBackgroundColor \"#131313\""
+    "icons": "node scripts/generate-icons.mjs && npx @capacitor/assets generate --iconBackgroundColor \"#131313\" --splashBackgroundColor \"#131313\"",
+    "sms-hash": "node scripts/android-sms-hash.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
