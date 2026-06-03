@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { authAdmin } from '../middleware/auth.js';
-import { adminListProducts, adminSaveProduct } from '../services/shopService.js';
 import {
   adminListProducts,
   adminSaveProduct,
   adminDeleteProduct,
+} from '../services/shopService.js';
+import {
   listAllShopCategoriesAdmin,
   createShopCategory,
   updateShopCategory,
