@@ -21,6 +21,15 @@ function resolveApiUrl() {
 
 const API = resolveApiUrl();
 
+/** Полный URL для загруженных файлов (чек, аватар и т.д.) */
+export function mediaUrl(path) {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const base = resolveApiUrl();
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return base ? `${base}${p}` : p;
+}
+
 export async function adminApi(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   const token = localStorage.getItem('adminToken');
