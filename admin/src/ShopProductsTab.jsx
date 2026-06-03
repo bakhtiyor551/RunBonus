@@ -542,31 +542,18 @@ export default function ShopProductsTab() {
 
   const save = async (e) => {
     e.preventDefault();
-    if (!form.sizes.length) {
-      alert('Выберите хотя бы один размер');
-      return;
-    }
-    setSaving(true);
-    try {
-      const payload = {
-        ...form,
-        price: Number(form.price),
-        colors: form.colors.filter((c) => c.label?.trim()),
-        sizes: form.sizes.filter((s) => s.size?.trim()),
-        images: form.images.filter((i) => i.image_url?.trim()),
-      };
-      delete payload.default_stock;
-      if (editId) {
-        await adminApi(`/api/admin/shop/products/${editId}`, { method: 'PUT', body: JSON.stringify(payload) });
-      } else {
-        await adminApi('/api/admin/shop/products', { method: 'POST', body: JSON.stringify(payload) });
-      }
-      closeForm();
-      load();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setSaving(false);
+    const payload = {
+      ...form,
+      price: Number(form.price),
+      category_id: form.category_id != null && String(form.category_id).trim() !== '' ? form.category_id : null,
+      colors: form.colors.filter((c) => c.label?.trim()),
+      sizes: form.sizes.filter((s) => s.size?.trim()),
+      images: form.images.filter((i) => i.image_url?.trim()),
+    };
+    if (editId) {
+      await adminApi(`/api/admin/shop/products/${editId}`, { method: 'PUT', body: JSON.stringify(payload) });
+    } else {
+      await adminApi('/api/admin/shop/products', { method: 'POST', body: JSON.stringify(payload) });
     }
   };
 
