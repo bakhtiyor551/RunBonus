@@ -7,52 +7,52 @@ import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import { cartCount } from '../services/cart';
 
-function ProductCard({ product, onOpen, onAr }) {
+function ProductCard({ product, onOpen, on360 }) {
   const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
-  const hasAr = product.slug === 'urban-sprint';
+  const has360 = product.slug === 'urban-sprint';
   return (
     <div className="glass-card rb-shop-card rb-shop-card--wrap">
-    <button type="button" className="rb-shop-card__tap" onClick={() => onOpen(product.id)}>
-      <div className="rb-shop-card__img">
-        {product.image_url ? (
-          <img src={product.image_url} alt="" />
-        ) : (
-          <Icon name="directions_run" filled style={{ fontSize: 40, color: 'var(--rb-neon)' }} />
-        )}
-      </div>
-      <div className="rb-shop-card__body">
-        <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 600 }}>{product.name}</h3>
-        <p className="rb-display font-display" style={{ margin: '0 0 6px', fontSize: 22, color: 'var(--rb-neon)' }}>
-          {product.price} <span style={{ fontSize: 14 }}>сомони</span>
-        </p>
-        {product.color && (
-          <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 12 }}>
-            Цвет: {product.color}
+      <button type="button" className="rb-shop-card__tap" onClick={() => onOpen(product.id)}>
+        <div className="rb-shop-card__img">
+          {product.image_url ? (
+            <img src={product.image_url} alt="" />
+          ) : (
+            <Icon name="directions_run" filled style={{ fontSize: 40, color: 'var(--rb-neon)' }} />
+          )}
+        </div>
+        <div className="rb-shop-card__body">
+          <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 600 }}>{product.name}</h3>
+          <p className="rb-display font-display" style={{ margin: '0 0 6px', fontSize: 22, color: 'var(--rb-neon)' }}>
+            {product.price} <span style={{ fontSize: 14 }}>сомони</span>
           </p>
-        )}
-        {sizes.length > 0 && (
-          <p className="rb-label" style={{ margin: 0, textTransform: 'none', fontSize: 11 }}>
-            Размеры: {sizes.join(', ')}
-          </p>
-        )}
-        <span className="rb-badge-live" style={{ marginTop: 8, fontSize: 10 }}>
-          {product.in_stock ? 'В наличии' : 'Нет в наличии'}
-        </span>
-      </div>
-    </button>
-    {hasAr && (
-      <button
-        type="button"
-        className="rb-shop-card__ar-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          onAr(product);
-        }}
-      >
-        <Icon name="view_in_ar" />
-        Примерить в AR
+          {product.color && (
+            <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 12 }}>
+              Цвет: {product.color}
+            </p>
+          )}
+          {sizes.length > 0 && (
+            <p className="rb-label" style={{ margin: 0, textTransform: 'none', fontSize: 11 }}>
+              Размеры: {sizes.join(', ')}
+            </p>
+          )}
+          <span className="rb-badge-live" style={{ marginTop: 8, fontSize: 10 }}>
+            {product.in_stock ? 'В наличии' : 'Нет в наличии'}
+          </span>
+        </div>
       </button>
-    )}
+      {has360 && (
+        <button
+          type="button"
+          className="rb-shop-card__360-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            on360(product);
+          }}
+        >
+          <Icon name="360" />
+          360° просмотр
+        </button>
+      )}
     </div>
   );
 }
@@ -131,13 +131,13 @@ export default function ShopPage() {
             onClick={() => navigate('/shop/360/urban-sprint')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Icon name="view_in_ar" filled style={{ fontSize: 36, color: 'var(--rb-neon)' }} />
+              <Icon name="360" filled style={{ fontSize: 36, color: 'var(--rb-neon)' }} />
               <div>
                 <strong className="font-display" style={{ fontSize: 17 }}>
-                  Примерь Urban Sprint у себя дома
+                  Urban Sprint — 360° просмотр
                 </strong>
                 <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                  AR-примерка и 3D-обзор 360° · 4 цвета
+                  Поверните и рассмотрите кроссовки со всех сторон
                 </p>
               </div>
               <Icon name="chevron_right" style={{ marginLeft: 'auto' }} />
@@ -153,7 +153,7 @@ export default function ShopPage() {
                 key={p.id}
                 product={p}
                 onOpen={(id) => navigate(`/shop/${id}`)}
-                onAr={(prod) =>
+                on360={(prod) =>
                   navigate(`/shop/360/${prod.slug || 'urban-sprint'}`, { state: { productId: prod.id } })
                 }
               />

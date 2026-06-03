@@ -18,10 +18,6 @@ export default function Urban360Page() {
     navigate('/shop');
   };
 
-  const openAr = () => {
-    navigate(`/shop/ar/${slug}`, { state: { productId } });
-  };
-
   return (
     <IonPage className="rb-360-page">
       <button
@@ -33,7 +29,7 @@ export default function Urban360Page() {
         <Icon name="arrow_back" />
       </button>
       <IonContent fullscreen scrollY={false}>
-        <Product360Viewer onBuy={buy} onOpenAr={openAr} />
+        <Product360Viewer onBuy={buy} />
       </IonContent>
     </IonPage>
   );
