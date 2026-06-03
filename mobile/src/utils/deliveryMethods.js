@@ -1,6 +1,6 @@
 export const DELIVERY_METHODS_FALLBACK = [
-  { id: 'courier', label: 'Доставка курьером', requiresAddress: true },
-  { id: 'pickup', label: 'Самовывоз', requiresAddress: false },
+  { id: 'courier', label: 'Доставка курьером', requiresAddress: true, price: 25 },
+  { id: 'pickup', label: 'Самовывоз', requiresAddress: false, price: 0 },
 ];
 
 export function getDeliveryMethod(methods, id) {

@@ -55,7 +55,10 @@ export default function CartPage({ user }) {
     setItems(getCart());
   }, [location.key]);
 
-  const total = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
+  const itemsTotal = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
+  const selectedDelivery = deliveryMethods.find((m) => m.id === form.delivery_method);
+  const deliveryFee = Number(selectedDelivery?.price) || 0;
+  const total = itemsTotal + deliveryFee;
 
   const placeOrders = async (mobilePayment = null) => {
     const cartItems = getCart();
@@ -87,13 +90,15 @@ export default function CartPage({ user }) {
         payment_receipt_url: receiptUrl,
       };
 
-      for (const item of cartItems) {
+      for (let i = 0; i < cartItems.length; i++) {
+        const item = cartItems[i];
         await api('/api/mobile/orders', {
           method: 'POST',
           body: JSON.stringify({
             product_id: item.productId,
             size: item.size,
             quantity: item.quantity,
+            apply_delivery_fee: i === 0,
             ...payload,
           }),
         });
@@ -227,9 +232,19 @@ export default function CartPage({ user }) {
                 ))}
               </div>
 
-              <p className="rb-headline font-display" style={{ marginBottom: 16 }}>
-                Итого: {total} сомони
-              </p>
+              <div className="glass-card" style={{ padding: 14, marginBottom: 16 }}>
+                <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 13 }}>
+                  Товары: {itemsTotal} сомони
+                </p>
+                {deliveryFee > 0 && (
+                  <p className="rb-text-muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
+                    Доставка: {deliveryFee} сомони
+                  </p>
+                )}
+                <p className="rb-headline font-display" style={{ margin: 0 }}>
+                  Итого: {total} сомони
+                </p>
+              </div>
 
               <form onSubmit={checkout} className="glass-card" style={{ padding: 20 }} noValidate>
                 <h2 className="font-display" style={{ fontSize: 18, margin: '0 0 16px' }}>

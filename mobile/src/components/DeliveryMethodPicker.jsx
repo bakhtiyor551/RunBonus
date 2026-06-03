@@ -20,7 +20,18 @@ export default function DeliveryMethodPicker({ methods, value, onChange }) {
             onClick={() => onChange(m.id)}
           >
             <Icon name={ICONS[m.id] || 'local_shipping'} />
-            <span>{m.label}</span>
+            <span style={{ flex: 1, textAlign: 'left' }}>
+              {m.label}
+              {Number(m.price) > 0 ? (
+                <span className="rb-text-muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>
+                  +{Number(m.price)} сомони
+                </span>
+              ) : (
+                <span className="rb-text-muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>
+                  Бесплатно
+                </span>
+              )}
+            </span>
           </button>
         ))}
       </div>
