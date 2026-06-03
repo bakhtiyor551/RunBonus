@@ -1780,3 +1780,90 @@ html.cap-ios .rb-main {
   color: var(--rb-on-surface);
 }
 
+ion-toast.rb-toast {
+  --background: #2a2a2a;
+  --color: #ffb4ab;
+  --border-radius: 12px;
+  --box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+ion-toast.rb-toast.toast-success,
+ion-toast.rb-toast[class*='success'] {
+  --color: var(--rb-neon);
+}
+
+.rb-mobile-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rb-mobile-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.rb-mobile-account__provider {
+  margin: 0;
+  font-size: 13px;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-mobile-account__number {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--rb-neon);
+  letter-spacing: 0.02em;
+}
+
+.rb-mobile-account__copy {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.rb-mobile-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.rb-mobile-check input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--rb-neon);
+}
+
+.rb-receipt-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 140px;
+  padding: 16px;
+  border: 2px dashed rgba(195, 244, 0, 0.35);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  text-align: center;
+  font-size: 14px;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-receipt-upload__preview {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+

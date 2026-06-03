@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
-import { api } from '../api';
+import { api, API_URL } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
@@ -65,6 +65,17 @@ export default function MyOrdersPage() {
                     Оплата: {o.payment_method_label || o.payment_method}
                     {o.payment_details ? ` · ${o.payment_details}` : ''}
                   </p>
+                )}
+                {o.payment_receipt_url && (
+                  <a
+                    href={`${API_URL || ''}${o.payment_receipt_url}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rb-text-muted"
+                    style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--rb-neon)' }}
+                  >
+                    Чек оплаты
+                  </a>
                 )}
                 <p className="rb-label" style={{ margin: '8px 0 0', textTransform: 'none' }}>
                   {new Date(o.created_at).toLocaleString('ru-RU')}

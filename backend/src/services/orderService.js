@@ -6,6 +6,7 @@ import {
   paymentMethodLabel,
   paymentMethodNeedsDetails,
 } from '../constants/paymentMethods.js';
+import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
@@ -32,6 +33,7 @@ export async function createOrder(data, userId = null) {
     comment,
     payment_method,
     payment_details,
+    payment_receipt_base64,
   } = data;
 
   if (!payment_method || !isValidPaymentMethod(payment_method)) {
@@ -39,7 +41,18 @@ export async function createOrder(data, userId = null) {
     err.status = 400;
     throw err;
   }
-  if (paymentMethodNeedsDetails(payment_method) && !payment_details?.trim()) {
+  if (payment_method === 'mobile') {
+    if (!payment_details?.trim()) {
+      const err = new Error('Укажите номер кошелька, с которого вы перевели');
+      err.status = 400;
+      throw err;
+    }
+    if (!payment_receipt_base64) {
+      const err = new Error('Загрузите чек перевода');
+      err.status = 400;
+      throw err;
+    }
+  } else if (paymentMethodNeedsDetails(payment_method) && !payment_details?.trim()) {
     const err = new Error('Укажите данные для выбранного способа оплаты');
     err.status = 400;
     throw err;
@@ -95,6 +108,15 @@ export async function createOrder(data, userId = null) {
   );
 
   const orderId = result.insertId;
+
+  if (payment_method === 'mobile' && payment_receipt_base64) {
+    const receiptUrl = saveOrderReceiptFromDataUrl(orderId, payment_receipt_base64);
+    await pool.query(`UPDATE shop_orders SET payment_receipt_url = ? WHERE id = ?`, [
+      receiptUrl,
+      orderId,
+    ]);
+  }
+
   const order = await getOrderById(orderId);
 
   const tgText = formatOrderTelegramMessage({ order, product });
@@ -135,6 +157,7 @@ function mapOrderRow(row) {
     payment_method: row.payment_method,
     payment_method_label: paymentMethodLabel(row.payment_method),
     payment_details: row.payment_details,
+    payment_receipt_url: row.payment_receipt_url || null,
     status: row.status,
     status_label: statusLabel(row.status),
     created_at: row.created_at,

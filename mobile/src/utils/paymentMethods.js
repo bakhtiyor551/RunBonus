@@ -5,8 +5,8 @@ export const PAYMENT_METHODS_FALLBACK = [
   {
     id: 'mobile',
     label: 'Мобильный перевод',
-    needsDetails: true,
-    detailsLabel: 'Номер кошелька (Alif Mobi, DC, Эсхата)',
+    needsDetails: false,
+    usesTransferModal: true,
   },
   { id: 'bank', label: 'Перевод на расчётный счёт', needsDetails: true, detailsLabel: 'Банк или ФИО плательщика' },
 ];

@@ -5,6 +5,7 @@ import { validateShoeQr } from '../services/shoeValidateService.js';
 import { listActiveProducts, getProductById, getUserShoeStatus } from '../services/shopService.js';
 import { createOrder, listUserOrders } from '../services/orderService.js';
 import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
+import { MOBILE_PAYMENT_ACCOUNTS } from '../constants/mobilePaymentAccounts.js';
 
 const router = Router();
 
@@ -60,6 +61,10 @@ router.get('/payment-methods', (_req, res) => {
   res.json(PAYMENT_METHODS);
 });
 
+router.get('/mobile-payment-accounts', (_req, res) => {
+  res.json(MOBILE_PAYMENT_ACCOUNTS);
+});
+
 router.post('/orders', authUser, requireActiveUser, async (req, res) => {
   try {
     const {
@@ -73,6 +78,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
       comment,
       payment_method,
       payment_details,
+      payment_receipt_base64,
     } = req.body;
     if (!product_id || !customer_name?.trim() || !phone?.trim()) {
       return res.status(400).json({ error: 'Укажите товар, имя и телефон' });
@@ -89,6 +95,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
         comment,
         payment_method,
         payment_details,
+        payment_receipt_base64,
       },
       req.userId
     );

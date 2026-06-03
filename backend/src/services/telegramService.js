@@ -71,6 +71,9 @@ export function formatOrderTelegramMessage({ order, product }) {
     (order.payment_details
       ? `Данные оплаты: ${escapeHtml(order.payment_details)}\n`
       : '') +
+    (order.payment_receipt_url
+      ? `Чек: ${escapeHtml(order.payment_receipt_url)}\n`
+      : '') +
     `\n` +
     `Статус: Новый заказ\n` +
     `ID: #${order.id}`

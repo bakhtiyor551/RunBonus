@@ -81,7 +81,12 @@ export default function ShopOrdersTab() {
                   <td>
                     {o.payment_method_label || o.payment_method || '—'}
                     {o.payment_details ? (
-                      <div style={{ fontSize: 11, opacity: 0.8 }}>{o.payment_details}</div>
+                      <div style={{ fontSize: 11, opacity: 0.8 }}>Кошелёк клиента: {o.payment_details}</div>
+                    ) : null}
+                    {o.payment_receipt_url ? (
+                      <a href={o.payment_receipt_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>
+                        Чек
+                      </a>
                     ) : null}
                   </td>
                   <td>
