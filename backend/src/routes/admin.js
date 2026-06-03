@@ -10,6 +10,7 @@ import { formatDeviceAdminInfo, resetUserDevice } from '../services/deviceBindin
 import adminAccountsRoutes from './adminAccounts.js';
 import adminBonusSettingsRoutes from './adminBonusSettings.js';
 import adminCustomerLevelsRoutes from './adminCustomerLevels.js';
+import adminPaymentMethodsRoutes from './adminPaymentMethods.js';
 import { getAdminClientLevelInfo } from '../services/customerLevelService.js';
 
 const router = Router();
@@ -506,5 +507,6 @@ router.post('/bonus/manual', authAdmin, async (req, res) => {
 router.use(adminAccountsRoutes);
 router.use(adminBonusSettingsRoutes);
 router.use(adminCustomerLevelsRoutes);
+router.use(adminPaymentMethodsRoutes);
 
 export default router;

@@ -10,7 +10,7 @@ import DashboardTab from './DashboardTab';
 import ClientsTab from './ClientsTab';
 import ShopProductsTab from './ShopProductsTab';
 import ShopOrdersTab from './ShopOrdersTab';
-import ShopCouriersTab from './ShopCouriersTab';
+import PaymentMethodsTab from './PaymentMethodsTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -137,7 +137,7 @@ export default function App() {
           )}
           {tab === 10 && (
             <div className="page-content">
-              <ShopCouriersTab />
+              <PaymentMethodsTab />
             </div>
           )}
           {tab === 5 && (
