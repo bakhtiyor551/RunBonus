@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import DetailSheet from './DetailSheet';
 import Icon from './Icon';
@@ -37,6 +37,8 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
   const [confirmed, setConfirmed] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState('');
   const [receiptDataUrl, setReceiptDataUrl] = useState('');
+  const galleryInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   const selectedAccount = accounts.find((a) => a.id === recipientId) || null;
 
@@ -186,28 +188,62 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
         <p className="rb-label" style={{ marginBottom: 8 }}>
           Чек транзакции
         </p>
-        <label className="rb-receipt-upload">
-          <input type="file" accept="image/*" capture="environment" onChange={onReceiptPick} hidden />
-          {receiptPreview ? (
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onReceiptPick}
+          hidden
+        />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onReceiptPick}
+          hidden
+        />
+
+        {receiptPreview ? (
+          <div className="rb-receipt-upload rb-receipt-upload--has-preview">
             <img src={receiptPreview} alt="Чек" className="rb-receipt-upload__preview" />
-          ) : (
-            <>
-              <Icon name="receipt_long" style={{ fontSize: 40, color: 'var(--rb-neon)' }} />
-              <span>Загрузить фото чека</span>
-            </>
-          )}
-        </label>
+          </div>
+        ) : (
+          <div className="rb-receipt-upload rb-receipt-upload--empty">
+            <Icon name="receipt_long" style={{ fontSize: 40, color: 'var(--rb-neon)' }} />
+            <span>Добавьте фото чека</span>
+          </div>
+        )}
+
+        <div className="rb-receipt-actions">
+          <button
+            type="button"
+            className="rb-btn-pill rb-receipt-actions__btn"
+            onClick={() => galleryInputRef.current?.click()}
+          >
+            <Icon name="photo_library" />
+            Из галереи
+          </button>
+          <button
+            type="button"
+            className="rb-btn-pill rb-receipt-actions__btn"
+            onClick={() => cameraInputRef.current?.click()}
+          >
+            <Icon name="photo_camera" />
+            С камеры
+          </button>
+        </div>
+
         {receiptPreview && (
           <button
             type="button"
-            className="rb-text-muted"
-            style={{ marginTop: 8, background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}
+            className="rb-text-muted rb-receipt-remove"
             onClick={() => {
               setReceiptPreview('');
               setReceiptDataUrl('');
             }}
           >
-            Удалить и выбрать другой
+            Удалить фото
           </button>
         )}
       </div>
