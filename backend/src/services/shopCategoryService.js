@@ -1,5 +1,12 @@
 import { pool } from '../db.js';
 import { normalizeCategoryId } from '../utils/categoryId.js';
+import { SHOP_CATEGORIES_FALLBACK } from '../constants/shopCategories.js';
+
+const FALLBACK_CATEGORY_NAMES = new Map();
+for (const c of SHOP_CATEGORIES_FALLBACK) {
+  FALLBACK_CATEGORY_NAMES.set(String(c.id), c.name);
+  if (c.slug) FALLBACK_CATEGORY_NAMES.set(String(c.slug), c.name);
+}
 
 let tableReady = null;
 
@@ -51,6 +58,63 @@ function normalizeId(raw) {
     .toLowerCase()
     .replace(/[^a-z0-9_-]/g, '_')
     .slice(0, 32);
+}
+
+export function categoryDisplayName(id, name) {
+  const trimmed = String(name || '').trim();
+  if (trimmed) return trimmed;
+  const key = String(id ?? '');
+  if (FALLBACK_CATEGORY_NAMES.has(key)) return FALLBACK_CATEGORY_NAMES.get(key);
+  if (FALLBACK_CATEGORY_NAMES.has(key.toLowerCase())) return FALLBACK_CATEGORY_NAMES.get(key.toLowerCase());
+  return key;
+}
+
+/** Категории для мобильного каталога: активные + привязанные к товарам (даже если отключены). */
+export async function listCatalogShopCategories() {
+  await ensureTable();
+  const [rows] = await pool.query(
+    `SELECT c.*,
+      (SELECT COUNT(*) FROM products p
+       WHERE CAST(p.category_id AS CHAR) = CAST(c.id AS CHAR) AND p.status = 'active') AS product_count
+     FROM shop_categories c
+     WHERE c.status = 'active'
+        OR EXISTS (
+          SELECT 1 FROM products p
+          WHERE CAST(p.category_id AS CHAR) = CAST(c.id AS CHAR) AND p.status = 'active'
+        )
+     ORDER BY c.sort_order ASC, c.name ASC`
+  );
+
+  const categories = rows.map(mapRow);
+  const covered = new Set(categories.map((c) => String(c.id)));
+
+  const [orphanRows] = await pool.query(
+    `SELECT DISTINCT category_id,
+      (SELECT COUNT(*) FROM products p2
+       WHERE CAST(p2.category_id AS CHAR) = CAST(p.category_id AS CHAR) AND p2.status = 'active') AS product_count
+     FROM products p
+     WHERE p.status = 'active'
+       AND p.category_id IS NOT NULL
+       AND TRIM(CAST(p.category_id AS CHAR)) != ''`
+  );
+
+  for (const row of orphanRows) {
+    const id = normalizeCategoryId(row.category_id);
+    if (id == null || covered.has(String(id))) continue;
+    categories.push({
+      id,
+      name: categoryDisplayName(id, null),
+      slug: typeof id === 'string' ? id : String(id),
+      sort_order: 999,
+      status: 'active',
+      product_count: Number(row.product_count) || 0,
+    });
+    covered.add(String(id));
+  }
+
+  return categories.sort(
+    (a, b) => a.sort_order - b.sort_order || String(a.name).localeCompare(String(b.name), 'ru')
+  );
 }
 
 export async function listActiveShopCategories() {
