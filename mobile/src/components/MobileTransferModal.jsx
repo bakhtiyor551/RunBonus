@@ -11,7 +11,19 @@ const ACCOUNTS_FALLBACK = [
   { id: 'eskhata', provider: 'Эсхата Онлайн', number: '+992 90 000 00 03', holder: 'RunBonus' },
 ];
 
-export function validateMobileTransfer({ senderWallet, confirmed, receiptDataUrl }) {
+/** Текст для поля payment_details в заказе (админка + Telegram). */
+export function formatMobilePaymentDetails(recipientAccount, senderWallet) {
+  const to = recipientAccount
+    ? `На: ${recipientAccount.provider} — ${recipientAccount.number}`
+    : '';
+  const from = senderWallet?.trim() ? `От: ${senderWallet.trim()}` : '';
+  return [to, from].filter(Boolean).join('\n');
+}
+
+export function validateMobileTransfer({ recipientId, senderWallet, confirmed, receiptDataUrl, accounts }) {
+  if (!recipientId) return 'Выберите кошелёк RunBonus для перевода';
+  const acc = accounts?.find((a) => a.id === recipientId);
+  if (!acc) return 'Выберите кошелёк RunBonus для перевода';
   if (!senderWallet?.trim()) return 'Укажите номер кошелька, с которого вы перевели';
   if (!confirmed) return 'Подтвердите, что перевод выполнен';
   if (!receiptDataUrl) return 'Загрузите чек транзакции';
@@ -20,10 +32,13 @@ export function validateMobileTransfer({ senderWallet, confirmed, receiptDataUrl
 
 export default function MobileTransferModal({ open, totalAmount, onClose, onConfirm, submitting }) {
   const [accounts, setAccounts] = useState(ACCOUNTS_FALLBACK);
+  const [recipientId, setRecipientId] = useState('');
   const [senderWallet, setSenderWallet] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState('');
   const [receiptDataUrl, setReceiptDataUrl] = useState('');
+
+  const selectedAccount = accounts.find((a) => a.id === recipientId) || null;
 
   useEffect(() => {
     if (!open) return;
@@ -34,6 +49,7 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
 
   useEffect(() => {
     if (!open) {
+      setRecipientId('');
       setSenderWallet('');
       setConfirmed(false);
       setReceiptPreview('');
@@ -72,13 +88,22 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
   };
 
   const handleConfirm = async () => {
-    const err = validateMobileTransfer({ senderWallet, confirmed, receiptDataUrl });
+    const err = validateMobileTransfer({
+      recipientId,
+      senderWallet,
+      confirmed,
+      receiptDataUrl,
+      accounts,
+    });
     if (err) {
       await showToast(err);
       return;
     }
     await onConfirm({
-      payment_details: senderWallet.trim(),
+      payment_details: formatMobilePaymentDetails(selectedAccount, senderWallet),
+      company_wallet_id: recipientId,
+      company_wallet_number: selectedAccount?.number || '',
+      sender_wallet: senderWallet.trim(),
       payment_receipt_base64: receiptDataUrl,
     });
   };
@@ -91,25 +116,51 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
       onClose={onClose}
     >
       <p className="rb-text-muted" style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.5 }}>
-        Переведите <strong style={{ color: 'var(--rb-neon)' }}>{totalAmount} сомони</strong> на один из наших
-        кошельков. Затем укажите свой номер и прикрепите чек.
+        Переведите <strong style={{ color: 'var(--rb-neon)' }}>{totalAmount} сомони</strong>. Выберите наш
+        кошелёк — откроется номер для перевода. Затем укажите свой кошелёк и прикрепите чек.
       </p>
 
-      <div className="rb-mobile-accounts">
+      <p className="rb-label" style={{ marginBottom: 10 }}>
+        Кошелёк RunBonus
+      </p>
+      <div className="withdraw-methods" style={{ marginBottom: 12 }}>
         {accounts.map((acc) => (
-          <div key={acc.id} className="rb-mobile-account glass-card">
-            <div>
-              <p className="rb-mobile-account__provider">{acc.provider}</p>
-              <p className="rb-mobile-account__number font-display">{acc.number}</p>
-              {acc.holder && <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 12 }}>{acc.holder}</p>}
-            </div>
-            <button type="button" className="rb-btn-pill rb-mobile-account__copy" onClick={() => copyNumber(acc.number)}>
-              <Icon name="content_copy" />
-              Копировать
-            </button>
-          </div>
+          <button
+            key={acc.id}
+            type="button"
+            className={`withdraw-method-btn${recipientId === acc.id ? ' withdraw-method-btn--active' : ''}`}
+            onClick={() => setRecipientId(acc.id)}
+          >
+            {acc.provider}
+          </button>
         ))}
       </div>
+
+      {selectedAccount ? (
+        <div className="rb-mobile-account glass-card rb-mobile-account--selected">
+          <div>
+            <p className="rb-mobile-account__provider">{selectedAccount.provider}</p>
+            <p className="rb-mobile-account__number font-display">{selectedAccount.number}</p>
+            {selectedAccount.holder && (
+              <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                {selectedAccount.holder}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            className="rb-btn-pill rb-mobile-account__copy"
+            onClick={() => copyNumber(selectedAccount.number)}
+          >
+            <Icon name="content_copy" />
+            Копировать
+          </button>
+        </div>
+      ) : (
+        <p className="rb-text-muted" style={{ margin: '0 0 16px', fontSize: 13 }}>
+          Нажмите на кошелёк выше, чтобы увидеть номер для перевода.
+        </p>
+      )}
 
       <div style={{ marginTop: 16 }}>
         <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
@@ -128,7 +179,7 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
 
       <label className="rb-mobile-check" style={{ marginTop: 16 }}>
         <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-        <span>Я перевёл деньги на указанный счёт</span>
+        <span>Я перевёл деньги на выбранный счёт</span>
       </label>
 
       <div style={{ marginTop: 16 }}>

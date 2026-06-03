@@ -1866,6 +1866,11 @@ html.cap-ios .rb-main {
   gap: 10px;
 }
 
+.rb-mobile-account--selected {
+  border-color: rgba(195, 244, 0, 0.45);
+  box-shadow: 0 0 0 1px rgba(195, 244, 0, 0.2);
+}
+
 .rb-mobile-account {
   display: flex;
   align-items: center;

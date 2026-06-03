@@ -117,8 +117,11 @@ function ShopOrderCard({
           {order.payment_method_label || order.payment_method || '—'}
         </p>
         {order.payment_details && (
-          <p className="entity-card__meta entity-card__meta--muted" style={{ margin: '4px 0 0' }}>
-            {order.payment_method === 'mobile' ? 'Кошелёк клиента' : 'Реквизиты'}: {order.payment_details}
+          <p
+            className="entity-card__meta entity-card__meta--muted"
+            style={{ margin: '4px 0 0', whiteSpace: 'pre-line' }}
+          >
+            {order.payment_method === 'mobile' ? 'Перевод' : 'Реквизиты'}: {order.payment_details}
           </p>
         )}
       </div>
@@ -311,8 +314,8 @@ export default function ShopOrdersTab() {
               </div>
               {selected.payment_details && (
                 <div>
-                  <dt>Реквизиты клиента</dt>
-                  <dd>{selected.payment_details}</dd>
+                  <dt>{selected.payment_method === 'mobile' ? 'Перевод' : 'Реквизиты клиента'}</dt>
+                  <dd style={{ whiteSpace: 'pre-line' }}>{selected.payment_details}</dd>
                 </div>
               )}
               <div>
