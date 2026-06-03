@@ -4,6 +4,7 @@ import { authUser, requireActiveUser } from '../middleware/auth.js';
 import { validateShoeQr } from '../services/shoeValidateService.js';
 import { listActiveProducts, getProductById, getUserShoeStatus } from '../services/shopService.js';
 import { createOrder, listUserOrders } from '../services/orderService.js';
+import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
 import { MOBILE_PAYMENT_ACCOUNTS } from '../constants/mobilePaymentAccounts.js';
 
@@ -65,6 +66,23 @@ router.get('/mobile-payment-accounts', (_req, res) => {
   res.json(MOBILE_PAYMENT_ACCOUNTS);
 });
 
+/** Один чек на все позиции корзины (не дублировать base64 в каждом заказе). */
+router.post('/order-receipt', authUser, requireActiveUser, async (req, res) => {
+  try {
+    const { payment_receipt_base64 } = req.body;
+    if (!payment_receipt_base64) {
+      return res.status(400).json({ error: 'Загрузите чек' });
+    }
+    const key = `pending-${req.userId}-${Date.now()}`;
+    const receipt_url = saveOrderReceiptFromDataUrl(key, payment_receipt_base64);
+    res.json({ receipt_url });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось сохранить чек' });
+  }
+});
+
 router.post('/orders', authUser, requireActiveUser, async (req, res) => {
   try {
     const {
@@ -79,6 +97,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
       payment_method,
       payment_details,
       payment_receipt_base64,
+      payment_receipt_url,
     } = req.body;
     if (!product_id || !customer_name?.trim() || !phone?.trim()) {
       return res.status(400).json({ error: 'Укажите товар, имя и телефон' });
@@ -96,6 +115,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
         payment_method,
         payment_details,
         payment_receipt_base64,
+        payment_receipt_url,
       },
       req.userId
     );

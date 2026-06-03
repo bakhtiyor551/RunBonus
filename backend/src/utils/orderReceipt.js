@@ -21,7 +21,8 @@ export function saveOrderReceiptFromDataUrl(orderId, dataUrl) {
   const dir = path.join(UPLOADS_ROOT, 'order-receipts');
   fs.mkdirSync(dir, { recursive: true });
 
-  const filename = `order-${orderId}.${ext}`;
+  const safeId = String(orderId).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filename = `order-${safeId}.${ext}`;
   fs.writeFileSync(path.join(dir, filename), buf);
   return `/api/uploads/order-receipts/${filename}`;
 }

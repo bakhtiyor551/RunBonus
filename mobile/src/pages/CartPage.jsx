@@ -29,7 +29,12 @@ export default function CartPage({ user }) {
 
   useEffect(() => {
     api('/api/mobile/payment-methods')
-      .then(setPaymentMethods)
+      .then((list) => {
+        const normalized = (list || []).map((m) =>
+          m.id === 'mobile' ? { ...m, needsDetails: false, usesTransferModal: true } : m
+        );
+        setPaymentMethods(normalized.length ? normalized : PAYMENT_METHODS_FALLBACK);
+      })
       .catch(() => setPaymentMethods(PAYMENT_METHODS_FALLBACK));
   }, []);
 
@@ -40,8 +45,23 @@ export default function CartPage({ user }) {
   const total = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
 
   const placeOrders = async (mobilePayment = null) => {
+    const cartItems = getCart();
+    if (!cartItems.length) {
+      await showToast('Корзина пуста');
+      return;
+    }
+
     setSubmitting(true);
     try {
+      let receiptUrl = null;
+      if (form.payment_method === 'mobile' && mobilePayment?.payment_receipt_base64) {
+        const uploaded = await api('/api/mobile/order-receipt', {
+          method: 'POST',
+          body: JSON.stringify({ payment_receipt_base64: mobilePayment.payment_receipt_base64 }),
+        });
+        receiptUrl = uploaded.receipt_url;
+      }
+
       const payload = {
         customer_name: form.customer_name.trim(),
         phone: form.phone.trim(),
@@ -50,9 +70,10 @@ export default function CartPage({ user }) {
         comment: form.comment.trim(),
         payment_method: form.payment_method,
         payment_details: mobilePayment?.payment_details || form.payment_details?.trim() || '',
-        payment_receipt_base64: mobilePayment?.payment_receipt_base64 || null,
+        payment_receipt_url: receiptUrl,
       };
-      for (const item of items) {
+
+      for (const item of cartItems) {
         await api('/api/mobile/orders', {
           method: 'POST',
           body: JSON.stringify({
@@ -63,7 +84,9 @@ export default function CartPage({ user }) {
           }),
         });
       }
+
       clearCart();
+      setItems([]);
       setMobileModalOpen(false);
       setDone(true);
     } catch (err) {
@@ -89,6 +112,10 @@ export default function CartPage({ user }) {
       return;
     }
     await placeOrders();
+  };
+
+  const handleMobileConfirm = async (mobilePayment) => {
+    await placeOrders(mobilePayment);
   };
 
   if (done) {
@@ -211,7 +238,7 @@ export default function CartPage({ user }) {
                 <PaymentMethodPicker
                   methods={paymentMethods}
                   value={form.payment_method}
-                  onChange={(id) => setForm({ ...form, payment_method: id })}
+                  onChange={(id) => setForm({ ...form, payment_method: id, payment_details: id === 'mobile' ? '' : form.payment_details })}
                   details={form.payment_details}
                   onDetailsChange={(v) => setForm({ ...form, payment_details: v })}
                 />
@@ -244,7 +271,7 @@ export default function CartPage({ user }) {
         totalAmount={total}
         submitting={submitting}
         onClose={() => !submitting && setMobileModalOpen(false)}
-        onConfirm={placeOrders}
+        onConfirm={handleMobileConfirm}
       />
     </IonPage>
   );
