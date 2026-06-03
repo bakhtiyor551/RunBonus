@@ -11,15 +11,15 @@ const RUN_MIN = 7;
 const MAX_JUMP_KM = 0.15;
 const MAX_JUMP_SEC = 5;
 const STALE_COORD_SEC = 120;
-const SUSPICIOUS_MARGIN = 7;
+/** Допуск на шум GPS (км/ч) — выше лимита из настроек всё равно отклоняем. */
+const GPS_SPEED_TOLERANCE_KMH = 1;
 
 export function validateWorkout(points, durationSeconds, settings) {
   const minDurationSec = (settings?.min_duration_minutes ?? 5) * 60;
   const minDistanceKm = settings?.min_distance_km ?? 0.5;
-  const maxSpeedKmh = settings?.max_speed_kmh ?? 18;
+  const maxSpeedKmh = Number(settings?.max_speed_kmh ?? 18);
   const runMax = maxSpeedKmh;
-  const suspiciousMax = maxSpeedKmh + SUSPICIOUS_MARGIN;
-  const rejectMax = maxSpeedKmh + 22;
+  const speedRejectAbove = maxSpeedKmh + GPS_SPEED_TOLERANCE_KMH;
 
   const track = prepareTrackPoints(points);
   const distanceFromRaw = calcDistanceFromPoints(points);
@@ -64,13 +64,10 @@ export function validateWorkout(points, durationSeconds, settings) {
     const speed = Number(p.speed || 0);
     if (speed > maxSpeed) maxSpeed = speed;
 
-    if (speed > rejectMax) invalidSpeedCount++;
-    else if (speed > suspiciousMax) suspiciousCount++;
+    if (speed > speedRejectAbove) invalidSpeedCount++;
+    else if (speed > runMax) suspiciousCount++;
 
-    const inWalk = speed >= WALK_MIN && speed <= WALK_MAX;
-    const inRun = speed >= RUN_MIN && speed <= runMax;
     if (speed > 0 && speed < WALK_MIN) invalidSpeedCount++;
-    if (speed > runMax && speed <= suspiciousMax) suspiciousCount++;
 
     if (p.accuracy != null && Number(p.accuracy) > MAX_GPS_ACCURACY_M) {
       badAccuracyCount++;
@@ -88,6 +85,10 @@ export function validateWorkout(points, durationSeconds, settings) {
           p.longitude
         );
         if (segKm > MAX_JUMP_KM) jumpCount++;
+        const segSpeedKmh = (segKm / dt) * 3600;
+        if (segSpeedKmh > maxSpeed) maxSpeed = segSpeedKmh;
+        if (segSpeedKmh > speedRejectAbove) invalidSpeedCount++;
+        else if (segSpeedKmh > runMax) suspiciousCount++;
       }
       if (
         p.latitude === prev.latitude &&
@@ -103,11 +104,22 @@ export function validateWorkout(points, durationSeconds, settings) {
   const avgSpeed =
     speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
 
-  if (invalidSpeedCount > sorted.length * 0.2) {
+  if (maxSpeed > speedRejectAbove) {
     return {
       ok: false,
       status: 'rejected',
-      reason: 'Слишком высокая скорость (возможно транспорт)',
+      reason: `Максимальная скорость ${maxSpeed.toFixed(1)} км/ч превышает лимит ${maxSpeedKmh} км/ч`,
+      distanceKm,
+      avgSpeed,
+      maxSpeed,
+    };
+  }
+
+  if (invalidSpeedCount > 0) {
+    return {
+      ok: false,
+      status: 'rejected',
+      reason: `Превышен лимит скорости ${maxSpeedKmh} км/ч`,
       distanceKm,
       avgSpeed,
       maxSpeed,

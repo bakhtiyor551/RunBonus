@@ -8,7 +8,8 @@ const GPS_INTERVAL_MS = 8000;
 export const MIN_SEGMENT_METERS = 5;
 
 export const MAX_ACCURACY_METERS = 80;
-export const MAX_SPEED_KMH = 25;
+/** Согласовано с лимитом в настройках бонусов (max_speed_kmh) + допуск GPS */
+export const MAX_SPEED_KMH = 19;
 /** Минимальная скорость (км/ч), иначе считаем стоянием / шум GPS. */
 export const MIN_SPEED_KMH = 1.5;
 
