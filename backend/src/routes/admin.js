@@ -12,6 +12,7 @@ import adminBonusSettingsRoutes from './adminBonusSettings.js';
 import adminCustomerLevelsRoutes from './adminCustomerLevels.js';
 import adminPaymentMethodsRoutes from './adminPaymentMethods.js';
 import adminDeliveryMethodsRoutes from './adminDeliveryMethods.js';
+import adminMobileWalletsRoutes from './adminMobileWallets.js';
 import { getAdminClientLevelInfo } from '../services/customerLevelService.js';
 
 const router = Router();
@@ -510,5 +511,6 @@ router.use(adminBonusSettingsRoutes);
 router.use(adminCustomerLevelsRoutes);
 router.use(adminPaymentMethodsRoutes);
 router.use(adminDeliveryMethodsRoutes);
+router.use(adminMobileWalletsRoutes);
 
 export default router;

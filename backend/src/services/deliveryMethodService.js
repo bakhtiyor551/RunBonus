@@ -17,9 +17,9 @@ async function ensureTable() {
       for (let i = 0; i < DEFAULT_METHODS.length; i++) {
         const m = DEFAULT_METHODS[i];
         await pool.query(
-          `INSERT INTO delivery_methods (id, label, requires_address, sort_order, status, is_builtin)
-           VALUES (?, ?, ?, ?, 'active', 1)`,
-          [m.id, m.label, m.requiresAddress ? 1 : 0, (i + 1) * 10]
+          `INSERT INTO delivery_methods (id, label, requires_address, price, sort_order, status, is_builtin)
+           VALUES (?, ?, ?, ?, ?, 'active', 1)`,
+          [m.id, m.label, m.requiresAddress ? 1 : 0, Number(m.price) || 0, (i + 1) * 10]
         );
       }
     }
@@ -30,9 +30,11 @@ async function ensureTable() {
 
 export function mapDeliveryMethodRow(row) {
   if (!row) return null;
+  const price = Number(row.price) || 0;
   return {
     id: row.id,
     label: row.label,
+    price,
     requiresAddress: Boolean(row.requires_address),
     sort_order: Number(row.sort_order) || 0,
     status: row.status,
@@ -47,6 +49,7 @@ async function loadRows({ activeOnly = false } = {}) {
       id: m.id,
       label: m.label,
       requires_address: m.requiresAddress ? 1 : 0,
+      price: Number(m.price) || 0,
       sort_order: (i + 1) * 10,
       status: 'active',
       is_builtin: 1,
@@ -78,6 +81,7 @@ export async function getDeliveryMethodById(id) {
           id: m.id,
           label: m.label,
           requires_address: m.requiresAddress ? 1 : 0,
+          price: Number(m.price) || 0,
           sort_order: 0,
           status: 'active',
           is_builtin: 1,
@@ -105,6 +109,12 @@ export async function deliveryMethodRequiresAddress(id) {
   if (m) return m.requiresAddress;
   const fallback = DEFAULT_METHODS.find((x) => x.id === id);
   return fallback?.requiresAddress ?? true;
+}
+
+export async function getDeliveryFee(deliveryMethodId, applyDeliveryFee = true) {
+  if (!applyDeliveryFee || !deliveryMethodId) return 0;
+  const m = await getDeliveryMethodById(deliveryMethodId);
+  return Number(m?.price) || 0;
 }
 
 function normalizeId(raw) {
@@ -135,12 +145,13 @@ export async function createDeliveryMethod(data) {
     throw err;
   }
   await pool.query(
-    `INSERT INTO delivery_methods (id, label, requires_address, sort_order, status, is_builtin)
-     VALUES (?, ?, ?, ?, ?, 0)`,
+    `INSERT INTO delivery_methods (id, label, requires_address, price, sort_order, status, is_builtin)
+     VALUES (?, ?, ?, ?, ?, ?, 0)`,
     [
       id,
       data.label.trim(),
       data.requires_address ? 1 : 0,
+      Math.max(0, Number(data.price) || 0),
       Number(data.sort_order) || 0,
       data.status === 'inactive' ? 'inactive' : 'active',
     ]
@@ -158,10 +169,11 @@ export async function updateDeliveryMethod(id, data) {
   }
   const row = existing[0];
   await pool.query(
-    `UPDATE delivery_methods SET label = ?, requires_address = ?, sort_order = ?, status = ? WHERE id = ?`,
+    `UPDATE delivery_methods SET label = ?, requires_address = ?, price = ?, sort_order = ?, status = ? WHERE id = ?`,
     [
       data.label?.trim() || row.label,
       data.requires_address != null ? (data.requires_address ? 1 : 0) : row.requires_address,
+      data.price != null ? Math.max(0, Number(data.price) || 0) : Number(row.price) || 0,
       data.sort_order != null ? Number(data.sort_order) : row.sort_order,
       data.status === 'inactive' ? 'inactive' : data.status === 'active' ? 'active' : row.status,
       id,

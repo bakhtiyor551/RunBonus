@@ -11,6 +11,7 @@ import {
   isValidDeliveryMethod,
   deliveryMethodLabel,
   deliveryMethodRequiresAddress,
+  getDeliveryFee,
 } from './deliveryMethodService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { spendBonus } from './bonusService.js';
@@ -44,6 +45,7 @@ export async function createOrder(data, userId = null) {
     payment_details,
     payment_receipt_base64,
     payment_receipt_url: paymentReceiptUrlInput,
+    apply_delivery_fee,
   } = data;
 
   if (!delivery_method || !(await isValidDeliveryMethod(delivery_method))) {
@@ -115,7 +117,9 @@ export async function createOrder(data, userId = null) {
   }
 
   const price = Number(product.price);
-  const total = Math.round(price * qty * 100) / 100;
+  const subtotal = Math.round(price * qty * 100) / 100;
+  const deliveryFee = await getDeliveryFee(delivery_method, Boolean(apply_delivery_fee));
+  const total = Math.round((subtotal + deliveryFee) * 100) / 100;
 
   const baseValues = [
     userId,
@@ -129,6 +133,7 @@ export async function createOrder(data, userId = null) {
     city?.trim() || null,
     address?.trim() || null,
     delivery_method,
+    deliveryFee,
     comment?.trim() || null,
   ];
 
@@ -136,8 +141,8 @@ export async function createOrder(data, userId = null) {
   try {
     [result] = await pool.query(
       `INSERT INTO shop_orders
-         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, comment, payment_method, payment_details, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, delivery_fee, comment, payment_method, payment_details, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
       [...baseValues, payment_method, payment_details?.trim() || null]
     );
   } catch (err) {
@@ -200,6 +205,7 @@ async function createOrderPaidWithBonus(data, userId) {
     address,
     delivery_method,
     comment,
+    apply_delivery_fee,
   } = data;
 
   const qty = Math.max(1, Math.min(10, Number(quantity) || 1));
@@ -232,7 +238,9 @@ async function createOrderPaidWithBonus(data, userId) {
     }
 
     const price = Number(product.price);
-    const total = Math.round(price * qty * 100) / 100;
+    const subtotal = Math.round(price * qty * 100) / 100;
+    const deliveryFee = await getDeliveryFee(delivery_method, Boolean(apply_delivery_fee));
+    const total = Math.round((subtotal + deliveryFee) * 100) / 100;
 
     const summary = await getWalletSummary(conn, userId, true);
     if (summary.available_balance < total) {
@@ -256,6 +264,7 @@ async function createOrderPaidWithBonus(data, userId) {
       city?.trim() || null,
       address?.trim() || null,
       delivery_method,
+      deliveryFee,
       comment?.trim() || null,
     ];
 
@@ -263,8 +272,8 @@ async function createOrderPaidWithBonus(data, userId) {
     try {
       [result] = await conn.query(
         `INSERT INTO shop_orders
-           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, comment, payment_method, payment_details, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bonus', ?, 'paid')`,
+           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, delivery_fee, comment, payment_method, payment_details, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bonus', ?, 'paid')`,
         [...baseValues, paymentDetails]
       );
     } catch (err) {
@@ -351,6 +360,7 @@ async function mapOrderRow(row) {
     city: row.city,
     address: row.address,
     delivery_method: row.delivery_method || null,
+    delivery_fee: Number(row.delivery_fee) || 0,
     delivery_method_label: row.delivery_method
       ? await deliveryMethodLabel(row.delivery_method)
       : null,

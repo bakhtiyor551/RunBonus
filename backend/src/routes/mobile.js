@@ -10,6 +10,7 @@ import { listActiveDeliveryMethods } from '../services/deliveryMethodService.js'
 import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
 import { DELIVERY_METHODS } from '../constants/deliveryMethods.js';
 import { getWalletSummary } from '../services/withdrawalService.js';
+import { listActiveMobilePaymentAccounts } from '../services/mobilePaymentAccountService.js';
 import { MOBILE_PAYMENT_ACCOUNTS } from '../constants/mobilePaymentAccounts.js';
 
 const router = Router();
@@ -93,8 +94,14 @@ router.get('/delivery-methods', authUser, async (_req, res) => {
   }
 });
 
-router.get('/mobile-payment-accounts', (_req, res) => {
-  res.json(MOBILE_PAYMENT_ACCOUNTS);
+router.get('/mobile-payment-accounts', async (_req, res) => {
+  try {
+    const accounts = await listActiveMobilePaymentAccounts();
+    res.json(accounts.length ? accounts : MOBILE_PAYMENT_ACCOUNTS);
+  } catch (err) {
+    console.error(err);
+    res.json(MOBILE_PAYMENT_ACCOUNTS);
+  }
 });
 
 /** Один чек на все позиции корзины (не дублировать base64 в каждом заказе). */
@@ -130,6 +137,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
       payment_details,
       payment_receipt_base64,
       payment_receipt_url,
+      apply_delivery_fee,
     } = req.body;
     if (!product_id || !customer_name?.trim() || !phone?.trim()) {
       return res.status(400).json({ error: 'Укажите товар, имя и телефон' });
@@ -149,6 +157,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
         payment_details,
         payment_receipt_base64,
         payment_receipt_url,
+        apply_delivery_fee,
       },
       req.userId
     );
