@@ -3,6 +3,7 @@ import { authAdmin } from '../middleware/auth.js';
 import {
   adminListProducts,
   adminSaveProduct,
+  adminDeleteProduct,
   listAllShopCategoriesAdmin,
 } from '../services/shopService.js';
 import {

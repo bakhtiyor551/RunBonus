@@ -403,6 +403,35 @@ export async function adminSaveProduct(data, id = null) {
   }
 }
 
+export async function adminDeleteProduct(id) {
+  const productId = Number(id);
+  if (!Number.isFinite(productId) || productId <= 0) {
+    const err = new Error('Некорректный ID товара');
+    err.status = 400;
+    throw err;
+  }
+
+  const [products] = await pool.query(`SELECT id, name FROM products WHERE id = ?`, [productId]);
+  if (!products.length) {
+    const err = new Error('Товар не найден');
+    err.status = 404;
+    throw err;
+  }
+
+  const [orders] = await pool.query(
+    `SELECT id FROM shop_orders WHERE product_id = ? LIMIT 1`,
+    [productId]
+  );
+  if (orders.length) {
+    const err = new Error('Нельзя удалить товар: есть связанные заказы');
+    err.status = 409;
+    throw err;
+  }
+
+  await pool.query(`DELETE FROM products WHERE id = ?`, [productId]);
+  return { ok: true, id: productId, name: products[0].name };
+}
+
 async function adminSaveProductLegacy(data, id = null) {
   const { name, slug, description, color, price, status, sizes, images } = data;
   const conn = await pool.getConnection();
