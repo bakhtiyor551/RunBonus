@@ -1780,18 +1780,34 @@ html.cap-ios .rb-main {
   color: var(--rb-on-surface);
 }
 
-ion-toast.rb-toast {
-  --background: #2a2a2a;
-  --color: #ffb4ab;
-  --border-radius: 12px;
-  --box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+.rb-toast-host {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  z-index: 20000;
+  max-width: min(92vw, 400px);
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: #2a2a2a;
+  color: #ffb4ab;
   font-size: 15px;
   font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transform: translate(-50%, -120%);
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  pointer-events: none;
 }
 
-ion-toast.rb-toast.toast-success,
-ion-toast.rb-toast[class*='success'] {
-  --color: var(--rb-neon);
+.rb-toast-host--visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.rb-toast-host--success {
+  color: var(--rb-neon);
 }
 
 .rb-mobile-accounts {
