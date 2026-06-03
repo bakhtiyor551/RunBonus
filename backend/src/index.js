@@ -16,10 +16,7 @@ import adminWithdrawalsRoutes from './routes/adminWithdrawals.js';
 import meRoutes from './routes/me.js';
 import mobileRoutes from './routes/mobile.js';
 import adminShopRoutes from './routes/adminShop.js';
-import adminShoeModelsRoutes from './routes/adminShoeModels.js';
-import shoeModelsPublicRoutes from './routes/shoeModels.js';
 import { isWithdrawalSchemaReady } from './services/withdrawalService.js';
-import { ensureModelsDir, MODELS_ROOT } from './services/shoeModelService.js';
 
 const app = express();
 
@@ -38,10 +35,8 @@ app.use(
   })
 );
 app.use(express.json({ limit: '3mb' }));
-ensureModelsDir();
 app.use('/uploads', express.static(UPLOADS_ROOT));
 app.use('/api/uploads', express.static(UPLOADS_ROOT));
-app.use('/models', express.static(MODELS_ROOT));
 
 app.get('/api/health', async (_req, res) => {
   let withdrawals = false;
@@ -62,8 +57,6 @@ app.use('/api/mobile', mobileRoutes);
 app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/shop', adminShopRoutes);
-app.use('/api/admin/shoe-models', adminShoeModelsRoutes);
-app.use('/api/shoe-models', shoeModelsPublicRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 
 app.use((err, _req, res, _next) => {

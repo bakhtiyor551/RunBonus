@@ -8,7 +8,7 @@ const FRAME_COUNT = URBAN_SPRINT_360_ANGLES.length;
 /**
  * 360° просмотр по фото-ракурсам (как в макете): перетаскивание + миниатюры.
  */
-export default function Product360Viewer({ onBuy, onOpenAr }) {
+export default function Product360Viewer({ onBuy }) {
   const [frame, setFrame] = useState(0);
   const dragRef = useRef({ active: false, startX: 0, startFrame: 0 });
 
@@ -97,20 +97,14 @@ export default function Product360Viewer({ onBuy, onOpenAr }) {
         Перетащите, чтобы повернуть
       </p>
 
-      <div className="rb-360-viewer__cta">
-        {onOpenAr && (
-          <button type="button" className="rb-btn-pill" onClick={onOpenAr}>
-            <Icon name="view_in_ar" />
-            Примерить в AR
-          </button>
-        )}
-        {onBuy && (
+      {onBuy && (
+        <div className="rb-360-viewer__cta">
           <button type="button" className="rb-btn-primary" onClick={onBuy}>
             <Icon name="shopping_cart" />
             Купить
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
