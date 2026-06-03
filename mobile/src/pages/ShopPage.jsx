@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
-import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import { cartCount } from '../services/cart';
+import { fetchShopCatalog } from '../utils/shopCatalog';
 
 function ProductCard({ product, onOpen }) {
   const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
@@ -56,22 +56,28 @@ export default function ShopPage() {
   const [products, setProducts] = useState([]);
   const [categoryId, setCategoryId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState('');
   const [cartItems, setCartItems] = useState(cartCount);
 
-  useEffect(() => {
-    api('/api/mobile/shop-categories')
-      .then(setCategories)
-      .catch(() => setCategories([]));
+  const loadCatalog = useCallback(async (catId) => {
+    setLoading(true);
+    setCategoriesError('');
+    try {
+      const { categories: cats, products: list } = await fetchShopCatalog(catId);
+      setCategories(cats);
+      setProducts(list);
+    } catch (err) {
+      setCategories([]);
+      setProducts([]);
+      setCategoriesError(err.message || 'Не удалось загрузить каталог');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    const q = categoryId ? `?category_id=${categoryId}` : '';
-    api(`/api/mobile/products${q}`)
-      .then(setProducts)
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false));
-  }, [categoryId]);
+    loadCatalog(categoryId);
+  }, [categoryId, loadCatalog]);
 
   useEffect(() => {
     const refresh = () => setCartItems(cartCount());
@@ -83,10 +89,15 @@ export default function ShopPage() {
     };
   }, []);
 
-  const categoryTabs = useMemo(
-    () => [{ id: null, name: 'Все' }, ...categories],
-    [categories]
-  );
+  const categoryTabs = useMemo(() => {
+    const fromApi = categories.map((c) => ({ id: c.id, name: c.name }));
+    return [{ id: null, name: 'Все' }, ...fromApi];
+  }, [categories]);
+
+  const isCategoryActive = (tabId) => {
+    if (tabId == null) return categoryId == null;
+    return Number(categoryId) === Number(tabId);
+  };
 
   return (
     <IonPage>
@@ -136,14 +147,21 @@ export default function ShopPage() {
             Кроссовки с программой бонусов за километры. После доставки привяжите QR на главной.
           </p>
 
+          {categoriesError && (
+            <p className="rb-text-muted" style={{ marginBottom: 12, color: 'var(--rb-error)' }}>
+              {categoriesError}
+            </p>
+          )}
+
           {categoryTabs.length > 1 && (
             <div className="rb-shop-categories">
               {categoryTabs.map((c) => (
                 <button
                   key={c.id ?? 'all'}
                   type="button"
-                  className={`rb-shop-category-chip${categoryId === c.id ? ' rb-shop-category-chip--active' : ''}`}
+                  className={`rb-shop-category-chip${isCategoryActive(c.id) ? ' rb-shop-category-chip--active' : ''}`}
                   onClick={() => setCategoryId(c.id)}
+                  disabled={loading}
                 >
                   {c.name}
                 </button>
@@ -152,7 +170,9 @@ export default function ShopPage() {
           )}
 
           {loading && <p className="rb-text-muted">Загрузка…</p>}
-          {!loading && !products.length && <p className="rb-text-muted">В этой категории пока нет товаров</p>}
+          {!loading && !products.length && !categoriesError && (
+            <p className="rb-text-muted">В этой категории пока нет товаров</p>
+          )}
 
           <div className="rb-shop-grid">
             {products.map((p) => (

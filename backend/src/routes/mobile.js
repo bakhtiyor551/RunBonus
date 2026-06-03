@@ -53,7 +53,29 @@ router.get('/shop-categories', async (_req, res) => {
     res.json(categories);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Ошибка' });
+    res.json([]);
+  }
+});
+
+/** Каталог для магазина: категории и товары одним запросом. */
+router.get('/shop-catalog', async (req, res) => {
+  try {
+    const categoryId = req.query.category_id ? Number(req.query.category_id) : null;
+    const filterId = Number.isFinite(categoryId) && categoryId > 0 ? categoryId : null;
+    const categories = await listActiveShopCategories();
+    let products = [];
+    try {
+      products = await listActiveProducts({ categoryId: filterId });
+    } catch (err) {
+      console.error('shop-catalog products:', err);
+      products = await listActiveProducts({ categoryId: null });
+    }
+    res.json({ categories, products });
+  } catch (err) {
+    console.error(err);
+    const categories = await listActiveShopCategories().catch(() => []);
+    const products = await listActiveProducts({ categoryId: null }).catch(() => []);
+    res.json({ categories, products });
   }
 });
 

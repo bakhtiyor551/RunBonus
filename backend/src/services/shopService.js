@@ -3,6 +3,7 @@ import { SHOP_CATEGORIES_FALLBACK } from '../constants/shopCategories.js';
 
 let categoriesTableReady = null;
 let colorsTableReady = null;
+let categoriesEnsured = null;
 
 async function hasCategoriesTable() {
   if (categoriesTableReady != null) return categoriesTableReady;
@@ -14,6 +15,55 @@ async function hasCategoriesTable() {
     else throw err;
   }
   return categoriesTableReady;
+}
+
+/** Создать таблицу и базовые категории, если миграция 016 ещё не применялась. */
+async function ensureShopCategories() {
+  if (categoriesEnsured) return categoriesEnsured;
+  categoriesEnsured = (async () => {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS shop_categories (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(128) NOT NULL,
+          slug VARCHAR(64) NULL,
+          sort_order INT NOT NULL DEFAULT 0,
+          status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          KEY idx_shop_categories_status (status),
+          KEY idx_shop_categories_sort (sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      categoriesTableReady = true;
+      const [rows] = await pool.query(`SELECT COUNT(*) AS c FROM shop_categories`);
+      if (Number(rows[0]?.c) === 0) {
+        for (const c of SHOP_CATEGORIES_FALLBACK) {
+          await pool.query(
+            `INSERT INTO shop_categories (id, name, slug, sort_order, status) VALUES (?, ?, ?, ?, 'active')`,
+            [c.id, c.name, c.slug, c.sort_order]
+          );
+        }
+      }
+      try {
+        await pool.query(`ALTER TABLE products ADD COLUMN category_id BIGINT NULL`);
+      } catch (err) {
+        if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+      }
+      await pool.query(`
+        UPDATE products SET category_id = CASE slug
+          WHEN 'runner-pro' THEN 1
+          WHEN 'urban-sprint' THEN 2
+          WHEN 'trail-max' THEN 3
+          ELSE category_id
+        END
+        WHERE slug IN ('runner-pro', 'urban-sprint', 'trail-max') AND (category_id IS NULL OR category_id = 0)
+      `).catch(() => {});
+    } catch (err) {
+      console.error('ensureShopCategories:', err.message);
+    }
+    return true;
+  })();
+  return categoriesEnsured;
 }
 
 async function hasColorsTable() {
@@ -78,14 +128,16 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
 }
 
 async function loadCategoriesMap() {
-  const hasTable = await hasCategoriesTable();
-  if (!hasTable) {
-    return new Map(SHOP_CATEGORIES_FALLBACK.map((c) => [c.id, c]));
+  await ensureShopCategories();
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
+    );
+    if (rows.length) return new Map(rows.map((r) => [Number(r.id), r]));
+  } catch (err) {
+    if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
   }
-  const [rows] = await pool.query(
-    `SELECT * FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
-  );
-  return new Map(rows.map((r) => [r.id, r]));
+  return new Map(SHOP_CATEGORIES_FALLBACK.map((c) => [c.id, c]));
 }
 
 async function loadColorsForProductIds(ids) {
@@ -99,13 +151,26 @@ async function loadColorsForProductIds(ids) {
   return rows;
 }
 
+function mapCategoryRow(r) {
+  return {
+    id: Number(r.id),
+    name: r.name,
+    slug: r.slug,
+    sort_order: Number(r.sort_order) || 0,
+  };
+}
+
 export async function listActiveShopCategories() {
-  const hasTable = await hasCategoriesTable();
-  if (!hasTable) return SHOP_CATEGORIES_FALLBACK;
-  const [rows] = await pool.query(
-    `SELECT id, name, slug, sort_order FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
-  );
-  return rows.length ? rows : SHOP_CATEGORIES_FALLBACK;
+  await ensureShopCategories();
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, slug, sort_order FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
+    );
+    if (rows.length) return rows.map(mapCategoryRow);
+  } catch (err) {
+    if (err.code !== 'ER_NO_SUCH_TABLE') console.error('listActiveShopCategories:', err.message);
+  }
+  return SHOP_CATEGORIES_FALLBACK.map(mapCategoryRow);
 }
 
 export async function listAllShopCategoriesAdmin() {
@@ -116,15 +181,24 @@ export async function listAllShopCategoriesAdmin() {
 }
 
 export async function listActiveProducts({ categoryId = null } = {}) {
-  let sql = `SELECT * FROM products WHERE status = 'active'`;
-  const params = [];
-  if (categoryId) {
-    sql += ` AND category_id = ?`;
-    params.push(categoryId);
-  }
-  sql += ` ORDER BY id ASC`;
+  await ensureShopCategories();
 
-  const [products] = await pool.query(sql, params);
+  let products = [];
+  const baseSql = `SELECT * FROM products WHERE status = 'active'`;
+  if (categoryId) {
+    try {
+      const [rows] = await pool.query(`${baseSql} AND category_id = ? ORDER BY id ASC`, [categoryId]);
+      products = rows;
+    } catch (err) {
+      if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+      const [rows] = await pool.query(`${baseSql} ORDER BY id ASC`);
+      products = rows;
+    }
+  } else {
+    const [rows] = await pool.query(`${baseSql} ORDER BY id ASC`);
+    products = rows;
+  }
+
   if (!products.length) return [];
 
   const ids = products.map((p) => p.id);
