@@ -94,6 +94,13 @@ function ShopOrderCard({
         {order.quantity > 1 ? ` · ×${order.quantity}` : ''}
       </p>
 
+      {(order.delivery_method_label || order.delivery_method) && (
+        <p className="entity-card__meta">
+          <Icon name="local_shipping" />
+          {order.delivery_method_label || order.delivery_method}
+        </p>
+      )}
+
       {(order.city || order.address) && (
         <p className="entity-card__meta">
           <Icon name="location_on" />
@@ -293,6 +300,10 @@ export default function ShopOrdersTab() {
               <div>
                 <dt>Сумма</dt>
                 <dd>{formatMoney(selected.total_amount, 'TJS')}</dd>
+              </div>
+              <div>
+                <dt>Доставка</dt>
+                <dd>{selected.delivery_method_label || selected.delivery_method || '—'}</dd>
               </div>
               <div>
                 <dt>Оплата</dt>

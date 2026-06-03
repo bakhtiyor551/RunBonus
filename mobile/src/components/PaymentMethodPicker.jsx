@@ -6,6 +6,7 @@ const ICONS = {
   card: 'credit_card',
   mobile: 'smartphone',
   bank: 'account_balance',
+  delivery: 'local_shipping',
 };
 
 export default function PaymentMethodPicker({

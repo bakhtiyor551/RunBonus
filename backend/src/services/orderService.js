@@ -7,6 +7,11 @@ import {
   paymentMethodNeedsDetails,
   paymentMethodUsesTransferModal,
 } from './paymentMethodService.js';
+import {
+  isValidDeliveryMethod,
+  deliveryMethodLabel,
+  deliveryMethodRequiresAddress,
+} from './deliveryMethodService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { spendBonus } from './bonusService.js';
 import { getWalletSummary } from './withdrawalService.js';
@@ -34,11 +39,23 @@ export async function createOrder(data, userId = null) {
     city,
     address,
     comment,
+    delivery_method,
     payment_method,
     payment_details,
     payment_receipt_base64,
     payment_receipt_url: paymentReceiptUrlInput,
   } = data;
+
+  if (!delivery_method || !(await isValidDeliveryMethod(delivery_method))) {
+    const err = new Error('Выберите способ доставки');
+    err.status = 400;
+    throw err;
+  }
+  if ((await deliveryMethodRequiresAddress(delivery_method)) && !address?.trim()) {
+    const err = new Error('Укажите адрес доставки');
+    err.status = 400;
+    throw err;
+  }
 
   if (!payment_method || !(await isValidPaymentMethod(payment_method))) {
     const err = new Error('Выберите способ оплаты');
@@ -111,6 +128,7 @@ export async function createOrder(data, userId = null) {
     phone.trim(),
     city?.trim() || null,
     address?.trim() || null,
+    delivery_method,
     comment?.trim() || null,
   ];
 
@@ -118,17 +136,31 @@ export async function createOrder(data, userId = null) {
   try {
     [result] = await pool.query(
       `INSERT INTO shop_orders
-         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, comment, payment_method, payment_details, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
       [...baseValues, payment_method, payment_details?.trim() || null]
     );
   } catch (err) {
     if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
     [result] = await pool.query(
       `INSERT INTO shop_orders
-         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
-      baseValues
+         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+      [
+        userId,
+        product_id,
+        size || null,
+        qty,
+        price,
+        total,
+        customer_name.trim(),
+        phone.trim(),
+        city?.trim() || null,
+        address?.trim() || null,
+        comment?.trim() || null,
+        payment_method,
+        payment_details?.trim() || null,
+      ]
     );
   }
 
@@ -166,6 +198,7 @@ async function createOrderPaidWithBonus(data, userId) {
     phone,
     city,
     address,
+    delivery_method,
     comment,
   } = data;
 
@@ -222,6 +255,7 @@ async function createOrderPaidWithBonus(data, userId) {
       phone.trim(),
       city?.trim() || null,
       address?.trim() || null,
+      delivery_method,
       comment?.trim() || null,
     ];
 
@@ -229,17 +263,30 @@ async function createOrderPaidWithBonus(data, userId) {
     try {
       [result] = await conn.query(
         `INSERT INTO shop_orders
-           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bonus', ?, 'paid')`,
+           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, comment, payment_method, payment_details, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bonus', ?, 'paid')`,
         [...baseValues, paymentDetails]
       );
     } catch (err) {
       if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
       [result] = await conn.query(
         `INSERT INTO shop_orders
-           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid')`,
-        baseValues
+           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bonus', ?, 'paid')`,
+        [
+          userId,
+          product_id,
+          size || null,
+          qty,
+          price,
+          total,
+          customer_name.trim(),
+          phone.trim(),
+          city?.trim() || null,
+          address?.trim() || null,
+          comment?.trim() || null,
+          paymentDetails,
+        ]
       );
     }
 
@@ -303,6 +350,10 @@ async function mapOrderRow(row) {
     phone: row.phone,
     city: row.city,
     address: row.address,
+    delivery_method: row.delivery_method || null,
+    delivery_method_label: row.delivery_method
+      ? await deliveryMethodLabel(row.delivery_method)
+      : null,
     comment: row.comment,
     payment_method: row.payment_method,
     payment_method_label: await paymentMethodLabel(row.payment_method),

@@ -60,9 +60,14 @@ export default function MyOrdersPage() {
                 <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
                   Размер {o.size || '—'} · {o.total_amount} сомони
                 </p>
-                {(o.city || o.address) && (
+                {(o.delivery_method_label || o.delivery_method) && (
                   <p className="rb-text-muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
-                    Адрес: {[o.city, o.address].filter(Boolean).join(', ')}
+                    {o.delivery_method_label || o.delivery_method}
+                  </p>
+                )}
+                {(o.city || o.address) && (
+                  <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                    {[o.city, o.address].filter(Boolean).join(', ')}
                   </p>
                 )}
                 {o.courier_name && (

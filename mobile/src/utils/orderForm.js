@@ -1,4 +1,5 @@
 import { getPaymentMethod } from './paymentMethods';
+import { deliveryRequiresAddress, getDeliveryMethod } from './deliveryMethods';
 
 export function emptyOrderForm(user) {
   return {
@@ -6,6 +7,7 @@ export function emptyOrderForm(user) {
     phone: user?.phone || '',
     city: user?.city || '',
     address: '',
+    delivery_method: 'courier',
     quantity: 1,
     comment: '',
     payment_method: 'cash',
@@ -17,12 +19,20 @@ export function emptyOrderForm(user) {
 export function validateOrderForm(
   form,
   paymentMethods,
-  { requireAddress = true, cartTotal = 0, availableBonus = 0 } = {}
+  deliveryMethods,
+  { cartTotal = 0, availableBonus = 0 } = {}
 ) {
   if (!form.customer_name?.trim()) return 'Укажите имя';
   if (!form.phone?.trim()) return 'Укажите телефон';
   if (!form.city?.trim()) return 'Укажите город';
-  if (requireAddress && !form.address?.trim()) return 'Укажите адрес доставки';
+
+  if (!form.delivery_method) return 'Выберите способ доставки';
+  const dm = getDeliveryMethod(deliveryMethods, form.delivery_method);
+  if (!dm) return 'Выберите способ доставки';
+  if (deliveryRequiresAddress(deliveryMethods, form.delivery_method) && !form.address?.trim()) {
+    return 'Укажите адрес доставки';
+  }
+
   const qty = Number(form.quantity);
   if (form.quantity != null && (!Number.isFinite(qty) || qty < 1 || qty > 5)) {
     return 'Количество от 1 до 5';
@@ -40,7 +50,6 @@ export function validateOrderForm(
     }
   }
 
-  // Мобильный перевод: кошелёк и чек — в модальном окне после «Оформить»
   if (form.payment_method !== 'mobile' && pm.needsDetails && !form.payment_details?.trim()) {
     return pm.detailsLabel || 'Укажите данные для оплаты';
   }

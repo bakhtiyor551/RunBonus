@@ -6,7 +6,9 @@ import { listActiveProducts, getProductById, getUserShoeStatus } from '../servic
 import { createOrder, listUserOrders } from '../services/orderService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { listActivePaymentMethods } from '../services/paymentMethodService.js';
+import { listActiveDeliveryMethods } from '../services/deliveryMethodService.js';
 import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
+import { DELIVERY_METHODS } from '../constants/deliveryMethods.js';
 import { getWalletSummary } from '../services/withdrawalService.js';
 import { MOBILE_PAYMENT_ACCOUNTS } from '../constants/mobilePaymentAccounts.js';
 
@@ -75,6 +77,22 @@ router.get('/payment-methods', authUser, async (req, res) => {
   }
 });
 
+router.get('/delivery-methods', authUser, async (_req, res) => {
+  try {
+    const methods = await listActiveDeliveryMethods();
+    res.json(methods);
+  } catch (err) {
+    console.error(err);
+    res.json(
+      DELIVERY_METHODS.map((m) => ({
+        id: m.id,
+        label: m.label,
+        requiresAddress: m.requiresAddress,
+      }))
+    );
+  }
+});
+
 router.get('/mobile-payment-accounts', (_req, res) => {
   res.json(MOBILE_PAYMENT_ACCOUNTS);
 });
@@ -106,6 +124,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
       phone,
       city,
       address,
+      delivery_method,
       comment,
       payment_method,
       payment_details,
@@ -124,6 +143,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
         phone,
         city,
         address,
+        delivery_method,
         comment,
         payment_method,
         payment_details,

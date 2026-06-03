@@ -68,6 +68,7 @@ export function formatOrderTelegramMessage({ order, product }, { withReceiptNote
     `Количество: ${order.quantity}\n` +
     `Цена: ${order.total_amount} сомони\n` +
     `Город: ${escapeHtml(order.city || '—')}\n` +
+    `Доставка: ${escapeHtml(order.delivery_method_label || order.delivery_method || '—')}\n` +
     `Адрес: ${escapeHtml([order.city, order.address].filter(Boolean).join(', ') || '—')}\n` +
     (order.courier_name
       ? `Курьер: ${escapeHtml(order.courier_name)} · ${escapeHtml(order.courier_phone || '')}\n`

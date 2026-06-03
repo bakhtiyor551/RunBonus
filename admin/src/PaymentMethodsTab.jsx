@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminApi } from './api';
 import Icon from './components/Icon';
 
-const EMPTY = {
+const EMPTY_PAYMENT = {
   id: '',
   label: '',
   needs_details: false,
@@ -12,17 +12,34 @@ const EMPTY = {
   status: 'active',
 };
 
+const EMPTY_DELIVERY = {
+  id: '',
+  label: '',
+  requires_address: true,
+  sort_order: 50,
+  status: 'active',
+};
+
 export default function PaymentMethodsTab() {
   const [methods, setMethods] = useState([]);
+  const [deliveryMethods, setDeliveryMethods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(EMPTY);
+  const [editingDelivery, setEditingDelivery] = useState(null);
+  const [form, setForm] = useState(EMPTY_PAYMENT);
+  const [deliveryForm, setDeliveryForm] = useState(EMPTY_DELIVERY);
   const [saving, setSaving] = useState(false);
 
   const load = () => {
     setLoading(true);
-    adminApi('/api/admin/payment-methods')
-      .then(setMethods)
+    Promise.all([
+      adminApi('/api/admin/payment-methods'),
+      adminApi('/api/admin/delivery-methods'),
+    ])
+      .then(([pay, deliv]) => {
+        setMethods(pay);
+        setDeliveryMethods(deliv);
+      })
       .catch((e) => alert(e.message))
       .finally(() => setLoading(false));
   };
@@ -32,11 +49,13 @@ export default function PaymentMethodsTab() {
   }, []);
 
   const openCreate = () => {
+    setEditingDelivery(null);
     setEditing('new');
-    setForm({ ...EMPTY });
+    setForm({ ...EMPTY_PAYMENT });
   };
 
   const openEdit = (row) => {
+    setEditingDelivery(null);
     setEditing(row.id);
     setForm({
       id: row.id,
@@ -44,6 +63,24 @@ export default function PaymentMethodsTab() {
       needs_details: Boolean(row.needsDetails),
       details_label: row.detailsLabel || '',
       uses_transfer_modal: Boolean(row.usesTransferModal),
+      sort_order: row.sort_order ?? 0,
+      status: row.status,
+    });
+  };
+
+  const openCreateDelivery = () => {
+    setEditing(null);
+    setEditingDelivery('new');
+    setDeliveryForm({ ...EMPTY_DELIVERY });
+  };
+
+  const openEditDelivery = (row) => {
+    setEditing(null);
+    setEditingDelivery(row.id);
+    setDeliveryForm({
+      id: row.id,
+      label: row.label,
+      requires_address: Boolean(row.requiresAddress),
       sort_order: row.sort_order ?? 0,
       status: row.status,
     });
@@ -81,10 +118,53 @@ export default function PaymentMethodsTab() {
     }
   };
 
+  const saveDelivery = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        label: deliveryForm.label,
+        requires_address: deliveryForm.requires_address,
+        sort_order: Number(deliveryForm.sort_order) || 0,
+        status: deliveryForm.status,
+      };
+      if (editingDelivery === 'new') {
+        await adminApi('/api/admin/delivery-methods', {
+          method: 'POST',
+          body: JSON.stringify({ ...payload, id: deliveryForm.id }),
+        });
+      } else {
+        await adminApi(`/api/admin/delivery-methods/${editingDelivery}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      }
+      setEditingDelivery(null);
+      load();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const toggleStatus = async (row) => {
     const next = row.status === 'active' ? 'inactive' : 'active';
     try {
       await adminApi(`/api/admin/payment-methods/${row.id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: next }),
+      });
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const toggleDeliveryStatus = async (row) => {
+    const next = row.status === 'active' ? 'inactive' : 'active';
+    try {
+      await adminApi(`/api/admin/delivery-methods/${row.id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: next }),
       });
@@ -102,7 +182,7 @@ export default function PaymentMethodsTab() {
             <h2>Способы оплаты</h2>
             <p className="hint">
               Список в мобильном приложении при оформлении заказа. «Мобильный перевод» — чек и модальное окно
-              реквизитов.
+              реквизитов. Способ «Доставка» — оплата услуги доставки (миграция 014).
             </p>
           </div>
           <button type="button" className="btn btn--primary" onClick={openCreate}>
@@ -223,10 +303,123 @@ export default function PaymentMethodsTab() {
         </div>
       )}
 
-      {!loading && !methods.length && (
+      <div className="glass-card card" style={{ marginTop: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2>Способы доставки</h2>
+            <p className="hint">
+              Выбор в корзине мобильного приложения. Если включён «Нужен адрес» — клиент указывает адрес доставки.
+            </p>
+          </div>
+          <button type="button" className="btn btn--primary" onClick={openCreateDelivery}>
+            + Способ доставки
+          </button>
+        </div>
+
+        {!loading && (
+          <div className="entity-cards-grid payment-methods-grid">
+            {deliveryMethods.map((m) => (
+              <article
+                key={m.id}
+                className={`payment-method-card glass-card${editingDelivery === m.id ? ' entity-card--selected' : ''}`}
+              >
+                <div className="entity-card__head">
+                  <span className="payment-method-card__code">{m.id}</span>
+                  <span className={`chip ${m.status === 'active' ? 'entity-card__status--ok' : 'entity-card__status--muted'}`}>
+                    {m.status === 'active' ? 'Активен' : 'Отключён'}
+                  </span>
+                </div>
+                <h3 className="entity-card__title">{m.label}</h3>
+                <p className="entity-card__meta">Порядок: {m.sort_order}</p>
+                <ul className="payment-method-card__flags">
+                  {m.requiresAddress && <li>Нужен адрес доставки</li>}
+                  {m.is_builtin && <li>Встроенный</li>}
+                </ul>
+                <div className="entity-card__actions">
+                  <button type="button" className="btn btn--sm" onClick={() => openEditDelivery(m)}>
+                    Изменить
+                  </button>
+                  <button type="button" className="btn btn--sm btn--ghost" onClick={() => toggleDeliveryStatus(m)}>
+                    {m.status === 'active' ? 'Отключить' : 'Включить'}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {editingDelivery && (
+        <div className="glass-card card" style={{ marginTop: 24 }}>
+          <h3>{editingDelivery === 'new' ? 'Новый способ доставки' : `Редактирование: ${editingDelivery}`}</h3>
+          <form className="settings-form" onSubmit={saveDelivery}>
+            {editingDelivery === 'new' ? (
+              <label>
+                Код (латиница)
+                <input
+                  value={deliveryForm.id}
+                  onChange={(e) => setDeliveryForm({ ...deliveryForm, id: e.target.value })}
+                  placeholder="express"
+                  required
+                />
+              </label>
+            ) : (
+              <p className="hint">
+                Код: <strong>{deliveryForm.id}</strong>
+                {deliveryMethods.find((m) => m.id === deliveryForm.id)?.is_builtin ? ' (встроенный)' : ''}
+              </p>
+            )}
+            <label>
+              Название в приложении
+              <input
+                value={deliveryForm.label}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, label: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              Порядок сортировки
+              <input
+                type="number"
+                value={deliveryForm.sort_order}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, sort_order: e.target.value })}
+              />
+            </label>
+            <label className="settings-form__checkbox">
+              <input
+                type="checkbox"
+                checked={deliveryForm.requires_address}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, requires_address: e.target.checked })}
+              />
+              Запрашивать адрес у клиента
+            </label>
+            <label>
+              Статус
+              <select
+                value={deliveryForm.status}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, status: e.target.value })}
+              >
+                <option value="active">Активен</option>
+                <option value="inactive">Отключён</option>
+              </select>
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="submit" className="btn btn--primary" disabled={saving}>
+                {saving ? 'Сохранение…' : 'Сохранить'}
+              </button>
+              <button type="button" className="btn btn--ghost" onClick={() => setEditingDelivery(null)}>
+                Отмена
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {!loading && !methods.length && !deliveryMethods.length && (
         <p className="hint" style={{ marginTop: 16 }}>
-          <Icon name="info" /> Примените миграцию{' '}
-          <code>database/migrations/013_payment_methods.sql</code> и перезапустите backend.
+          <Icon name="info" /> Примените миграции{' '}
+          <code>database/migrations/013_payment_methods.sql</code> и{' '}
+          <code>database/migrations/014_delivery_methods.sql</code>, затем перезапустите backend.
         </p>
       )}
     </div>

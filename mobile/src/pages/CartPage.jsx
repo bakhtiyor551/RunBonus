@@ -5,6 +5,7 @@ import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import PaymentMethodPicker from '../components/PaymentMethodPicker';
+import DeliveryMethodPicker from '../components/DeliveryMethodPicker';
 import Icon from '../components/Icon';
 import QuantityStepper from '../components/QuantityStepper';
 import { getCart, removeFromCart, clearCart, setCartItemQuantity } from '../services/cart';
@@ -12,12 +13,14 @@ import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
 import MobileTransferModal from '../components/MobileTransferModal';
 import { showToast } from '../utils/toast';
 import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
+import { DELIVERY_METHODS_FALLBACK, deliveryRequiresAddress } from '../utils/deliveryMethods';
 
 export default function CartPage({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [items, setItems] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS_FALLBACK);
+  const [deliveryMethods, setDeliveryMethods] = useState(DELIVERY_METHODS_FALLBACK);
   const [availableBonus, setAvailableBonus] = useState(user?.available_balance ?? user?.balance ?? 0);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -29,18 +32,23 @@ export default function CartPage({ user }) {
   }));
 
   useEffect(() => {
-    api('/api/mobile/payment-methods')
-      .then((data) => {
-        const list = Array.isArray(data) ? data : data?.methods || PAYMENT_METHODS_FALLBACK;
+    Promise.all([api('/api/mobile/payment-methods'), api('/api/mobile/delivery-methods')])
+      .then(([payData, delivList]) => {
+        const list = Array.isArray(payData) ? payData : payData?.methods || PAYMENT_METHODS_FALLBACK;
         const normalized = list.map((m) =>
           m.id === 'mobile' ? { ...m, needsDetails: false, usesTransferModal: true } : m
         );
         setPaymentMethods(normalized.length ? normalized : PAYMENT_METHODS_FALLBACK);
-        if (!Array.isArray(data) && data?.available_bonus != null) {
-          setAvailableBonus(Number(data.available_bonus));
+        if (!Array.isArray(payData) && payData?.available_bonus != null) {
+          setAvailableBonus(Number(payData.available_bonus));
         }
+        const dList = Array.isArray(delivList) ? delivList : DELIVERY_METHODS_FALLBACK;
+        setDeliveryMethods(dList.length ? dList : DELIVERY_METHODS_FALLBACK);
       })
-      .catch(() => setPaymentMethods(PAYMENT_METHODS_FALLBACK));
+      .catch(() => {
+        setPaymentMethods(PAYMENT_METHODS_FALLBACK);
+        setDeliveryMethods(DELIVERY_METHODS_FALLBACK);
+      });
   }, []);
 
   useEffect(() => {
@@ -72,6 +80,7 @@ export default function CartPage({ user }) {
         phone: form.phone.trim(),
         city: form.city.trim(),
         address: form.address.trim(),
+        delivery_method: form.delivery_method,
         comment: form.comment.trim(),
         payment_method: form.payment_method,
         payment_details: mobilePayment?.payment_details || form.payment_details?.trim() || '',
@@ -107,8 +116,7 @@ export default function CartPage({ user }) {
       await showToast('Корзина пуста');
       return;
     }
-    const formErr = validateOrderForm(form, paymentMethods, {
-      requireAddress: true,
+    const formErr = validateOrderForm(form, paymentMethods, deliveryMethods, {
       cartTotal: total,
       availableBonus,
     });
@@ -227,11 +235,16 @@ export default function CartPage({ user }) {
                 <h2 className="font-display" style={{ fontSize: 18, margin: '0 0 16px' }}>
                   Оформление заказа
                 </h2>
+                <DeliveryMethodPicker
+                  methods={deliveryMethods}
+                  value={form.delivery_method}
+                  onChange={(id) => setForm({ ...form, delivery_method: id })}
+                />
+
                 {[
                   ['customer_name', 'Имя', 'text'],
                   ['phone', 'Телефон', 'tel'],
                   ['city', 'Город', 'text'],
-                  ['address', 'Адрес доставки', 'text'],
                 ].map(([key, label, type]) => (
                   <div key={key} style={{ marginBottom: 12 }}>
                     <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
@@ -247,6 +260,28 @@ export default function CartPage({ user }) {
                     </div>
                   </div>
                 ))}
+
+                {deliveryRequiresAddress(deliveryMethods, form.delivery_method) && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
+                      Адрес доставки
+                    </label>
+                    <div className="rb-input-wrap">
+                      <input
+                        className="rb-input"
+                        type="text"
+                        value={form.address}
+                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {form.delivery_method === 'pickup' && (
+                  <p className="rb-text-muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
+                    Самовывоз — адрес не требуется. Мы сообщим, когда заказ будет готов.
+                  </p>
+                )}
 
                 <PaymentMethodPicker
                   methods={paymentMethods}
