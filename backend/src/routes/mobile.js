@@ -2,7 +2,12 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { authUser, requireActiveUser } from '../middleware/auth.js';
 import { validateShoeQr } from '../services/shoeValidateService.js';
-import { listActiveProducts, getProductById, getUserShoeStatus } from '../services/shopService.js';
+import {
+  listActiveProducts,
+  getProductById,
+  getUserShoeStatus,
+  listActiveShopCategories,
+} from '../services/shopService.js';
 import { createOrder, listUserOrders } from '../services/orderService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { listActivePaymentMethods } from '../services/paymentMethodService.js';
@@ -42,9 +47,22 @@ router.get('/shoes/status', authUser, async (req, res) => {
   }
 });
 
-router.get('/products', async (_req, res) => {
+router.get('/shop-categories', async (_req, res) => {
   try {
-    const products = await listActiveProducts();
+    const categories = await listActiveShopCategories();
+    res.json(categories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.get('/products', async (req, res) => {
+  try {
+    const categoryId = req.query.category_id ? Number(req.query.category_id) : null;
+    const products = await listActiveProducts({
+      categoryId: Number.isFinite(categoryId) && categoryId > 0 ? categoryId : null,
+    });
     res.json(products);
   } catch (err) {
     console.error(err);
@@ -126,6 +144,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
     const {
       product_id,
       size,
+      color,
       quantity,
       customer_name,
       phone,
@@ -146,6 +165,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
       {
         product_id,
         size,
+        color,
         quantity,
         customer_name,
         phone,

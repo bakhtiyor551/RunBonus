@@ -3,6 +3,9 @@ import { authAdmin } from '../middleware/auth.js';
 import {
   adminListProducts,
   adminSaveProduct,
+  listAllShopCategoriesAdmin,
+} from '../services/shopService.js';
+import {
   listAdminOrders,
   getOrderById,
   updateOrderStatus,
@@ -17,6 +20,16 @@ import {
 } from '../services/courierService.js';
 
 const router = Router();
+
+router.get('/categories', authAdmin, async (_req, res) => {
+  try {
+    const categories = await listAllShopCategoriesAdmin();
+    res.json(categories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
 
 router.get('/products', authAdmin, async (_req, res) => {
   try {

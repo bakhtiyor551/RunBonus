@@ -97,6 +97,7 @@ export default function CartPage({ user }) {
           body: JSON.stringify({
             product_id: item.productId,
             size: item.size,
+            color: item.color || '',
             quantity: item.quantity,
             apply_delivery_fee: i === 0,
             ...payload,
