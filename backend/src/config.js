@@ -19,4 +19,6 @@ export const config = {
     botToken: process.env.TELEGRAM_BOT_TOKEN || '',
     chatId: process.env.TELEGRAM_CHAT_ID || '',
   },
+  /** Публичный URL API для ссылок и Telegram (например https://runbonus.online) */
+  publicApiUrl: (process.env.PUBLIC_API_URL || process.env.API_PUBLIC_URL || '').replace(/\/$/, ''),
 };
