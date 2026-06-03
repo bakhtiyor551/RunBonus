@@ -9,6 +9,12 @@ import {
   assignQrToOrder,
 } from '../services/orderService.js';
 import { pool } from '../db.js';
+import {
+  listCouriers,
+  createCourier,
+  updateCourier,
+  assignCourierToOrder,
+} from '../services/courierService.js';
 
 const router = Router();
 
@@ -82,6 +88,54 @@ router.put('/orders/:id/status', authAdmin, async (req, res) => {
     if (err.status) return res.status(err.status).json({ error: err.message });
     console.error(err);
     res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.get('/couriers', authAdmin, async (_req, res) => {
+  try {
+    const couriers = await listCouriers();
+    res.json(couriers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки курьеров' });
+  }
+});
+
+router.post('/couriers', authAdmin, async (req, res) => {
+  try {
+    const courier = await createCourier(req.body);
+    res.status(201).json(courier);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.put('/couriers/:id', authAdmin, async (req, res) => {
+  try {
+    const courier = await updateCourier(Number(req.params.id), req.body);
+    res.json(courier);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.put('/orders/:id/delivery', authAdmin, async (req, res) => {
+  try {
+    const { courier_id } = req.body;
+    if (!courier_id) {
+      return res.status(400).json({ error: 'Выберите курьера' });
+    }
+    const { orderId } = await assignCourierToOrder(Number(req.params.id), Number(courier_id));
+    const order = await getOrderById(orderId);
+    res.json({ message: 'Курьер назначен', order });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка назначения доставки' });
   }
 });
 

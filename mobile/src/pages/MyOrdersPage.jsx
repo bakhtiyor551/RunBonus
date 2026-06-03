@@ -60,6 +60,40 @@ export default function MyOrdersPage() {
                 <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
                   Размер {o.size || '—'} · {o.total_amount} сомони
                 </p>
+                {(o.city || o.address) && (
+                  <p className="rb-text-muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
+                    Адрес: {[o.city, o.address].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {o.courier_name && (
+                  <div
+                    className="glass-card"
+                    style={{
+                      marginTop: 10,
+                      padding: 12,
+                      border: '1px solid rgba(195, 244, 0, 0.25)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <Icon name="local_shipping" style={{ color: 'var(--rb-neon)' }} />
+                      <strong style={{ fontSize: 14 }}>Доставка</strong>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 14 }}>
+                      Курьер: <span style={{ color: 'var(--rb-neon)' }}>{o.courier_name}</span>
+                    </p>
+                    <a
+                      href={`tel:${o.courier_phone}`}
+                      style={{ marginTop: 4, display: 'inline-block', fontSize: 14, color: 'var(--rb-on-surface)' }}
+                    >
+                      {o.courier_phone}
+                    </a>
+                  </div>
+                )}
+                {!o.courier_name && o.status !== 'cancelled' && o.status !== 'delivered' && (
+                  <p className="rb-text-muted" style={{ margin: '8px 0 0', fontSize: 13 }}>
+                    Курьер будет назначен после подтверждения заказа
+                  </p>
+                )}
                 <p className="rb-label" style={{ margin: '8px 0 0', textTransform: 'none' }}>
                   {new Date(o.created_at).toLocaleString('ru-RU')}
                 </p>

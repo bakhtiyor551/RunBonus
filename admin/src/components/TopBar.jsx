@@ -10,6 +10,9 @@ const TITLES = {
   5: 'Списание бонусов',
   6: 'Вывод средств',
   7: 'Уровни клиентов',
+  8: 'Магазин',
+  9: 'Заказы магазина',
+  10: 'Курьеры',
 };
 
 export default function TopBar({ activeTab, fundBalance, currency = 'TJS' }) {

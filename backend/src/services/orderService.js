@@ -266,11 +266,17 @@ async function createOrderPaidWithBonus(data, userId) {
   }
 }
 
+const ORDER_JOIN = `
+  FROM shop_orders o
+  JOIN products p ON p.id = o.product_id
+  LEFT JOIN couriers c ON c.id = o.courier_id
+`;
+
 export async function getOrderById(id) {
   const [rows] = await pool.query(
-    `SELECT o.*, p.name AS product_name, p.color AS product_color
-     FROM shop_orders o
-     JOIN products p ON p.id = o.product_id
+    `SELECT o.*, p.name AS product_name, p.color AS product_color,
+            c.name AS courier_name, c.phone AS courier_phone
+     ${ORDER_JOIN}
      WHERE o.id = ?`,
     [id]
   );
@@ -301,6 +307,10 @@ function mapOrderRow(row) {
     payment_receipt_url: row.payment_receipt_url || null,
     status: row.status,
     status_label: statusLabel(row.status),
+    courier_id: row.courier_id ?? null,
+    courier_name: row.courier_name || null,
+    courier_phone: row.courier_phone || null,
+    delivery_assigned_at: row.delivery_assigned_at || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -308,9 +318,9 @@ function mapOrderRow(row) {
 
 export async function listUserOrders(userId) {
   const [rows] = await pool.query(
-    `SELECT o.*, p.name AS product_name, p.color AS product_color
-     FROM shop_orders o
-     JOIN products p ON p.id = o.product_id
+    `SELECT o.*, p.name AS product_name, p.color AS product_color,
+            c.name AS courier_name, c.phone AS courier_phone
+     ${ORDER_JOIN}
      WHERE o.user_id = ?
      ORDER BY o.created_at DESC`,
     [userId]
@@ -321,9 +331,9 @@ export async function listUserOrders(userId) {
 export async function listAdminOrders() {
   const [rows] = await pool.query(
     `SELECT o.*, p.name AS product_name, p.color AS product_color,
-            s.unique_id AS assigned_shoe_code
-     FROM shop_orders o
-     JOIN products p ON p.id = o.product_id
+            s.unique_id AS assigned_shoe_code,
+            c.name AS courier_name, c.phone AS courier_phone
+     ${ORDER_JOIN}
      LEFT JOIN shoes s ON s.id = o.assigned_shoe_id
      ORDER BY o.created_at DESC
      LIMIT 500`
