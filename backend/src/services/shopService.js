@@ -6,6 +6,8 @@ function mapProductRow(row, images = [], sizes = []) {
     id: row.id,
     name: row.name,
     slug: row.slug,
+    category_id: row.category_id || null,
+    category_name: row.category_name || null,
     description: row.description,
     color: row.color,
     price: Number(row.price),
@@ -22,10 +24,18 @@ function mapProductRow(row, images = [], sizes = []) {
   };
 }
 
-export async function listActiveProducts() {
-  const [products] = await pool.query(
-    `SELECT * FROM products WHERE status = 'active' ORDER BY id ASC`
-  );
+export async function listActiveProducts(categoryId = null) {
+  let sql = `SELECT p.*, c.name AS category_name
+     FROM products p
+     LEFT JOIN product_categories c ON c.id COLLATE utf8mb4_unicode_ci = p.category_id
+     WHERE p.status = 'active'`;
+  const params = [];
+  if (categoryId) {
+    sql += ` AND p.category_id COLLATE utf8mb4_unicode_ci = ?`;
+    params.push(categoryId);
+  }
+  sql += ` ORDER BY p.id ASC`;
+  const [products] = await pool.query(sql, params);
   if (!products.length) return [];
 
   const ids = products.map((p) => p.id);
@@ -48,7 +58,13 @@ export async function listActiveProducts() {
 }
 
 export async function getProductById(id) {
-  const [rows] = await pool.query(`SELECT * FROM products WHERE id = ? AND status = 'active'`, [id]);
+  const [rows] = await pool.query(
+    `SELECT p.*, c.name AS category_name
+     FROM products p
+     LEFT JOIN product_categories c ON c.id COLLATE utf8mb4_unicode_ci = p.category_id
+     WHERE p.id = ? AND p.status = 'active'`,
+    [id]
+  );
   if (!rows.length) return null;
   const [images] = await pool.query(
     `SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order, id`,

@@ -23,6 +23,11 @@ function ProductCard({ product, onOpen }) {
         <p className="rb-display font-display" style={{ margin: '0 0 6px', fontSize: 22, color: 'var(--rb-neon)' }}>
           {product.price} <span style={{ fontSize: 14 }}>сомони</span>
         </p>
+        {product.category_name && (
+          <p className="rb-label" style={{ margin: '0 0 4px', textTransform: 'none', fontSize: 11 }}>
+            {product.category_name}
+          </p>
+        )}
         {product.color && (
           <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 12 }}>
             Цвет: {product.color}
@@ -44,15 +49,27 @@ function ProductCard({ product, onOpen }) {
 export default function ShopPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('');
   const [loading, setLoading] = useState(true);
   const [cartItems, setCartItems] = useState(cartCount);
 
   useEffect(() => {
-    api('/api/mobile/products')
+    api('/api/mobile/product-categories')
+      .then(setCategories)
+      .catch(() => setCategories([]));
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const path = activeCategory
+      ? `/api/mobile/products?category=${encodeURIComponent(activeCategory)}`
+      : '/api/mobile/products';
+    api(path)
       .then(setProducts)
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeCategory]);
 
   useEffect(() => {
     const refresh = () => setCartItems(cartCount());
@@ -108,9 +125,31 @@ export default function ShopPage() {
               </button>
             </div>
           </div>
-          <p className="rb-text-muted" style={{ marginBottom: 24 }}>
-            Кроссовки с программой бонусов за километры. После доставки привяжите QR на главной.
+          <p className="rb-text-muted" style={{ marginBottom: 16 }}>
+            Одежда и кроссовки RunBonus. После покупки кроссовок привяжите QR на главной.
           </p>
+
+          {categories.length > 0 && (
+            <div className="rb-shop-categories" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              <button
+                type="button"
+                className={`rb-shop-category-pill${activeCategory === '' ? ' rb-shop-category-pill--active' : ''}`}
+                onClick={() => setActiveCategory('')}
+              >
+                Все
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`rb-shop-category-pill${activeCategory === c.id ? ' rb-shop-category-pill--active' : ''}`}
+                  onClick={() => setActiveCategory(c.id)}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {loading && <p className="rb-text-muted">Загрузка…</p>}
           {!loading && !products.length && <p className="rb-text-muted">Товары скоро появятся</p>}

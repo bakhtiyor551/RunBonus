@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import { authUser, requireActiveUser } from '../middleware/auth.js';
 import { validateShoeQr } from '../services/shoeValidateService.js';
 import { listActiveProducts, getProductById, getUserShoeStatus } from '../services/shopService.js';
+import { listActiveProductCategories } from '../services/productCategoryService.js';
 import { createOrder, listUserOrders } from '../services/orderService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { listActivePaymentMethods } from '../services/paymentMethodService.js';
@@ -42,9 +43,20 @@ router.get('/shoes/status', authUser, async (req, res) => {
   }
 });
 
-router.get('/products', async (_req, res) => {
+router.get('/product-categories', async (_req, res) => {
   try {
-    const products = await listActiveProducts();
+    const categories = await listActiveProductCategories();
+    res.json(categories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки категорий' });
+  }
+});
+
+router.get('/products', async (req, res) => {
+  try {
+    const category = req.query.category?.trim() || null;
+    const products = await listActiveProducts(category);
     res.json(products);
   } catch (err) {
     console.error(err);

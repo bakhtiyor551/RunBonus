@@ -842,6 +842,23 @@ select {
   }
 }
 
+.rb-shop-category-pill {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--rb-outline);
+  background: transparent;
+  color: var(--rb-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rb-shop-category-pill--active {
+  border-color: var(--rb-neon);
+  background: rgba(163, 230, 53, 0.12);
+  color: var(--rb-neon);
+}
+
 .rb-shop-grid {
   display: grid;
   grid-template-columns: 1fr;
