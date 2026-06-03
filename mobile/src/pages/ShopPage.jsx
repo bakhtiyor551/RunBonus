@@ -45,7 +45,7 @@ export default function ShopPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [cartItems, setCartItems] = useState(cartCount());
+  const [cartItems, setCartItems] = useState(cartCount);
 
   useEffect(() => {
     api('/api/mobile/products')
@@ -56,8 +56,12 @@ export default function ShopPage() {
 
   useEffect(() => {
     const refresh = () => setCartItems(cartCount());
+    window.addEventListener('rb-cart-updated', refresh);
     window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener('rb-cart-updated', refresh);
+      window.removeEventListener('focus', refresh);
+    };
   }, []);
 
   return (

@@ -6,6 +6,7 @@ import { listActiveProducts, getProductById, getUserShoeStatus } from '../servic
 import { createOrder, listUserOrders } from '../services/orderService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
+import { getWalletSummary } from '../services/withdrawalService.js';
 import { MOBILE_PAYMENT_ACCOUNTS } from '../constants/mobilePaymentAccounts.js';
 
 const router = Router();
@@ -58,8 +59,17 @@ router.get('/products/:id', async (req, res) => {
   }
 });
 
-router.get('/payment-methods', (_req, res) => {
-  res.json(PAYMENT_METHODS);
+router.get('/payment-methods', authUser, async (req, res) => {
+  try {
+    const summary = await getWalletSummary(pool, req.userId);
+    res.json({
+      methods: PAYMENT_METHODS,
+      available_bonus: summary.available_balance,
+    });
+  } catch (err) {
+    console.error(err);
+    res.json({ methods: PAYMENT_METHODS, available_bonus: 0 });
+  }
 });
 
 router.get('/mobile-payment-accounts', (_req, res) => {

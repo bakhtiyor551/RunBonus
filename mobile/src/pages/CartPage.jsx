@@ -18,6 +18,7 @@ export default function CartPage({ user }) {
   const location = useLocation();
   const [items, setItems] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS_FALLBACK);
+  const [availableBonus, setAvailableBonus] = useState(user?.available_balance ?? user?.balance ?? 0);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [mobileModalOpen, setMobileModalOpen] = useState(false);
@@ -29,11 +30,15 @@ export default function CartPage({ user }) {
 
   useEffect(() => {
     api('/api/mobile/payment-methods')
-      .then((list) => {
-        const normalized = (list || []).map((m) =>
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data?.methods || PAYMENT_METHODS_FALLBACK;
+        const normalized = list.map((m) =>
           m.id === 'mobile' ? { ...m, needsDetails: false, usesTransferModal: true } : m
         );
         setPaymentMethods(normalized.length ? normalized : PAYMENT_METHODS_FALLBACK);
+        if (!Array.isArray(data) && data?.available_bonus != null) {
+          setAvailableBonus(Number(data.available_bonus));
+        }
       })
       .catch(() => setPaymentMethods(PAYMENT_METHODS_FALLBACK));
   }, []);
@@ -102,7 +107,11 @@ export default function CartPage({ user }) {
       await showToast('Корзина пуста');
       return;
     }
-    const formErr = validateOrderForm(form, paymentMethods, { requireAddress: true });
+    const formErr = validateOrderForm(form, paymentMethods, {
+      requireAddress: true,
+      cartTotal: total,
+      availableBonus,
+    });
     if (formErr) {
       await showToast(formErr);
       return;
@@ -128,7 +137,11 @@ export default function CartPage({ user }) {
             <h2 className="font-display" style={{ marginTop: 16 }}>
               Заказ оформлен
             </h2>
-            <p className="rb-text-muted">Мы свяжемся с вами для подтверждения и оплаты.</p>
+            <p className="rb-text-muted">
+              {form.payment_method === 'bonus'
+                ? 'Оплачено бонусами. Мы свяжемся с вами для доставки.'
+                : 'Мы свяжемся с вами для подтверждения и оплаты.'}
+            </p>
             <button type="button" className="rb-btn-pill" style={{ marginTop: 24 }} onClick={() => navigate('/orders')}>
               Мои заказы
             </button>
@@ -238,9 +251,17 @@ export default function CartPage({ user }) {
                 <PaymentMethodPicker
                   methods={paymentMethods}
                   value={form.payment_method}
-                  onChange={(id) => setForm({ ...form, payment_method: id, payment_details: id === 'mobile' ? '' : form.payment_details })}
+                  onChange={(id) =>
+                    setForm({
+                      ...form,
+                      payment_method: id,
+                      payment_details: id === 'mobile' ? '' : form.payment_details,
+                    })
+                  }
                   details={form.payment_details}
                   onDetailsChange={(v) => setForm({ ...form, payment_details: v })}
+                  availableBonus={availableBonus}
+                  cartTotal={total}
                 />
 
                 <div style={{ marginBottom: 12 }}>

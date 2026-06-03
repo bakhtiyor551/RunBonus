@@ -11,6 +11,7 @@ export function getCart() {
 
 function saveCart(items) {
   localStorage.setItem(CART_KEY, JSON.stringify(items));
+  window.dispatchEvent(new CustomEvent('rb-cart-updated'));
 }
 
 export function cartCount() {
