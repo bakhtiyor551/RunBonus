@@ -7,6 +7,8 @@ import {
   paymentMethodNeedsDetails,
 } from '../constants/paymentMethods.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
+import { spendBonus } from './bonusService.js';
+import { getWalletSummary } from './withdrawalService.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
@@ -42,6 +44,15 @@ export async function createOrder(data, userId = null) {
     err.status = 400;
     throw err;
   }
+  if (payment_method === 'bonus') {
+    if (!userId) {
+      const err = new Error('Для оплаты бонусами войдите в аккаунт');
+      err.status = 401;
+      throw err;
+    }
+    return createOrderPaidWithBonus(data, userId);
+  }
+
   if (payment_method === 'mobile') {
     if (!payment_details?.trim()) {
       const err = new Error('Укажите номер кошелька, с которого вы перевели');
@@ -141,6 +152,118 @@ export async function createOrder(data, userId = null) {
   await notifyOrderToTelegram({ order, product });
 
   return order;
+}
+
+async function createOrderPaidWithBonus(data, userId) {
+  const {
+    product_id,
+    size,
+    quantity = 1,
+    customer_name,
+    phone,
+    city,
+    address,
+    comment,
+  } = data;
+
+  const qty = Math.max(1, Math.min(10, Number(quantity) || 1));
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [products] = await conn.query(
+      `SELECT * FROM products WHERE id = ? AND status = 'active'`,
+      [product_id]
+    );
+    if (!products.length) {
+      const err = new Error('Товар не найден');
+      err.status = 404;
+      throw err;
+    }
+    const product = products[0];
+
+    if (size) {
+      const [sizeRows] = await conn.query(
+        `SELECT * FROM product_sizes WHERE product_id = ? AND size = ? AND status = 'active'`,
+        [product_id, size]
+      );
+      if (!sizeRows.length || sizeRows[0].stock_qty < qty) {
+        const err = new Error('Выбранный размер недоступен');
+        err.status = 400;
+        throw err;
+      }
+    }
+
+    const price = Number(product.price);
+    const total = Math.round(price * qty * 100) / 100;
+
+    const summary = await getWalletSummary(conn, userId, true);
+    if (summary.available_balance < total) {
+      const err = new Error(
+        `Недостаточно бонусов. Доступно: ${summary.available_balance} сомони, нужно: ${total} сомони`
+      );
+      err.status = 400;
+      throw err;
+    }
+
+    const paymentDetails = `Списано ${total} бонусов`;
+    const baseValues = [
+      userId,
+      product_id,
+      size || null,
+      qty,
+      price,
+      total,
+      customer_name.trim(),
+      phone.trim(),
+      city?.trim() || null,
+      address?.trim() || null,
+      comment?.trim() || null,
+    ];
+
+    let result;
+    try {
+      [result] = await conn.query(
+        `INSERT INTO shop_orders
+           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'bonus', ?, 'paid')`,
+        [...baseValues, paymentDetails]
+      );
+    } catch (err) {
+      if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+      [result] = await conn.query(
+        `INSERT INTO shop_orders
+           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid')`,
+        baseValues
+      );
+    }
+
+    const orderId = result.insertId;
+
+    await spendBonus(conn, {
+      userId,
+      amount: total,
+      comment: `Оплата заказа в магазине #${orderId}`,
+    });
+
+    await conn.commit();
+
+    const order = await getOrderById(orderId);
+    await notifyOrderToTelegram({ order, product });
+    return order;
+  } catch (err) {
+    await conn.rollback();
+    if (err.code === 'INSUFFICIENT_BALANCE') {
+      const e = new Error('Недостаточно бонусов на счёте');
+      e.status = 400;
+      throw e;
+    }
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 export async function getOrderById(id) {

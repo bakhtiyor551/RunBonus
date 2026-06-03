@@ -70,7 +70,9 @@ export function formatOrderTelegramMessage({ order, product }, { withReceiptNote
     `Город: ${escapeHtml(order.city || '—')}\n` +
     `Адрес: ${escapeHtml(order.address || '—')}\n` +
     `Комментарий: ${escapeHtml(order.comment || '—')}\n` +
-    `Оплата: ${escapeHtml(order.payment_method_label || order.payment_method || '—')}\n` +
+    `Оплата: ${escapeHtml(order.payment_method_label || order.payment_method || '—')}${
+      order.payment_method === 'bonus' ? ' ✓' : ''
+    }\n` +
     (order.payment_details
       ? `Кошелёк клиента: ${escapeHtml(order.payment_details)}\n`
       : '') +

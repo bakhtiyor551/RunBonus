@@ -14,7 +14,11 @@ export function emptyOrderForm(user) {
 }
 
 /** Проверка полей перед оформлением заказа. */
-export function validateOrderForm(form, paymentMethods, { requireAddress = true } = {}) {
+export function validateOrderForm(
+  form,
+  paymentMethods,
+  { requireAddress = true, cartTotal = 0, availableBonus = 0 } = {}
+) {
   if (!form.customer_name?.trim()) return 'Укажите имя';
   if (!form.phone?.trim()) return 'Укажите телефон';
   if (!form.city?.trim()) return 'Укажите город';
@@ -26,6 +30,16 @@ export function validateOrderForm(form, paymentMethods, { requireAddress = true 
   if (!form.payment_method) return 'Выберите способ оплаты';
   const pm = getPaymentMethod(paymentMethods, form.payment_method);
   if (!pm) return 'Выберите способ оплаты';
+  if (form.payment_method === 'bonus') {
+    const total = Number(cartTotal);
+    const available = Number(availableBonus);
+    if (!Number.isFinite(total) || total <= 0) return 'Корзина пуста';
+    if (!Number.isFinite(available)) return 'Не удалось проверить баланс бонусов';
+    if (total > available) {
+      return `Недостаточно бонусов. Доступно: ${available} сомони, нужно: ${total} сомони`;
+    }
+  }
+
   // Мобильный перевод: кошелёк и чек — в модальном окне после «Оформить»
   if (form.payment_method !== 'mobile' && pm.needsDetails && !form.payment_details?.trim()) {
     return pm.detailsLabel || 'Укажите данные для оплаты';

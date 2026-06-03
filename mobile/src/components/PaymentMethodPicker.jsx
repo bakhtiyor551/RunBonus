@@ -1,13 +1,23 @@
 import Icon from './Icon';
 
 const ICONS = {
+  bonus: 'stars',
   cash: 'payments',
   card: 'credit_card',
   mobile: 'smartphone',
   bank: 'account_balance',
 };
 
-export default function PaymentMethodPicker({ methods, value, onChange, details, onDetailsChange, error }) {
+export default function PaymentMethodPicker({
+  methods,
+  value,
+  onChange,
+  details,
+  onDetailsChange,
+  error,
+  availableBonus,
+  cartTotal,
+}) {
   const selected = methods.find((m) => m.id === value);
 
   return (
@@ -15,6 +25,17 @@ export default function PaymentMethodPicker({ methods, value, onChange, details,
       <p className="rb-label" style={{ marginBottom: 10 }}>
         Способ оплаты
       </p>
+      {value === 'bonus' && availableBonus != null && (
+        <p className="rb-text-muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
+          Доступно бонусов: <strong style={{ color: 'var(--rb-neon)' }}>{availableBonus}</strong> сомони
+          {cartTotal > 0 && (
+            <>
+              {' '}
+              · к оплате: <strong>{cartTotal}</strong> сомони
+            </>
+          )}
+        </p>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {methods.map((m) => (
           <button
