@@ -7,7 +7,6 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
-import RunPage from './pages/RunPage';
 import WorkoutPage from './pages/WorkoutPage';
 import WalletPage from './pages/WalletPage';
 import WithdrawPage from './pages/WithdrawPage';
@@ -144,7 +143,6 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
-            <Route path="/run" element={<RunPage user={user} />} />
             <Route path="/wallet" element={<WalletPage user={user} />} />
             <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
