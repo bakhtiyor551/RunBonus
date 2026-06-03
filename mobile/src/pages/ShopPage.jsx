@@ -5,7 +5,6 @@ import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
-import { cartCount } from '../services/cart';
 
 function ProductCard({ product, onOpen }) {
   const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
@@ -45,19 +44,11 @@ export default function ShopPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [cartItems, setCartItems] = useState(cartCount());
-
   useEffect(() => {
     api('/api/mobile/products')
       .then(setProducts)
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    const refresh = () => setCartItems(cartCount());
-    window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
   }, []);
 
   return (
@@ -69,40 +60,9 @@ export default function ShopPage() {
             <h1 className="rb-headline font-display" style={{ margin: 0 }}>
               Магазин RunBonus
             </h1>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <button type="button" className="rb-btn-pill" style={{ padding: '8px 12px', fontSize: 12 }} onClick={() => navigate('/orders')}>
-                Заказы
-              </button>
-              <button
-                type="button"
-                className="rb-btn-pill"
-                style={{ padding: '8px 12px', fontSize: 12, position: 'relative' }}
-                onClick={() => navigate('/cart')}
-              >
-                <Icon name="shopping_cart" />
-                {cartItems > 0 && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: -4,
-                      right: -4,
-                      background: 'var(--rb-neon)',
-                      color: 'var(--rb-on-neon)',
-                      borderRadius: 10,
-                      fontSize: 10,
-                      minWidth: 18,
-                      height: 18,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {cartItems}
-                  </span>
-                )}
-              </button>
-            </div>
+            <button type="button" className="rb-btn-pill" style={{ padding: '8px 12px', fontSize: 12, flexShrink: 0 }} onClick={() => navigate('/orders')}>
+              Мои заказы
+            </button>
           </div>
           <p className="rb-text-muted" style={{ marginBottom: 24 }}>
             Кроссовки с программой бонусов за километры. После доставки привяжите QR на главной.

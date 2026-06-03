@@ -368,13 +368,63 @@ select {
   max-width: 96px;
 }
 
-.rb-bottom-nav--5 a {
+.rb-bottom-nav--5 a,
+.rb-bottom-nav--6 a {
   padding: 6px 4px;
   max-width: 72px;
 }
 
-.rb-bottom-nav--5 .rb-bottom-nav__label {
+.rb-bottom-nav--5 .rb-bottom-nav__label,
+.rb-bottom-nav--6 .rb-bottom-nav__label {
   font-size: 10px;
+}
+
+.rb-bottom-nav__icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rb-bottom-nav__badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--rb-neon);
+  color: var(--rb-on-neon);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.rb-shop-fixed-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 49;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  padding: 12px var(--rb-container-margin);
+  background: rgba(19, 19, 19, 0.96);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(68, 73, 51, 0.35);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.rb-shop-fixed-bar__btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rb-main--product-detail {
+  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
 }
 
 .rb-bottom-nav__label {

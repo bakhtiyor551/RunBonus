@@ -162,7 +162,7 @@ function App() {
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/level" element={<LevelPage />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
-            <Route path="/shop/:id" element={<ProductDetailPage user={user} />} />
+            <Route path="/shop/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage user={user} />} />
             <Route path="/orders" element={<MyOrdersPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
