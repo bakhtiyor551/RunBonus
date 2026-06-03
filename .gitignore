@@ -1,5 +1,16 @@
 node_modules/
+
+# Секреты backend (пример остаётся в репозитории)
+backend/.env
+backend/.env.local
+backend/.env.*.local
+!backend/.env.example
+
+# Сборки (Vite / Capacitor)
 dist/
+admin/dist/
+mobile/dist/
+
 .env
 .env.local
 *.log
