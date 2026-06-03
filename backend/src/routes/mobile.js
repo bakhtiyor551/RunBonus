@@ -60,8 +60,10 @@ router.get('/shop-categories', async (_req, res) => {
 /** Каталог для магазина: категории и товары одним запросом. */
 router.get('/shop-catalog', async (req, res) => {
   try {
-    const categoryId = req.query.category_id ? Number(req.query.category_id) : null;
-    const filterId = Number.isFinite(categoryId) && categoryId > 0 ? categoryId : null;
+    const filterId =
+      req.query.category_id != null && String(req.query.category_id).trim() !== ''
+        ? String(req.query.category_id).trim()
+        : null;
     const categories = await listActiveShopCategories();
     let products = [];
     try {
@@ -81,10 +83,11 @@ router.get('/shop-catalog', async (req, res) => {
 
 router.get('/products', async (req, res) => {
   try {
-    const categoryId = req.query.category_id ? Number(req.query.category_id) : null;
-    const products = await listActiveProducts({
-      categoryId: Number.isFinite(categoryId) && categoryId > 0 ? categoryId : null,
-    });
+    const filterId =
+      req.query.category_id != null && String(req.query.category_id).trim() !== ''
+        ? String(req.query.category_id).trim()
+        : null;
+    const products = await listActiveProducts({ categoryId: filterId });
     res.json(products);
   } catch (err) {
     console.error(err);

@@ -1,13 +1,22 @@
 import { api } from '../api';
 
+/** id категории: число или строка (shoes, tshirt…). */
+export function normalizeCategoryId(raw) {
+  if (raw == null || raw === '') return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (/^\d+$/.test(s)) return Number(s);
+  return s;
+}
+
 function normalizeCategory(c) {
-  const id = c?.id != null ? Number(c.id) : null;
+  const id = normalizeCategoryId(c?.id ?? c?.slug);
   const name = String(c?.name || '').trim();
-  if (id == null || Number.isNaN(id) || !name) return null;
+  if (id == null || !name) return null;
   return {
     id,
     name,
-    slug: c.slug || null,
+    slug: c.slug || (typeof id === 'string' ? id : null),
     sort_order: Number(c.sort_order) || 0,
   };
 }
@@ -17,33 +26,30 @@ function normalizeCategories(list) {
   return list.map(normalizeCategory).filter(Boolean);
 }
 
-/** Если API вернул пустой список — собрать уникальные категории из карточек товаров. */
 export function categoriesFromProducts(products) {
   const map = new Map();
   for (const p of products || []) {
     const cat = normalizeCategory({
       id: p.category_id,
       name: p.category_name,
-      slug: null,
-      sort_order: 0,
+      slug: p.category_id,
     });
-    if (cat) map.set(cat.id, cat);
+    if (cat) map.set(String(cat.id), cat);
   }
-  return [...map.values()].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
+  return [...map.values()].sort((a, b) => a.sort_order - b.sort_order || String(a.id).localeCompare(String(b.id)));
 }
 
 export function mergeCategories(apiCategories, products) {
   const merged = new Map();
   for (const c of normalizeCategories(apiCategories)) {
-    merged.set(c.id, c);
+    merged.set(String(c.id), c);
   }
   for (const c of categoriesFromProducts(products)) {
-    if (!merged.has(c.id)) merged.set(c.id, c);
+    if (!merged.has(String(c.id))) merged.set(String(c.id), c);
   }
-  return [...merged.values()].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
+  return [...merged.values()].sort((a, b) => a.sort_order - b.sort_order || String(a.id).localeCompare(String(b.id)));
 }
 
-/** Категории только с сервера. */
 export async function fetchShopCategories() {
   const data = await api('/api/mobile/shop-categories');
   const list = Array.isArray(data) ? data : data?.categories;
@@ -51,16 +57,15 @@ export async function fetchShopCategories() {
 }
 
 export async function fetchShopProducts(categoryId = null) {
-  const id = categoryId != null && Number(categoryId) > 0 ? Number(categoryId) : null;
-  const q = id ? `?category_id=${id}` : '';
+  const id = normalizeCategoryId(categoryId);
+  const q = id != null ? `?category_id=${encodeURIComponent(id)}` : '';
   const data = await api(`/api/mobile/products${q}`);
   return Array.isArray(data) ? data : [];
 }
 
-/** Каталог: категории + товары с API. */
 export async function fetchShopCatalog(categoryId = null) {
-  const id = categoryId != null && Number(categoryId) > 0 ? Number(categoryId) : null;
-  const q = id ? `?category_id=${id}` : '';
+  const id = normalizeCategoryId(categoryId);
+  const q = id != null ? `?category_id=${encodeURIComponent(id)}` : '';
 
   let categories = [];
   let products = [];
@@ -70,13 +75,7 @@ export async function fetchShopCatalog(categoryId = null) {
     categories = normalizeCategories(data?.categories);
     products = Array.isArray(data?.products) ? data.products : [];
   } catch {
-    try {
-      [categories, products] = await Promise.all([fetchShopCategories(), fetchShopProducts(categoryId)]);
-    } catch (e) {
-      products = await fetchShopProducts(null).catch(() => []);
-      categories = [];
-      throw e;
-    }
+    [categories, products] = await Promise.all([fetchShopCategories(), fetchShopProducts(categoryId)]);
   }
 
   if (!categories.length && products.length) {
@@ -87,7 +86,7 @@ export async function fetchShopCatalog(categoryId = null) {
     try {
       const allProducts = await fetchShopProducts(null);
       categories = mergeCategories(categories, allProducts);
-      if (!id) products = allProducts;
+      if (id == null) products = allProducts;
     } catch {
       /* ignore */
     }

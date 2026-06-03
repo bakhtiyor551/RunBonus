@@ -96,7 +96,7 @@ export default function ShopPage() {
 
   const isCategoryActive = (tabId) => {
     if (tabId == null) return categoryId == null;
-    return Number(categoryId) === Number(tabId);
+    return String(categoryId) === String(tabId);
   };
 
   return (

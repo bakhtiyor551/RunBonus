@@ -1,5 +1,6 @@
 import { pool } from '../db.js';
 import { SHOP_CATEGORIES_FALLBACK } from '../constants/shopCategories.js';
+import { normalizeCategoryId, categoryMapKey } from '../utils/categoryId.js';
 
 let categoriesTableReady = null;
 let colorsTableReady = null;
@@ -111,7 +112,7 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
     description: row.description,
     color: defaultColor,
     colors: colorList,
-    category_id: category?.id ?? row.category_id ?? null,
+    category_id: normalizeCategoryId(category?.id ?? row.category_id) ?? null,
     category_name: category?.name ?? null,
     price: Number(row.price),
     status: row.status,
@@ -133,7 +134,14 @@ async function loadCategoriesMap() {
     const [rows] = await pool.query(
       `SELECT * FROM shop_categories WHERE status = 'active' ORDER BY sort_order, id`
     );
-    if (rows.length) return new Map(rows.map((r) => [Number(r.id), r]));
+    if (rows.length) {
+      return new Map(
+        rows.map((r) => {
+          const key = categoryMapKey(r.id);
+          return key ? [key, r] : null;
+        }).filter(Boolean)
+      );
+    }
   } catch (err) {
     if (err.code !== 'ER_NO_SUCH_TABLE') throw err;
   }
@@ -153,11 +161,17 @@ async function loadColorsForProductIds(ids) {
 
 function mapCategoryRow(r) {
   return {
-    id: Number(r.id),
+    id: normalizeCategoryId(r.id),
     name: r.name,
-    slug: r.slug,
+    slug: r.slug || (typeof r.id === 'string' ? r.id : null),
     sort_order: Number(r.sort_order) || 0,
   };
+}
+
+function resolveCategory(catMap, categoryId) {
+  if (categoryId == null || categoryId === '') return null;
+  const key = categoryMapKey(categoryId);
+  return catMap.get(key) || catMap.get(String(categoryId)) || null;
 }
 
 export async function listActiveShopCategories() {
@@ -174,10 +188,24 @@ export async function listActiveShopCategories() {
 }
 
 export async function listAllShopCategoriesAdmin() {
-  const hasTable = await hasCategoriesTable();
-  if (!hasTable) return SHOP_CATEGORIES_FALLBACK;
-  const [rows] = await pool.query(`SELECT * FROM shop_categories ORDER BY sort_order, id`);
-  return rows;
+  await ensureShopCategories();
+  try {
+    const [rows] = await pool.query(
+      `SELECT c.*,
+        (SELECT COUNT(*) FROM products p
+         WHERE CAST(p.category_id AS CHAR) = CAST(c.id AS CHAR) AND p.status = 'active') AS product_count
+       FROM shop_categories c
+       ORDER BY c.sort_order, c.id`
+    );
+    return rows.map((r) => ({
+      ...mapCategoryRow(r),
+      status: r.status,
+      product_count: Number(r.product_count) || 0,
+    }));
+  } catch (err) {
+    if (err.code !== 'ER_NO_SUCH_TABLE') console.error('listAllShopCategoriesAdmin:', err.message);
+  }
+  return SHOP_CATEGORIES_FALLBACK.map((c) => ({ ...mapCategoryRow(c), status: 'active', product_count: 0 }));
 }
 
 export async function listActiveProducts({ categoryId = null } = {}) {
@@ -219,7 +247,7 @@ export async function listActiveProducts({ categoryId = null } = {}) {
       images.filter((i) => i.product_id === p.id),
       sizes.filter((s) => s.product_id === p.id),
       colorRows.filter((c) => c.product_id === p.id),
-      p.category_id ? catMap.get(Number(p.category_id)) : null
+      resolveCategory(catMap, p.category_id)
     )
   );
 }
@@ -237,7 +265,7 @@ export async function getProductById(id) {
   );
   const colorRows = await loadColorsForProductIds([id]);
   const catMap = await loadCategoriesMap();
-  const category = rows[0].category_id ? catMap.get(Number(rows[0].category_id)) : null;
+  const category = resolveCategory(catMap, rows[0].category_id);
   return mapProductRow(rows[0], images, sizes, colorRows, category);
 }
 
@@ -283,7 +311,7 @@ export async function adminListProducts() {
       images.filter((i) => Number(i.product_id) === Number(p.id)),
       sizes.filter((s) => Number(s.product_id) === Number(p.id)),
       colorRows.filter((c) => Number(c.product_id) === Number(p.id)),
-      p.category_id ? catMap.get(Number(p.category_id)) : null
+      resolveCategory(catMap, p.category_id)
     ),
     slug: p.slug,
     description: p.description,
@@ -300,7 +328,7 @@ export async function adminSaveProduct(data, id = null) {
   try {
     await conn.beginTransaction();
     let productId = id;
-    const catId = category_id ? Number(category_id) : null;
+    const catId = category_id != null && String(category_id).trim() !== '' ? normalizeCategoryId(category_id) : null;
 
     if (productId) {
       await conn.query(

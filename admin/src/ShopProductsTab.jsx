@@ -164,7 +164,7 @@ export default function ShopProductsTab() {
     const payload = {
       ...form,
       price: Number(form.price),
-      category_id: form.category_id ? Number(form.category_id) : null,
+      category_id: form.category_id != null && String(form.category_id).trim() !== '' ? form.category_id : null,
       colors: form.colors.filter((c) => c.label?.trim()),
       sizes: form.sizes.filter((s) => s.size?.trim()),
       images: form.images.filter((i) => i.image_url?.trim()),
