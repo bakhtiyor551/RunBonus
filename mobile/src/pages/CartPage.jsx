@@ -1,30 +1,31 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import { getCart, removeFromCart, clearCart } from '../services/cart';
+import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
 
 export default function CartPage({ user }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [items, setItems] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
-  const [form, setForm] = useState({
-    customer_name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.name || '',
-    phone: user?.phone || '',
-    city: user?.city || '',
-    address: '',
-    comment: '',
-  });
+  const [form, setForm] = useState(() => ({
+    ...emptyOrderForm(user),
+    ...(location.state?.checkoutForm || {}),
+  }));
+
+  const refreshCart = () => setItems(getCart());
 
   useEffect(() => {
-    setItems(getCart());
-  }, []);
+    refreshCart();
+  }, [location.key]);
 
   const total = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
 
@@ -35,8 +36,20 @@ export default function CartPage({ user }) {
       setError('Корзина пуста');
       return;
     }
+    const formErr = validateOrderForm(form, { requireAddress: true });
+    if (formErr) {
+      setError(formErr);
+      return;
+    }
     setSubmitting(true);
     try {
+      const payload = {
+        customer_name: form.customer_name.trim(),
+        phone: form.phone.trim(),
+        city: form.city.trim(),
+        address: form.address.trim(),
+        comment: form.comment.trim(),
+      };
       for (const item of items) {
         await api('/api/mobile/orders', {
           method: 'POST',
@@ -44,7 +57,7 @@ export default function CartPage({ user }) {
             product_id: item.productId,
             size: item.size,
             quantity: item.quantity,
-            ...form,
+            ...payload,
           }),
         });
       }
@@ -144,7 +157,7 @@ export default function CartPage({ user }) {
                 Итого: {total} сомони
               </p>
 
-              <form onSubmit={checkout} className="glass-card" style={{ padding: 20 }}>
+              <form onSubmit={checkout} className="glass-card" style={{ padding: 20 }} noValidate>
                 <h2 className="font-display" style={{ fontSize: 18, margin: '0 0 16px' }}>
                   Оформление заказа
                 </h2>
@@ -164,7 +177,6 @@ export default function CartPage({ user }) {
                         type={type}
                         value={form[key]}
                         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                        required={key !== 'address'}
                       />
                     </div>
                   </div>
