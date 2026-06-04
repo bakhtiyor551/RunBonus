@@ -3284,6 +3284,7 @@ code {
   }
 }
 
+<<<<<<< HEAD
 .warehouse-tab {
   display: flex;
   flex-direction: column;
@@ -3384,11 +3385,22 @@ code {
 .reports-tab__actions {
   display: flex;
   gap: 0.5rem;
+=======
+.reports-page__header,
+.ads-page > h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+>>>>>>> 4d494ec200d088c040073d667f839c42c5d207eb
 }
 
 .reports-subnav {
   display: flex;
   flex-wrap: wrap;
+<<<<<<< HEAD
   gap: 0.35rem;
   margin-bottom: 1rem;
 }
@@ -3487,4 +3499,41 @@ code {
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
+=======
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.report-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.report-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.report-stat-grid {
+  margin-bottom: 16px;
+}
+
+.report-two-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .report-two-cols {
+    grid-template-columns: 1fr;
+  }
+>>>>>>> 4d494ec200d088c040073d667f839c42c5d207eb
 }

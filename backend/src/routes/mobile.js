@@ -229,4 +229,35 @@ router.get('/my-orders', authUser, async (req, res) => {
   }
 });
 
+router.get('/ads/banners', async (req, res) => {
+  try {
+    const { listActiveBanners } = await import('../services/adsService.js');
+    const placement = req.query.placement || 'banner_home';
+    const banners = await listActiveBanners({ placement, user: null });
+    res.json(banners);
+  } catch (err) {
+    console.error(err);
+    res.json([]);
+  }
+});
+
+router.post('/ads/event', async (req, res) => {
+  try {
+    const { recordAdEvent } = await import('../services/adsService.js');
+    const { campaign_id, event_type } = req.body || {};
+    if (!campaign_id || !['impression', 'click', 'open'].includes(event_type)) {
+      return res.status(400).json({ error: 'Некорректные данные' });
+    }
+    await recordAdEvent({
+      campaignId: campaign_id,
+      userId: req.userId || null,
+      eventType: event_type,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 export default router;

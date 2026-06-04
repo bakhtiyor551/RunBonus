@@ -15,6 +15,8 @@ const TITLES = {
   11: 'Отчёты',
   9: 'Заказы магазина',
   10: 'Способы оплаты',
+  reports: 'Отчёты',
+  ads: 'Реклама',
 };
 
 export default function TopBar({ activeTab, fundBalance, currency = 'TJS' }) {
