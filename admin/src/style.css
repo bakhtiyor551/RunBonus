@@ -510,7 +510,7 @@ code {
 
 @media (min-width: 1280px) {
   .bento-grid--stats {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
   .stat-card--wide {
     grid-column: span 2;
@@ -3384,6 +3384,8 @@ code {
 .reports-tab__actions {
   display: flex;
   gap: 0.5rem;
+}
+
 .reports-page__header,
 .ads-page > h2 {
   display: flex;
@@ -3495,8 +3497,6 @@ code {
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
-  gap: 8px;
-  margin-bottom: 16px;
 }
 
 .report-toolbar {
@@ -3529,5 +3529,111 @@ code {
 @media (max-width: 900px) {
   .report-two-cols {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Реклама и отчёты — адаптив */
+.ads-page > h2,
+.reports-page__header h2 {
+  margin: 0;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+}
+
+.reports-subnav {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding-bottom: 4px;
+}
+
+.reports-subnav .chip--pill {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap .data-table {
+  min-width: 520px;
+}
+
+.report-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 1024px) {
+  .bento-grid--stats,
+  .report-stat-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .reports-subnav {
+    flex-wrap: nowrap;
+    margin-bottom: 12px;
+  }
+
+  .report-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .report-toolbar__filters {
+    gap: 6px;
+  }
+
+  .report-toolbar__filters .chip--pill {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .report-toolbar__actions {
+    width: 100%;
+  }
+
+  .report-toolbar__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .bento-grid--stats,
+  .report-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .ads-page .stat-card__value,
+  .reports-page .stat-card__value {
+    font-size: 1.25rem;
+  }
+
+  .ads-page .shop-products-editor__grid .settings-form {
+    order: -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .bento-grid--stats,
+  .report-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-subnav .chip--pill {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.55rem;
+  }
+
+  .report-toolbar__filters .chip--pill {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
+    text-align: center;
   }
 }

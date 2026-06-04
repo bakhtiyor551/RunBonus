@@ -146,7 +146,7 @@ export default function AdsTab() {
       {loading && <p className="hint">Загрузка…</p>}
 
       {!loading && section === 'dashboard' && dashboard && (
-        <div className="bento-grid bento-grid--stats">
+        <div className="bento-grid bento-grid--stats report-stat-grid">
           {[
             { label: 'Активные кампании', value: formatNumber(dashboard.cards?.active_campaigns) },
             { label: 'Доход от рекламы', value: formatMoney(dashboard.cards?.ad_revenue) },
