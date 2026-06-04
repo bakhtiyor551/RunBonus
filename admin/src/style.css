@@ -3284,7 +3284,6 @@ code {
   }
 }
 
-<<<<<<< HEAD
 .warehouse-tab {
   display: flex;
   flex-direction: column;
@@ -3385,7 +3384,6 @@ code {
 .reports-tab__actions {
   display: flex;
   gap: 0.5rem;
-=======
 .reports-page__header,
 .ads-page > h2 {
   display: flex;
@@ -3394,13 +3392,11 @@ code {
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
->>>>>>> 4d494ec200d088c040073d667f839c42c5d207eb
 }
 
 .reports-subnav {
   display: flex;
   flex-wrap: wrap;
-<<<<<<< HEAD
   gap: 0.35rem;
   margin-bottom: 1rem;
 }
@@ -3499,7 +3495,6 @@ code {
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
-=======
   gap: 8px;
   margin-bottom: 16px;
 }
@@ -3535,5 +3530,4 @@ code {
   .report-two-cols {
     grid-template-columns: 1fr;
   }
->>>>>>> 4d494ec200d088c040073d667f839c42c5d207eb
 }

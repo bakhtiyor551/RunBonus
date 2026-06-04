@@ -12,7 +12,6 @@ import ShopProductsTab from './ShopProductsTab';
 import ShopOrdersTab from './ShopOrdersTab';
 import PaymentMethodsTab from './PaymentMethodsTab';
 import WarehouseTab from './WarehouseTab';
-import ReportsTab from './ReportsTab';
 import ReportsTab from './reports/ReportsTab';
 import AdsTab from './ads/AdsTab';
 import Sidebar from './components/Sidebar';
@@ -149,12 +148,7 @@ export default function App() {
               <WarehouseTab />
             </div>
           )}
-          {tab === 11 && (
-            <div className="page-content">
-              <ReportsTab />
-            </div>
-          )}
-          {tab === 'reports' && <ReportsTab />}
+          {tab === 11 && <ReportsTab />}
           {tab === 'ads' && <AdsTab />}
           {tab === 5 && (
             <div className="page-content">

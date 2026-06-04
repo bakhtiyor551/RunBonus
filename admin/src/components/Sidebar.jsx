@@ -15,13 +15,12 @@ const NAV = [
   { id: 11, label: 'Отчёты', icon: 'analytics' },
   { id: 9, label: 'Заказы', icon: 'shopping_bag' },
   { id: 10, label: 'Способы оплаты', icon: 'payments' },
-  { id: 'reports', label: 'Отчёты', icon: 'analytics' },
   { id: 'ads', label: 'Реклама', icon: 'campaign' },
 ];
 
 export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {
   const isActive = (item) =>
-    item.id === 'dashboard' || item.id === 'reports' || item.id === 'ads'
+    item.id === 'dashboard' || item.id === 'ads'
       ? activeTab === item.id
       : activeTab === item.id;
 
@@ -31,7 +30,7 @@ export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout })
       <nav className="sidebar__nav">
         {NAV.map((item) => (
           <button
-            key={item.label}
+            key={String(item.id)}
             type="button"
             className={`sidebar__link${isActive(item) ? ' sidebar__link--active' : ''}`}
             onClick={() => onNavigate(item.id)}
