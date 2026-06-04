@@ -79,7 +79,7 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
 }
 
 async function loadCategoriesMap() {
-  const cats = await listCatalogShopCategories();
+  const cats = await listAllShopCategoriesAdmin();
   return new Map(
     cats.map((c) => {
       const key = categoryMapKey(c.id);
