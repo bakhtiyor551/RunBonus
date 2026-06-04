@@ -3,7 +3,9 @@ export function sizesForColor(product, selectedColor) {
   if (!product) return [];
 
   const colors = product.colors?.length ? product.colors : [];
-  const perColorCatalog = colors.some((c) => c.id != null && Array.isArray(c.sizes));
+  const perColorCatalog = colors.some(
+    (c) => c.id != null && Array.isArray(c.sizes) && c.sizes.length > 0
+  );
 
   if (perColorCatalog) {
     const color =
