@@ -6,8 +6,16 @@ import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import ShoeBindBanner from '../components/ShoeBindBanner';
 import Icon from '../components/Icon';
+import CityPicker from '../components/CityPicker';
 import { formatBalance } from '../utils/format';
+import { formatPhoneDisplay } from '../utils/phone';
 import { compressImageFile, resolveAvatarUrl } from '../utils/avatar';
+
+function profileCity(raw) {
+  const s = String(raw || '').trim();
+  if (!s || s === 'Не указан') return '';
+  return s;
+}
 
 export default function ProfilePage({ user, setUser, onLogout }) {
   const navigate = useNavigate();
@@ -17,6 +25,7 @@ export default function ProfilePage({ user, setUser, onLogout }) {
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState(user.first_name || '');
   const [lastName, setLastName] = useState(user.last_name || '');
+  const [city, setCity] = useState(profileCity(user.city));
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarBase64, setAvatarBase64] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -30,12 +39,14 @@ export default function ProfilePage({ user, setUser, onLogout }) {
     if (!editing) {
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
+      setCity(profileCity(user.city));
     }
-  }, [user.first_name, user.last_name, editing]);
+  }, [user.first_name, user.last_name, user.city, editing]);
 
   const startEdit = () => {
     setFirstName(user.first_name || '');
     setLastName(user.last_name || '');
+    setCity(profileCity(user.city));
     setAvatarPreview(null);
     setAvatarBase64(null);
     setError('');
@@ -74,12 +85,17 @@ export default function ProfilePage({ user, setUser, onLogout }) {
       setError('Укажите имя и фамилию');
       return;
     }
+    if (!city.trim()) {
+      setError('Выберите город');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
       const body = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        city: city.trim(),
       };
       if (avatarBase64) body.avatarBase64 = avatarBase64;
       const profile = await api('/api/auth/profile', {
@@ -165,6 +181,7 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                     />
                   </div>
                 </label>
+                <CityPicker value={city} onChange={setCity} />
                 {error && <p className="rb-text-error">{error}</p>}
                 <div className="rb-profile-form__actions">
                   <button type="submit" className="rb-btn-pill" disabled={saving} style={{ flex: 1 }}>
@@ -180,7 +197,12 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                 <h2 className="rb-headline font-display" style={{ margin: '0 0 4px' }}>
                   {user.name || 'Пользователь'}
                 </h2>
-                <p className="rb-text-muted">{user.phone}</p>
+                <p className="rb-text-muted">{formatPhoneDisplay(user.phone)}</p>
+                {profileCity(user.city) && (
+                  <p className="rb-text-muted" style={{ marginTop: 4 }}>
+                    {profileCity(user.city)}
+                  </p>
+                )}
                 <p className="rb-label" style={{ marginTop: 8 }}>
                   {formatBalance(user.balance)} сомони
                 </p>

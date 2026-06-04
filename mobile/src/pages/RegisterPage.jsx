@@ -6,6 +6,8 @@ import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
 import OtpInput from '../components/OtpInput';
 import CityPicker from '../components/CityPicker';
+import PhoneInput from '../components/PhoneInput';
+import { formatPhoneDisplay, phoneValidationMessage } from '../utils/phone';
 
 const STEP_LABELS = ['Данные', 'Код из SMS'];
 
@@ -59,6 +61,11 @@ export default function RegisterPage({ onAuth }) {
     }
     if (!phone.trim()) {
       setError('Укажите номер телефона');
+      return;
+    }
+    const phoneErr = phoneValidationMessage(phone);
+    if (phoneErr) {
+      setError(phoneErr);
       return;
     }
     if (!city.trim()) {
@@ -169,19 +176,7 @@ export default function RegisterPage({ onAuth }) {
                 <input className="rb-input" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
               </div>
               <CityPicker value={city} onChange={setCity} />
-              <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
-                Номер телефона
-              </label>
-              <div className="rb-input-wrap" style={{ marginBottom: 14 }}>
-                <input
-                  className="rb-input"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+992 90 123 4567"
-                  required
-                />
-              </div>
+              <PhoneInput value={phone} onChange={setPhone} required />
               {error && <p className="rb-text-error">{error}</p>}
               <button type="submit" className="rb-btn-primary" disabled={loading} style={{ width: '100%', marginTop: 16 }}>
                 {loading ? 'Отправка…' : 'Получить код'}
@@ -195,7 +190,7 @@ export default function RegisterPage({ onAuth }) {
                 Код из SMS
               </h2>
               <p className="rb-text-muted" style={{ marginBottom: 8, fontSize: 14 }}>
-                Введите 6 цифр, отправленных на {phone}
+                Введите 6 цифр, отправленных на {formatPhoneDisplay(phone)}
               </p>
               <OtpInput value={otp} onChange={setOtp} disabled={loading} />
               {error && <p className="rb-text-error">{error}</p>}

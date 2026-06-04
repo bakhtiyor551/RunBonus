@@ -1,10 +1,13 @@
 import { getPaymentMethod } from './paymentMethods';
 import { deliveryRequiresAddress, getDeliveryMethod } from './deliveryMethods';
+import { phoneValidationMessage } from './phone';
+
+import { phoneToLocalDigits } from './phone';
 
 export function emptyOrderForm(user) {
   return {
     customer_name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.name || '',
-    phone: user?.phone || '',
+    phone: phoneToLocalDigits(user?.phone),
     city: user?.city || '',
     address: '',
     delivery_method: 'courier',
@@ -23,7 +26,8 @@ export function validateOrderForm(
   { cartTotal = 0, availableBonus = 0 } = {}
 ) {
   if (!form.customer_name?.trim()) return 'Укажите имя';
-  if (!form.phone?.trim()) return 'Укажите телефон';
+  const phoneErr = phoneValidationMessage(form.phone);
+  if (phoneErr) return phoneErr;
   if (!form.city?.trim()) return 'Укажите город';
 
   if (!form.delivery_method) return 'Выберите способ доставки';

@@ -5,6 +5,8 @@ import { api } from '../api';
 import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
 import OtpInput from '../components/OtpInput';
+import PhoneInput from '../components/PhoneInput';
+import { formatPhoneDisplay, phoneValidationMessage } from '../utils/phone';
 
 export default function LoginPage({ onAuth }) {
   const [step, setStep] = useState(0);
@@ -41,6 +43,11 @@ export default function LoginPage({ onAuth }) {
     setError('');
     if (!phone.trim()) {
       setError('Введите номер телефона');
+      return;
+    }
+    const phoneErr = phoneValidationMessage(phone);
+    if (phoneErr) {
+      setError(phoneErr);
       return;
     }
     setLoading(true);
@@ -108,22 +115,7 @@ export default function LoginPage({ onAuth }) {
 
           {step === 0 && (
             <form className="glass-effect rb-login-form" onSubmit={sendCode} autoComplete="on">
-              <label className="rb-login-form__label">
-                Телефон
-                <div className="rb-input-wrap">
-                  <input
-                    className="rb-input rb-login-form__input"
-                    type="tel"
-                    name="phone"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+992 90 123 4567"
-                    required
-                  />
-                </div>
-              </label>
+              <PhoneInput value={phone} onChange={setPhone} label="Телефон" required />
 
               {notice && (
                 <p className="rb-text-muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
@@ -142,7 +134,7 @@ export default function LoginPage({ onAuth }) {
           {step === 1 && (
             <form className="glass-effect rb-login-form" onSubmit={submitOtp}>
               <p className="rb-text-muted" style={{ fontSize: 14, margin: 0 }}>
-                Код отправлен на {phone}
+                Код отправлен на {formatPhoneDisplay(phone)}
               </p>
               <OtpInput value={otp} onChange={setOtp} disabled={loading} />
               {error && <p className="rb-text-error">{error}</p>}
