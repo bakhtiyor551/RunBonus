@@ -5,6 +5,7 @@ import { api } from '../api';
 import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
 import OtpInput from '../components/OtpInput';
+import CityPicker from '../components/CityPicker';
 
 const STEP_LABELS = ['Данные', 'Код из SMS'];
 
@@ -44,6 +45,7 @@ export default function RegisterPage({ onAuth }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,6 +59,10 @@ export default function RegisterPage({ onAuth }) {
     }
     if (!phone.trim()) {
       setError('Укажите номер телефона');
+      return;
+    }
+    if (!city.trim()) {
+      setError('Выберите город');
       return;
     }
     setLoading(true);
@@ -105,6 +111,7 @@ export default function RegisterPage({ onAuth }) {
           code: otp,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          city: city.trim(),
         }),
       });
       onAuth(data);
@@ -161,6 +168,7 @@ export default function RegisterPage({ onAuth }) {
               <div className="rb-input-wrap" style={{ marginBottom: 14 }}>
                 <input className="rb-input" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
               </div>
+              <CityPicker value={city} onChange={setCity} />
               <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
                 Номер телефона
               </label>
