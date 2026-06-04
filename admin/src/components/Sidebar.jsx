@@ -12,7 +12,7 @@ const NAV = [
   { id: 6, label: 'Вывод средств', icon: 'south_west' },
   { id: 8, label: 'Магазин', icon: 'storefront' },
   { id: 12, label: 'Склад', icon: 'inventory_2' },
-  { id: 11, label: 'Категории', icon: 'category' },
+  { id: 11, label: 'Отчёты', icon: 'analytics' },
   { id: 9, label: 'Заказы', icon: 'shopping_bag' },
   { id: 10, label: 'Способы оплаты', icon: 'payments' },
 ];

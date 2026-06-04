@@ -9,10 +9,10 @@ import WithdrawalsTab from './WithdrawalsTab';
 import DashboardTab from './DashboardTab';
 import ClientsTab from './ClientsTab';
 import ShopProductsTab from './ShopProductsTab';
-import ShopCategoriesTab from './ShopCategoriesTab';
 import ShopOrdersTab from './ShopOrdersTab';
 import PaymentMethodsTab from './PaymentMethodsTab';
 import WarehouseTab from './WarehouseTab';
+import ReportsTab from './ReportsTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -132,11 +132,6 @@ export default function App() {
               <ShopProductsTab />
             </div>
           )}
-          {tab === 11 && (
-            <div className="page-content">
-              <ShopCategoriesTab />
-            </div>
-          )}
           {tab === 9 && (
             <div className="page-content">
               <ShopOrdersTab />
@@ -150,6 +145,11 @@ export default function App() {
           {tab === 12 && (
             <div className="page-content">
               <WarehouseTab />
+            </div>
+          )}
+          {tab === 11 && (
+            <div className="page-content">
+              <ReportsTab />
             </div>
           )}
           {tab === 5 && (

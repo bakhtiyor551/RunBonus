@@ -16,6 +16,7 @@ import adminWithdrawalsRoutes from './routes/adminWithdrawals.js';
 import meRoutes from './routes/me.js';
 import mobileRoutes from './routes/mobile.js';
 import adminShopRoutes from './routes/adminShop.js';
+import adminReportsRoutes from './routes/adminReports.js';
 import { isWithdrawalSchemaReady } from './services/withdrawalService.js';
 
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api/mobile', mobileRoutes);
 app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/shop', adminShopRoutes);
+app.use('/api/admin/reports', adminReportsRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 
 app.use((err, _req, res, _next) => {

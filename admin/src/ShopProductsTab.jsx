@@ -11,7 +11,7 @@ const emptyForm = {
   price: '',
   status: 'active',
   default_stock: 5,
-  colors: [{ label: '', hex_code: '', image_url: '' }],
+  colors: [{ label: '', hex_code: '#444444', image_url: '' }],
   sizes: [],
   images: [{ image_url: '', sort_order: 0 }],
 };
@@ -33,6 +33,93 @@ const SIZE_PRESETS = {
   tshirt: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
   shorts: ['S', 'M', 'L', 'XL', 'XXL'],
 };
+
+const COLOR_PRESETS = [
+  { label: 'Чёрный', hex: '#1a1a1a' },
+  { label: 'Белый', hex: '#f5f5f5' },
+  { label: 'Серый', hex: '#6b7280' },
+  { label: 'Красный', hex: '#ef4444' },
+  { label: 'Синий', hex: '#3b82f6' },
+  { label: 'Зелёный', hex: '#22c55e' },
+  { label: 'Оранжевый', hex: '#f97316' },
+  { label: 'Жёлтый', hex: '#eab308' },
+  { label: 'Розовый', hex: '#ec4899' },
+  { label: 'Бежевый', hex: '#d4b896' },
+  { label: 'Neon', hex: '#c3f400' },
+];
+
+function normalizeHex(hex) {
+  const v = String(hex || '').trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(v)) return v;
+  if (/^#[0-9A-Fa-f]{3}$/.test(v)) {
+    const h = v.slice(1);
+    return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`;
+  }
+  return '#444444';
+}
+
+function ColorRowEditor({ color, onChange, onRemove, canRemove }) {
+  const hex = normalizeHex(color.hex_code || '#444444');
+
+  const applyPreset = (preset) => {
+    onChange({
+      ...color,
+      label: color.label?.trim() ? color.label : preset.label,
+      hex_code: preset.hex,
+    });
+  };
+
+  return (
+    <div className="shop-product-color-row glass-card">
+      <div className="shop-product-color-row__picker">
+        <span className="shop-product-color-row__swatch" style={{ background: hex }} title={hex} />
+        <label className="shop-product-color-row__color-input">
+          <span>Выберите цвет</span>
+          <input
+            type="color"
+            value={hex}
+            onChange={(e) => onChange({ ...color, hex_code: e.target.value })}
+          />
+        </label>
+        <span className="shop-product-color-row__hex">{hex}</span>
+      </div>
+      <div className="shop-product-color-presets">
+        {COLOR_PRESETS.map((p) => (
+          <button
+            key={p.hex}
+            type="button"
+            className={`shop-product-color-preset${hex.toLowerCase() === p.hex.toLowerCase() ? ' shop-product-color-preset--active' : ''}`}
+            title={p.label}
+            onClick={() => applyPreset(p)}
+          >
+            <span style={{ background: p.hex }} />
+          </button>
+        ))}
+      </div>
+      <label>
+        Название цвета
+        <input
+          value={color.label}
+          onChange={(e) => onChange({ ...color, label: e.target.value })}
+          placeholder="Чёрный, Neon green…"
+        />
+      </label>
+      <label>
+        URL фото (для этого цвета)
+        <input
+          value={color.image_url}
+          onChange={(e) => onChange({ ...color, image_url: e.target.value })}
+          placeholder="https://…"
+        />
+      </label>
+      {canRemove && (
+        <button type="button" className="btn btn--sm btn--ghost" onClick={onRemove}>
+          Удалить цвет
+        </button>
+      )}
+    </div>
+  );
+}
 
 function slugFromName(name) {
   return name
@@ -272,64 +359,28 @@ function ProductForm({
           <section className="shop-product-form__section">
             <h4>2. Цвета</h4>
             <div className="shop-product-colors-editor">
-              <p className="hint" style={{ margin: '0 0 8px' }}>
-                Цвета (клиент выбирает в карточке товара)
-              </p>
+              <p className="hint">Клиент выбирает цвет в карточке товара. Нажмите на палитру или выберите готовый оттенок.</p>
               {form.colors.map((c, idx) => (
-                <div key={idx} className="shop-product-color-row glass-card" style={{ padding: 12, marginBottom: 8 }}>
-                  <label>
-                    Название
-                    <input
-                      value={c.label}
-                      onChange={(e) => {
-                        const colors = [...form.colors];
-                        colors[idx] = { ...colors[idx], label: e.target.value };
-                        setForm({ ...form, colors });
-                      }}
-                      placeholder="Чёрный / зелёный"
-                    />
-                  </label>
-                  <label>
-                    Цвет кружка (#hex)
-                    <input
-                      value={c.hex_code}
-                      onChange={(e) => {
-                        const colors = [...form.colors];
-                        colors[idx] = { ...colors[idx], hex_code: e.target.value };
-                        setForm({ ...form, colors });
-                      }}
-                      placeholder="#000000"
-                    />
-                  </label>
-                  <label>
-                    URL фото (для этого цвета)
-                    <input
-                      value={c.image_url}
-                      onChange={(e) => {
-                        const colors = [...form.colors];
-                        colors[idx] = { ...colors[idx], image_url: e.target.value };
-                        setForm({ ...form, colors });
-                      }}
-                    />
-                  </label>
-                  {form.colors.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--ghost"
-                      onClick={() =>
-                        setForm({ ...form, colors: form.colors.filter((_, i) => i !== idx) })
-                      }
-                    >
-                      Удалить цвет
-                    </button>
-                  )}
-                </div>
+                <ColorRowEditor
+                  key={idx}
+                  color={c}
+                  canRemove={form.colors.length > 1}
+                  onChange={(updated) => {
+                    const colors = [...form.colors];
+                    colors[idx] = updated;
+                    setForm({ ...form, colors });
+                  }}
+                  onRemove={() => setForm({ ...form, colors: form.colors.filter((_, i) => i !== idx) })}
+                />
               ))}
               <button
                 type="button"
                 className="btn btn--sm"
                 onClick={() =>
-                  setForm({ ...form, colors: [...form.colors, { label: '', hex_code: '', image_url: '' }] })
+                  setForm({
+                    ...form,
+                    colors: [...form.colors, { label: '', hex_code: '#444444', image_url: '' }],
+                  })
                 }
               >
                 + Цвет
