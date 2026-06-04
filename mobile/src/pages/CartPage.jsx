@@ -11,6 +11,7 @@ import QuantityStepper from '../components/QuantityStepper';
 import { getCart, removeFromCart, clearCart, setCartItemQuantity } from '../services/cart';
 import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
 import MobileTransferModal from '../components/MobileTransferModal';
+import CityPicker from '../components/CityPicker';
 import { showToast } from '../utils/toast';
 import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
 import { DELIVERY_METHODS_FALLBACK, deliveryRequiresAddress } from '../utils/deliveryMethods';
@@ -241,7 +242,6 @@ export default function CartPage({ user }) {
                 {[
                   ['customer_name', 'Имя', 'text'],
                   ['phone', 'Телефон', 'tel'],
-                  ['city', 'Город', 'text'],
                 ].map(([key, label, type]) => (
                   <div key={key} style={{ marginBottom: 12 }}>
                     <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
@@ -257,6 +257,8 @@ export default function CartPage({ user }) {
                     </div>
                   </div>
                 ))}
+
+                <CityPicker value={form.city} onChange={(city) => setForm({ ...form, city })} />
 
                 {deliveryRequiresAddress(deliveryMethods, form.delivery_method) && (
                   <div style={{ marginBottom: 12 }}>

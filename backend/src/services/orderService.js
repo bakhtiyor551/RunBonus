@@ -16,10 +16,7 @@ import {
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { spendBonus } from './bonusService.js';
 import { getWalletSummary } from './withdrawalService.js';
-import {
-  decrementStockForOrder,
-  restoreStockForCancelledOrder,
-} from './warehouseService.js';
+import { assertProductSizeInStock } from './shopService.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
@@ -104,16 +101,14 @@ export async function createOrder(data, userId = null) {
   try {
     await conn.beginTransaction();
 
-    const [products] = await conn.query(
-      `SELECT * FROM products WHERE id = ? AND status = 'active'`,
-      [product_id]
-    );
-    if (!products.length) {
-      const err = new Error('Товар не найден');
-      err.status = 404;
-      throw err;
-    }
-    product = products[0];
+  if (size) {
+    await assertProductSizeInStock(pool, {
+      productId: product_id,
+      size,
+      color: orderColor,
+      qty,
+    });
+  }
 
     const baseValues = [
       userId,
@@ -245,6 +240,15 @@ async function createOrderPaidWithBonus(data, userId) {
       throw err;
     }
     const product = products[0];
+
+    if (size) {
+      await assertProductSizeInStock(conn, {
+        productId: product_id,
+        size,
+        color: orderColor,
+        qty,
+      });
+    }
 
     const price = Number(product.price);
     const subtotal = Math.round(price * qty * 100) / 100;

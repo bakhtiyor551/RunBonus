@@ -8,6 +8,7 @@ import { buildProductImages } from '../components/ProductImageGallery';
 import { hexForColor } from '../components/ColorPicker';
 import { cartCount } from '../services/cart';
 import { fetchShopCatalog } from '../utils/shopCatalog';
+import { sizesForColor, productHasStock } from '../utils/productSizes';
 
 function productColors(product) {
   if (product.colors?.length) return product.colors;
@@ -24,7 +25,8 @@ function ProductCard({ product, onOpen }) {
   const colors = productColors(product);
   const [selectedColor, setSelectedColor] = useState(colors[0] || null);
   const previewImage = previewImageFor(product, selectedColor);
-  const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
+  const sizes = sizesForColor(product, selectedColor).map((s) => s.size);
+  const inStock = productHasStock(product, selectedColor);
   const colorLabels = colors.map((c) => c.label).filter(Boolean);
   const colorsText =
     colorLabels.length > 1
@@ -91,7 +93,7 @@ function ProductCard({ product, onOpen }) {
           </p>
         )}
         <span className="rb-badge-live" style={{ marginTop: 8, fontSize: 10 }}>
-          {product.in_stock ? 'В наличии' : 'Нет в наличии'}
+          {inStock ? 'В наличии' : 'Нет в наличии'}
         </span>
       </div>
     </button>

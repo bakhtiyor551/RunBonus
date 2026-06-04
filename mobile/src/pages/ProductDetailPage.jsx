@@ -9,6 +9,7 @@ import ColorPicker from '../components/ColorPicker';
 import ProductImageGallery, { buildProductImages } from '../components/ProductImageGallery';
 import { addToCart } from '../services/cart';
 import { showToast } from '../utils/toast';
+import { sizesForColor, productHasStock } from '../utils/productSizes';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -30,16 +31,34 @@ export default function ProductDetailPage() {
     api(`/api/mobile/products/${id}`)
       .then((p) => {
         setProduct(p);
-        const first = (p.sizes || []).find((s) => s.in_stock);
-        if (first) setSize(first.size);
         const colorList = p.colors?.length ? p.colors : p.color ? [{ label: p.color }] : [];
-        if (colorList.length) setSelectedColor(colorList[0]);
+        const firstColor = colorList[0] || null;
+        if (colorList.length) setSelectedColor(firstColor);
+        const first = sizesForColor(p, firstColor)[0];
+        setSize(first?.size || '');
       })
       .catch(() => setProduct(null))
       .finally(() => setLoading(false));
   }, [id]);
 
+  const availableSizes = useMemo(
+    () => sizesForColor(product, selectedColor),
+    [product, selectedColor]
+  );
+
+  const hasStock = productHasStock(product, selectedColor);
+
+  useEffect(() => {
+    if (!product) return;
+    const first = availableSizes[0];
+    setSize(first?.size || '');
+  }, [selectedColor?.id, selectedColor?.label, product?.id, availableSizes]);
+
   const addToCartAndGo = async () => {
+    if (!hasStock) {
+      await showToast('Нет в наличии');
+      return;
+    }
     if (!size) {
       await showToast('Выберите размер');
       return;
@@ -87,8 +106,6 @@ export default function ProductDetailPage() {
     );
   }
 
-  const availableSizes = (product.sizes || []).filter((s) => s.in_stock);
-
   return (
     <IonPage>
       <AppHeader onBack={() => navigate(-1)} />
@@ -117,8 +134,14 @@ export default function ProductDetailPage() {
           <p className="rb-display font-display" style={{ color: 'var(--rb-neon)', fontSize: 28, margin: '0 0 8px' }}>
             {product.price} сомони
           </p>
-          <p className="rb-text-muted" style={{ marginTop: 8 }}>
-            {product.in_stock ? 'В наличии' : 'Нет в наличии'}
+          <p
+            className="rb-text-muted"
+            style={{
+              marginTop: 8,
+              color: hasStock ? undefined : 'var(--rb-error)',
+            }}
+          >
+            {hasStock ? 'В наличии' : 'Нет в наличии'}
           </p>
           <p className="rb-text-muted" style={{ marginTop: 12, lineHeight: 1.5 }}>
             {product.description}
@@ -128,25 +151,37 @@ export default function ProductDetailPage() {
             <p className="rb-label" style={{ marginBottom: 8 }}>
               Размер
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {availableSizes.map((s) => (
-                <button
-                  key={s.size}
-                  type="button"
-                  className={`rb-size-chip${size === s.size ? ' rb-size-chip--active' : ''}`}
-                  onClick={() => setSize(s.size)}
-                >
-                  {s.size}
-                </button>
-              ))}
-            </div>
+            {hasStock ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {availableSizes.map((s) => (
+                  <button
+                    key={s.size}
+                    type="button"
+                    className={`rb-size-chip${size === s.size ? ' rb-size-chip--active' : ''}`}
+                    onClick={() => setSize(s.size)}
+                  >
+                    {s.size}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="rb-text-muted" style={{ margin: 0, color: 'var(--rb-error)' }}>
+                Нет в наличии
+              </p>
+            )}
           </section>
 
           <div style={{ marginTop: 20, marginBottom: 24 }}>
-            <QuantityStepper label="Количество" value={quantity} onChange={setQuantity} />
+            <QuantityStepper label="Количество" value={quantity} onChange={setQuantity} disabled={!hasStock} />
           </div>
 
-          <button type="button" className="rb-btn-primary" style={{ width: '100%' }} onClick={addToCartAndGo}>
+          <button
+            type="button"
+            className="rb-btn-primary"
+            style={{ width: '100%', opacity: hasStock ? 1 : 0.5 }}
+            disabled={!hasStock}
+            onClick={addToCartAndGo}
+          >
             <Icon name="add_shopping_cart" />
             В корзину
           </button>
