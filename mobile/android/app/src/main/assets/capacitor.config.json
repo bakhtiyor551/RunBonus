@@ -25,6 +25,10 @@
 				"location",
 				"coarseLocation"
 			]
+		},
+		"Keyboard": {
+			"resize": "ionic",
+			"style": "dark"
 		}
 	}
 }
