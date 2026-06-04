@@ -9,6 +9,7 @@ import ColorPicker from '../components/ColorPicker';
 import ProductImageGallery, { buildProductImages } from '../components/ProductImageGallery';
 import { addToCart } from '../services/cart';
 import { showToast } from '../utils/toast';
+import { sizesForColor, productHasStock } from '../utils/productSizes';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -31,8 +32,9 @@ export default function ProductDetailPage() {
       .then((p) => {
         setProduct(p);
         const colorList = p.colors?.length ? p.colors : p.color ? [{ label: p.color }] : [];
-        if (colorList.length) setSelectedColor(colorList[0]);
-        const first = (p.sizes || []).find((s) => s.in_stock);
+        const firstColor = colorList[0] || null;
+        if (colorList.length) setSelectedColor(firstColor);
+        const first = sizesForColor(p, firstColor)[0];
         setSize(first?.size || '');
       })
       .catch(() => setProduct(null))
@@ -40,11 +42,11 @@ export default function ProductDetailPage() {
   }, [id]);
 
   const availableSizes = useMemo(
-    () => (product?.sizes || []).filter((s) => s.in_stock),
-    [product]
+    () => sizesForColor(product, selectedColor),
+    [product, selectedColor]
   );
 
-  const hasStock = availableSizes.length > 0;
+  const hasStock = productHasStock(product, selectedColor);
 
   useEffect(() => {
     if (!product) return;

@@ -16,6 +16,7 @@ import {
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { spendBonus } from './bonusService.js';
 import { getWalletSummary } from './withdrawalService.js';
+import { assertProductSizeInStock } from './shopService.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
@@ -106,15 +107,12 @@ export async function createOrder(data, userId = null) {
   const product = products[0];
 
   if (size) {
-    const [sizeRows] = await pool.query(
-      `SELECT * FROM product_sizes WHERE product_id = ? AND size = ? AND status = 'active'`,
-      [product_id, size]
-    );
-    if (!sizeRows.length || sizeRows[0].stock_qty < qty) {
-      const err = new Error('Выбранный размер недоступен');
-      err.status = 400;
-      throw err;
-    }
+    await assertProductSizeInStock(pool, {
+      productId: product_id,
+      size,
+      color: orderColor,
+      qty,
+    });
   }
 
   const price = Number(product.price);
@@ -229,15 +227,12 @@ async function createOrderPaidWithBonus(data, userId) {
     const product = products[0];
 
     if (size) {
-      const [sizeRows] = await conn.query(
-        `SELECT * FROM product_sizes WHERE product_id = ? AND size = ? AND status = 'active'`,
-        [product_id, size]
-      );
-      if (!sizeRows.length || sizeRows[0].stock_qty < qty) {
-        const err = new Error('Выбранный размер недоступен');
-        err.status = 400;
-        throw err;
-      }
+      await assertProductSizeInStock(conn, {
+        productId: product_id,
+        size,
+        color: orderColor,
+        qty,
+      });
     }
 
     const price = Number(product.price);

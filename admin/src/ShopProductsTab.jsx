@@ -10,8 +10,8 @@ const emptyForm = {
   category_id: '',
   price: '',
   status: 'active',
-  colors: [{ label: '', hex_code: '', image_url: '' }],
-  sizes: [{ size: '40', stock_qty: 5, status: 'active' }],
+  colors: [{ label: '', hex_code: '', image_url: '', sizes: [{ size: '40', stock_qty: 5, status: 'active' }] }],
+  sizes: [],
   images: [{ image_url: '', sort_order: 0 }],
 };
 
@@ -25,9 +25,21 @@ function productImageUrl(product) {
 }
 
 function productSizesList(product) {
+  const fromColors = (product?.colors || []).flatMap((c) =>
+    (c.sizes || []).filter((s) => s.in_stock !== false && Number(s.stock_qty) > 0).map((s) => s.size)
+  );
+  if (fromColors.length) return [...new Set(fromColors)];
   return (product?.sizes || [])
     .filter((s) => s.status !== 'inactive' && Number(s.stock_qty) > 0)
     .map((s) => s.size);
+}
+
+function sizesFromComma(str) {
+  return String(str || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((size) => ({ size, stock_qty: 5, status: 'active' }));
 }
 
 function ShopProductCard({ product, selected, onEdit, onDeactivate }) {
@@ -120,24 +132,45 @@ export default function ShopProductsTab() {
     name: form.name,
     price: form.price,
     color: form.colors?.[0]?.label || form.color,
-    colors: form.colors.filter((c) => c.label?.trim()),
+    colors: form.colors
+      .filter((c) => c.label?.trim())
+      .map((c) => ({
+        ...c,
+        sizes: (c.sizes || []).filter((s) => s.size?.trim()),
+        in_stock: (c.sizes || []).some((s) => Number(s.stock_qty) > 0),
+      })),
     category_name: categories.find((c) => String(c.id) === String(form.category_id))?.name,
     status: form.status,
     images: form.images,
-    sizes: form.sizes.filter((s) => s.size?.trim()),
+    sizes: [],
   };
 
   const startEdit = (p) => {
     setEditId(p.id);
     setShowForm(true);
+    const legacySizes = (p.sizes || []).map((s) => ({
+      size: s.size,
+      stock_qty: s.stock_qty ?? 5,
+      status: s.status || 'active',
+    }));
     const colorRows = p.colors?.length
-      ? p.colors.map((c) => ({
+      ? p.colors.map((c, i) => ({
           label: c.label || '',
           hex_code: c.hex_code || '',
           image_url: c.image_url || '',
+          sizes:
+            c.sizes?.length > 0
+              ? c.sizes.map((s) => ({
+                  size: s.size,
+                  stock_qty: s.stock_qty ?? 5,
+                  status: s.status || 'active',
+                }))
+              : i === 0 && legacySizes.length
+                ? legacySizes
+                : [{ size: '40', stock_qty: 5, status: 'active' }],
         }))
       : p.color
-        ? [{ label: p.color, hex_code: '', image_url: '' }]
+        ? [{ label: p.color, hex_code: '', image_url: '', sizes: legacySizes.length ? legacySizes : emptyForm.colors[0].sizes }]
         : emptyForm.colors;
     setForm({
       name: p.name,
@@ -148,7 +181,7 @@ export default function ShopProductsTab() {
       price: String(p.price),
       status: p.status,
       colors: colorRows,
-      sizes: p.sizes?.length ? p.sizes : emptyForm.sizes,
+      sizes: [],
       images: p.images?.length
         ? p.images.map((img, i) =>
             typeof img === 'string'
@@ -171,8 +204,13 @@ export default function ShopProductsTab() {
       ...form,
       price: Number(form.price),
       category_id: form.category_id != null && String(form.category_id).trim() !== '' ? form.category_id : null,
-      colors: form.colors.filter((c) => c.label?.trim()),
-      sizes: form.sizes.filter((s) => s.size?.trim()),
+      colors: form.colors
+        .filter((c) => c.label?.trim())
+        .map((c) => ({
+          ...c,
+          sizes: (c.sizes || []).filter((s) => s.size?.trim()),
+        })),
+      sizes: [],
       images: form.images.filter((i) => i.image_url?.trim()),
     };
     if (editId) {
@@ -190,8 +228,6 @@ export default function ShopProductsTab() {
     if (editId === id) resetForm();
     load();
   };
-
-  const sizesValue = form.sizes.map((s) => s.size).filter(Boolean).join(',');
 
   return (
     <div className="page-content shop-products-page">
@@ -294,6 +330,18 @@ export default function ShopProductsTab() {
                         }}
                       />
                     </label>
+                    <label>
+                      Размеры этого цвета (через запятую)
+                      <input
+                        placeholder="39,40,41,42"
+                        value={(c.sizes || []).map((s) => s.size).filter(Boolean).join(',')}
+                        onChange={(e) => {
+                          const colors = [...form.colors];
+                          colors[idx] = { ...colors[idx], sizes: sizesFromComma(e.target.value) };
+                          setForm({ ...form, colors });
+                        }}
+                      />
+                    </label>
                     {form.colors.length > 1 && (
                       <button
                         type="button"
@@ -311,7 +359,13 @@ export default function ShopProductsTab() {
                   type="button"
                   className="btn btn--sm"
                   onClick={() =>
-                    setForm({ ...form, colors: [...form.colors, { label: '', hex_code: '', image_url: '' }] })
+                    setForm({
+                      ...form,
+                      colors: [
+                        ...form.colors,
+                        { label: '', hex_code: '', image_url: '', sizes: [{ size: '40', stock_qty: 5, status: 'active' }] },
+                      ],
+                    })
                   }
                 >
                   + Цвет
@@ -373,27 +427,6 @@ export default function ShopProductsTab() {
                   + Фото
                 </button>
               </div>
-              <label>
-                Размеры (через запятую)
-                <input
-                  placeholder="39,40,41,42,43"
-                  value={sizesValue}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      sizes: e.target.value
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                        .map((size) => ({
-                          size,
-                          stock_qty: 5,
-                          status: 'active',
-                        })),
-                    })
-                  }
-                />
-              </label>
               <label>
                 Статус
                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>

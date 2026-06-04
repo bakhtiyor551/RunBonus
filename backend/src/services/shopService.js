@@ -11,6 +11,7 @@ import {
 export { listActiveShopCategories, listAllShopCategoriesAdmin, listCatalogShopCategories };
 
 let colorsTableReady = null;
+let colorSizesTableReady = null;
 
 async function hasColorsTable() {
   if (colorsTableReady != null) return colorsTableReady;
@@ -24,7 +25,29 @@ async function hasColorsTable() {
   return colorsTableReady;
 }
 
-function mapColorRow(row) {
+async function hasColorSizesTable() {
+  if (colorSizesTableReady != null) return colorSizesTableReady;
+  try {
+    await pool.query(`SELECT 1 FROM product_color_sizes LIMIT 1`);
+    colorSizesTableReady = true;
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') colorSizesTableReady = false;
+    else throw err;
+  }
+  return colorSizesTableReady;
+}
+
+function mapSizeRow(s) {
+  return {
+    id: s.id,
+    size: s.size,
+    stock_qty: Number(s.stock_qty) || 0,
+    in_stock: s.status === 'active' && Number(s.stock_qty) > 0,
+  };
+}
+
+function mapColorRow(row, colorSizeRows = []) {
+  const sizes = colorSizeRows.map(mapSizeRow);
   return {
     id: row.id,
     label: row.label,
@@ -32,16 +55,28 @@ function mapColorRow(row) {
     image_url: row.image_url || null,
     sort_order: Number(row.sort_order) || 0,
     status: row.status,
+    sizes,
+    in_stock: sizes.some((s) => s.in_stock),
   };
 }
 
-function mapProductRow(row, images = [], sizes = [], colors = [], category = null) {
+function mapProductRow(row, images = [], sizes = [], colors = [], category = null, colorSizeRows = []) {
   const activeSizes = sizes.filter((s) => s.status === 'active' && s.stock_qty > 0);
   const activeColors = colors.filter((c) => c.status === 'active');
+  const sizesByColorId = new Map();
+  for (const s of colorSizeRows) {
+    const cid = Number(s.product_color_id);
+    if (!sizesByColorId.has(cid)) sizesByColorId.set(cid, []);
+    sizesByColorId.get(cid).push(s);
+  }
+
+  const usesPerColorSizes =
+    activeColors.length > 0 && colorSizeRows.length > 0 && sizesByColorId.size > 0;
+
   const colorList = activeColors.length
-    ? activeColors.map(mapColorRow)
+    ? activeColors.map((c) => mapColorRow(c, sizesByColorId.get(Number(c.id)) || []))
     : row.color
-      ? [{ id: null, label: row.color, hex_code: null, image_url: null }]
+      ? [{ id: null, label: row.color, hex_code: null, image_url: null, sizes: [], in_stock: activeSizes.length > 0 }]
       : [];
 
   const defaultColor = colorList[0]?.label || row.color || null;
@@ -49,6 +84,10 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
     colorList.find((c) => c.image_url)?.image_url ||
     images[0]?.image_url ||
     null;
+
+  const in_stock = usesPerColorSizes
+    ? colorList.some((c) => c.in_stock)
+    : activeSizes.length > 0;
 
   return {
     id: row.id,
@@ -65,13 +104,8 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
         : null),
     price: Number(row.price),
     status: row.status,
-    in_stock: activeSizes.length > 0,
-    sizes: sizes.map((s) => ({
-      id: s.id,
-      size: s.size,
-      stock_qty: s.stock_qty,
-      in_stock: s.status === 'active' && s.stock_qty > 0,
-    })),
+    in_stock,
+    sizes: usesPerColorSizes ? [] : sizes.map(mapSizeRow),
     images: images.map((i) => i.image_url).filter(Boolean),
     image_url: heroImage,
   };
@@ -96,6 +130,34 @@ async function loadColorsForProductIds(ids) {
     [ids]
   );
   return rows;
+}
+
+async function loadColorSizesForColorIds(colorIds) {
+  if (!colorIds.length) return [];
+  if (!(await hasColorSizesTable())) return [];
+  const [rows] = await pool.query(
+    `SELECT * FROM product_color_sizes WHERE product_color_id IN (?) ORDER BY size`,
+    [colorIds]
+  );
+  return rows;
+}
+
+async function loadProductExtras(productIds) {
+  if (!productIds.length) {
+    return { images: [], sizes: [], colors: [], colorSizes: [] };
+  }
+  const [images] = await pool.query(
+    `SELECT * FROM product_images WHERE product_id IN (?) ORDER BY sort_order, id`,
+    [productIds]
+  );
+  const [sizes] = await pool.query(
+    `SELECT * FROM product_sizes WHERE product_id IN (?) ORDER BY size`,
+    [productIds]
+  );
+  const colors = await loadColorsForProductIds(productIds);
+  const colorIds = colors.map((c) => c.id);
+  const colorSizes = await loadColorSizesForColorIds(colorIds);
+  return { images, sizes, colors, colorSizes };
 }
 
 function resolveCategory(catMap, categoryId) {
@@ -138,15 +200,7 @@ export async function listActiveProducts({ categoryId = null } = {}) {
   if (!products.length) return [];
 
   const ids = products.map((p) => p.id);
-  const [images] = await pool.query(
-    `SELECT * FROM product_images WHERE product_id IN (?) ORDER BY sort_order, id`,
-    [ids]
-  );
-  const [sizes] = await pool.query(
-    `SELECT * FROM product_sizes WHERE product_id IN (?) ORDER BY size`,
-    [ids]
-  );
-  const colorRows = await loadColorsForProductIds(ids);
+  const { images, sizes, colors: colorRows, colorSizes } = await loadProductExtras(ids);
   const catMap = await loadCategoriesMap();
 
   return products.map((p) =>
@@ -155,7 +209,8 @@ export async function listActiveProducts({ categoryId = null } = {}) {
       images.filter((i) => i.product_id === p.id),
       sizes.filter((s) => s.product_id === p.id),
       colorRows.filter((c) => c.product_id === p.id),
-      resolveCategory(catMap, p.category_id)
+      resolveCategory(catMap, p.category_id),
+      colorSizes
     )
   );
 }
@@ -172,9 +227,10 @@ export async function getProductById(id) {
     [id]
   );
   const colorRows = await loadColorsForProductIds([id]);
+  const colorSizes = await loadColorSizesForColorIds(colorRows.map((c) => c.id));
   const catMap = await loadCategoriesMap();
   const category = resolveCategory(catMap, rows[0].category_id);
-  return mapProductRow(rows[0], images, sizes, colorRows, category);
+  return mapProductRow(rows[0], images, sizes, colorRows, category, colorSizes);
 }
 
 export async function getUserShoeStatus(userId) {
@@ -208,9 +264,7 @@ export async function adminListProducts() {
   const ids = products.map((p) => p.id);
   if (!ids.length) return [];
 
-  const [images] = await pool.query(`SELECT * FROM product_images WHERE product_id IN (?)`, [ids]);
-  const [sizes] = await pool.query(`SELECT * FROM product_sizes WHERE product_id IN (?)`, [ids]);
-  const colorRows = await loadColorsForProductIds(ids);
+  const { images, sizes, colors: colorRows, colorSizes } = await loadProductExtras(ids);
   const catMap = await loadCategoriesMap();
 
   return products.map((p) => ({
@@ -219,7 +273,8 @@ export async function adminListProducts() {
       images.filter((i) => Number(i.product_id) === Number(p.id)),
       sizes.filter((s) => Number(s.product_id) === Number(p.id)),
       colorRows.filter((c) => Number(c.product_id) === Number(p.id)),
-      resolveCategory(catMap, p.category_id)
+      resolveCategory(catMap, p.category_id),
+      colorSizes
     ),
     slug: p.slug,
     description: p.description,
@@ -264,17 +319,13 @@ export async function adminSaveProduct(data, id = null) {
       );
     }
 
-    for (const s of sizes || []) {
-      await conn.query(
-        `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
-        [productId, s.size, s.stock_qty ?? 0, s.status || 'active']
-      );
-    }
+    const saveColors = (await hasColorsTable()) && colorRows.length > 0;
+    const saveColorSizes = saveColors && (await hasColorSizesTable());
 
-    if (await hasColorsTable()) {
+    if (saveColors) {
       for (let i = 0; i < colorRows.length; i++) {
         const c = colorRows[i];
-        await conn.query(
+        const [ins] = await conn.query(
           `INSERT INTO product_colors (product_id, label, hex_code, image_url, sort_order, status)
            VALUES (?,?,?,?,?,?)`,
           [
@@ -285,6 +336,23 @@ export async function adminSaveProduct(data, id = null) {
             c.sort_order ?? (i + 1) * 10,
             c.status === 'inactive' ? 'inactive' : 'active',
           ]
+        );
+        if (saveColorSizes) {
+          const colorSizes = Array.isArray(c.sizes) ? c.sizes.filter((s) => s?.size?.trim()) : [];
+          for (const s of colorSizes) {
+            await conn.query(
+              `INSERT INTO product_color_sizes (product_color_id, size, stock_qty, status) VALUES (?,?,?,?)`,
+              [ins.insertId, s.size.trim(), s.stock_qty ?? 0, s.status || 'active']
+            );
+          }
+        }
+      }
+    } else {
+      for (const s of sizes || []) {
+        if (!s?.size?.trim()) continue;
+        await conn.query(
+          `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
+          [productId, s.size.trim(), s.stock_qty ?? 0, s.status || 'active']
         );
       }
     }
@@ -300,6 +368,62 @@ export async function adminSaveProduct(data, id = null) {
     throw e;
   } finally {
     conn.release();
+  }
+}
+
+/** Проверка наличия размера (с учётом цвета). */
+export async function assertProductSizeInStock(
+  db,
+  { productId, size, color = null, colorId = null, qty = 1 }
+) {
+  if (!size) return;
+
+  const q = db.query ? db.query.bind(db) : pool.query.bind(pool);
+
+  if (await hasColorsTable()) {
+    let colorRow = null;
+    if (colorId) {
+      const [rows] = await q(
+        `SELECT id FROM product_colors WHERE id = ? AND product_id = ? AND status = 'active'`,
+        [colorId, productId]
+      );
+      colorRow = rows[0] || null;
+    } else if (color?.trim()) {
+      const [rows] = await q(
+        `SELECT id FROM product_colors WHERE product_id = ? AND label = ? AND status = 'active'`,
+        [productId, color.trim()]
+      );
+      colorRow = rows[0] || null;
+    }
+
+    if (colorRow && (await hasColorSizesTable())) {
+      const [colorSizeRows] = await q(
+        `SELECT * FROM product_color_sizes WHERE product_color_id = ? AND size = ? AND status = 'active'`,
+        [colorRow.id, size]
+      );
+      const [anyForColor] = await q(
+        `SELECT 1 FROM product_color_sizes WHERE product_color_id = ? LIMIT 1`,
+        [colorRow.id]
+      );
+      if (anyForColor.length) {
+        if (!colorSizeRows.length || colorSizeRows[0].stock_qty < qty) {
+          const err = new Error('Выбранный размер недоступен для этого цвета');
+          err.status = 400;
+          throw err;
+        }
+        return;
+      }
+    }
+  }
+
+  const [sizeRows] = await q(
+    `SELECT * FROM product_sizes WHERE product_id = ? AND size = ? AND status = 'active'`,
+    [productId, size]
+  );
+  if (!sizeRows.length || sizeRows[0].stock_qty < qty) {
+    const err = new Error('Выбранный размер недоступен');
+    err.status = 400;
+    throw err;
   }
 }
 
