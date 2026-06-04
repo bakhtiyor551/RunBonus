@@ -16,7 +16,11 @@ import adminWithdrawalsRoutes from './routes/adminWithdrawals.js';
 import meRoutes from './routes/me.js';
 import mobileRoutes from './routes/mobile.js';
 import adminShopRoutes from './routes/adminShop.js';
+import adminReportsRoutes from './routes/adminReports.js';
+import adminAdsRoutes from './routes/adminAds.js';
 import { isWithdrawalSchemaReady } from './services/withdrawalService.js';
+import { buildDailyTelegramReport } from './services/reportsService.js';
+import { sendTelegramMessage } from './services/telegramService.js';
 
 const app = express();
 
@@ -58,6 +62,24 @@ app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/shop', adminShopRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
+app.use('/api/admin/reports', adminReportsRoutes);
+app.use('/api/admin/ads', adminAdsRoutes);
+
+/** Утренний Telegram-отчёт (08:00, один раз в сутки). */
+let lastDailyReportKey = '';
+setInterval(async () => {
+  try {
+    const now = new Date();
+    if (now.getHours() !== 8 || now.getMinutes() > 1) return;
+    const key = now.toISOString().slice(0, 10);
+    if (lastDailyReportKey === key) return;
+    lastDailyReportKey = key;
+    const text = await buildDailyTelegramReport();
+    await sendTelegramMessage(text);
+  } catch (e) {
+    console.error('[daily-report]', e.message);
+  }
+}, 60_000);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

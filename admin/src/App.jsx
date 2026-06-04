@@ -12,6 +12,8 @@ import ShopProductsTab from './ShopProductsTab';
 import ShopCategoriesTab from './ShopCategoriesTab';
 import ShopOrdersTab from './ShopOrdersTab';
 import PaymentMethodsTab from './PaymentMethodsTab';
+import ReportsTab from './reports/ReportsTab';
+import AdsTab from './ads/AdsTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -146,6 +148,8 @@ export default function App() {
               <PaymentMethodsTab />
             </div>
           )}
+          {tab === 'reports' && <ReportsTab />}
+          {tab === 'ads' && <AdsTab />}
           {tab === 5 && (
             <div className="page-content">
               <div className="glass-card card">

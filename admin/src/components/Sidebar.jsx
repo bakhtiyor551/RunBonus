@@ -14,11 +14,15 @@ const NAV = [
   { id: 11, label: 'Категории', icon: 'category' },
   { id: 9, label: 'Заказы', icon: 'shopping_bag' },
   { id: 10, label: 'Способы оплаты', icon: 'payments' },
+  { id: 'reports', label: 'Отчёты', icon: 'analytics' },
+  { id: 'ads', label: 'Реклама', icon: 'campaign' },
 ];
 
 export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {
   const isActive = (item) =>
-    item.id === 'dashboard' ? activeTab === 'dashboard' : activeTab === item.id;
+    item.id === 'dashboard' || item.id === 'reports' || item.id === 'ads'
+      ? activeTab === item.id
+      : activeTab === item.id;
 
   return (
     <aside className="sidebar">
