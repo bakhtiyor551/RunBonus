@@ -15,6 +15,7 @@ import { formatBalance, formatWorkoutDate } from '../utils/format';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
+import AdBanner from '../components/AdBanner';
 
 function ActivityRow({ workout, onPress }) {
   const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
@@ -125,6 +126,8 @@ export default function HomePage({ user, setUser }) {
               </button>
             </div>
           </section>
+
+          <AdBanner placement="banner_home" user={user} className="rb-ad-banner--home" style={{ marginBottom: 24 }} />
 
           <section style={{ marginBottom: 40 }}>
             {activeWorkoutId ? (
