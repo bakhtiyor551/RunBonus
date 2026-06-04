@@ -7,7 +7,7 @@ import {
   getProductById,
   getUserShoeStatus,
 } from '../services/shopService.js';
-import { listActiveShopCategories } from '../services/shopCategoryService.js';
+import { listCatalogShopCategories } from '../services/shopCategoryService.js';
 import { createOrder, listUserOrders } from '../services/orderService.js';
 import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { listActivePaymentMethods } from '../services/paymentMethodService.js';
@@ -49,7 +49,7 @@ router.get('/shoes/status', authUser, async (req, res) => {
 
 router.get('/shop-categories', async (_req, res) => {
   try {
-    const categories = await listActiveShopCategories();
+    const categories = await listCatalogShopCategories();
     res.json(categories);
   } catch (err) {
     console.error(err);
@@ -64,7 +64,7 @@ router.get('/shop-catalog', async (req, res) => {
       req.query.category_id != null && String(req.query.category_id).trim() !== ''
         ? String(req.query.category_id).trim()
         : null;
-    const categories = await listActiveShopCategories();
+    const categories = await listCatalogShopCategories();
     let products = [];
     try {
       products = await listActiveProducts({ categoryId: filterId });
@@ -75,7 +75,7 @@ router.get('/shop-catalog', async (req, res) => {
     res.json({ categories, products });
   } catch (err) {
     console.error(err);
-    const categories = await listActiveShopCategories().catch(() => []);
+    const categories = await listCatalogShopCategories().catch(() => []);
     const products = await listActiveProducts({ categoryId: null }).catch(() => []);
     res.json({ categories, products });
   }
