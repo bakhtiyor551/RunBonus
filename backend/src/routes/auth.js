@@ -46,9 +46,13 @@ router.post('/sms/send', async (req, res) => {
 router.post('/sms/register', async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { phone, code, firstName, lastName } = req.body;
+    const { phone, code, firstName, lastName, city } = req.body;
     if (!firstName?.trim() || !lastName?.trim()) {
       return res.status(400).json({ error: 'Укажите имя и фамилию' });
+    }
+    const userCity = String(city || '').trim();
+    if (!userCity) {
+      return res.status(400).json({ error: 'Выберите город' });
     }
 
     const phoneNorm = await verifyCode(phone, 'register', code);
@@ -65,7 +69,7 @@ router.post('/sms/register', async (req, res) => {
     const [result] = await conn.query(
       `INSERT INTO users (name, first_name, last_name, phone, password_hash, city, device_id, device_bound_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [name, firstName.trim(), lastName.trim(), phoneNorm, passwordHash, 'Не указан', deviceId]
+      [name, firstName.trim(), lastName.trim(), phoneNorm, passwordHash, userCity, deviceId]
     );
 
     const userId = result.insertId;

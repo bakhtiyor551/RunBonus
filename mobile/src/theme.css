@@ -1154,6 +1154,8 @@ select {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .rb-shop-category-chip--active {
