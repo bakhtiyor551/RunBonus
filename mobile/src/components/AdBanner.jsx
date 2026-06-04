@@ -47,7 +47,11 @@ export default function AdBanner({ placement, user, className = '', style }) {
     <section className={`rb-ad-banner-wrap ${className}`.trim()} style={style} aria-label="Реклама">
       <span className="rb-ad-banner__label">Реклама</span>
       <button type="button" className="rb-ad-banner glass-card" onClick={handleClick}>
-        <img src={banner.banner_url} alt={banner.title || 'Реклама'} loading="lazy" />
+        <img
+          src={banner.banner_url}
+          alt={banner.title || 'Реклама'}
+          loading={placement === 'banner_workout' ? 'eager' : 'lazy'}
+        />
         {banner.title && <span className="rb-ad-banner__title">{banner.title}</span>}
       </button>
     </section>

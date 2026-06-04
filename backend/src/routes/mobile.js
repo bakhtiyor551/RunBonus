@@ -229,22 +229,6 @@ router.get('/my-orders', authUser, async (req, res) => {
   }
 });
 
-router.get('/ads/banners', async (req, res) => {
-  try {
-    const { listActiveBanners } = await import('../services/adsService.js');
-    const placement = req.query.placement || 'banner_home';
-    const user = {
-      city: req.query.city?.trim() || null,
-      level_code: req.query.level?.trim() || null,
-    };
-    const banners = await listActiveBanners({ placement, user });
-    res.json(banners);
-  } catch (err) {
-    console.error(err);
-    res.json([]);
-  }
-});
-
 function optionalUserId(req, res, next) {
   const header = req.headers.authorization;
   if (header?.startsWith('Bearer ')) {
@@ -257,6 +241,19 @@ function optionalUserId(req, res, next) {
   }
   next();
 }
+
+router.get('/ads/banners', optionalUserId, async (req, res) => {
+  try {
+    const { listActiveBanners, resolveBannerAudienceUser } = await import('../services/adsService.js');
+    const placement = req.query.placement || 'banner_home';
+    const user = await resolveBannerAudienceUser(req.userId, req.query);
+    const banners = await listActiveBanners({ placement, user });
+    res.json(banners);
+  } catch (err) {
+    console.error(err);
+    res.json([]);
+  }
+});
 
 router.post('/ads/event', optionalUserId, async (req, res) => {
   try {
