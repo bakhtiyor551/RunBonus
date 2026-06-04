@@ -17,6 +17,7 @@ import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { spendBonus } from './bonusService.js';
 import { getWalletSummary } from './withdrawalService.js';
 import { assertProductSizeInStock } from './shopService.js';
+import { decrementStockForOrder, restoreStockForCancelledOrder } from './warehouseService.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
