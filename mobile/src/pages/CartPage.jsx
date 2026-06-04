@@ -99,6 +99,7 @@ export default function CartPage({ user }) {
             product_id: item.productId,
             size: item.size,
             color: item.color || '',
+            color_id: item.color_id ?? null,
             quantity: item.quantity,
             apply_delivery_fee: i === 0,
             ...payload,
