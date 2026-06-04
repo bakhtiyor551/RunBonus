@@ -69,12 +69,86 @@ export function categoryDisplayName(id, name) {
   return key;
 }
 
-/** Категории для мобильного каталога — только активные из админки. */
+const LEGACY_SHOE_CATEGORY_IDS = new Set(['1', '2', '3', 'running', 'urban', 'trail']);
+
+export function normalizeProductCategoryId(raw) {
+  const id = normalizeCategoryId(raw);
+  if (id == null) return null;
+  if (LEGACY_SHOE_CATEGORY_IDS.has(String(id))) return 'shoes';
+  return id;
+}
+
+/** Гарантирует категории из админки (Кроссовки, Футболки, Шорты). */
+async function ensureDefaultCategories() {
+  await ensureTable();
+  for (const c of SHOP_CATEGORIES_FALLBACK) {
+    const id = String(c.id);
+    const [existing] = await pool.query(
+      `SELECT id, status FROM shop_categories WHERE CAST(id AS CHAR) = ? LIMIT 1`,
+      [id]
+    );
+    if (!existing.length) {
+      await pool.query(
+        `INSERT INTO shop_categories (id, name, slug, sort_order, status) VALUES (?, ?, ?, ?, 'active')`,
+        [id, c.name, c.slug || id, Number(c.sort_order) || 0]
+      );
+    }
+  }
+}
+
+/** Категории для мобильного каталога — активные из админки. */
 export async function listCatalogShopCategories() {
-  return listActiveShopCategories();
+  await ensureDefaultCategories();
+  const active = await listActiveShopCategories();
+  if (active.length) return active;
+  return listCategoriesFromActiveProducts();
+}
+
+async function listCategoriesFromActiveProducts() {
+  await ensureTable();
+  const allCats = await listAllShopCategoriesAdmin();
+  const catMap = new Map(allCats.map((c) => [String(c.id), c]));
+
+  const [rows] = await pool.query(
+    `SELECT DISTINCT category_id
+     FROM products
+     WHERE status = 'active'
+       AND category_id IS NOT NULL
+       AND TRIM(CAST(category_id AS CHAR)) != ''`
+  );
+
+  const result = [];
+  const seen = new Set();
+
+  for (const row of rows) {
+    const id = normalizeProductCategoryId(row.category_id);
+    if (id == null || seen.has(String(id))) continue;
+
+    const fromDb = catMap.get(String(id));
+    const isKnown = FALLBACK_CATEGORY_NAMES.has(String(id));
+    if (fromDb?.status !== 'active' && !isKnown) continue;
+
+    const name = categoryDisplayName(id, fromDb?.name);
+    if (!name) continue;
+
+    result.push({
+      id,
+      name,
+      slug: fromDb?.slug || (typeof id === 'string' ? id : String(id)),
+      sort_order: fromDb?.sort_order ?? 999,
+      status: 'active',
+      product_count: fromDb?.product_count ?? 0,
+    });
+    seen.add(String(id));
+  }
+
+  return result.sort(
+    (a, b) => a.sort_order - b.sort_order || String(a.name).localeCompare(String(b.name), 'ru')
+  );
 }
 
 export async function listActiveShopCategories() {
+  await ensureDefaultCategories();
   await ensureTable();
   const [rows] = await pool.query(
     `SELECT c.*,
