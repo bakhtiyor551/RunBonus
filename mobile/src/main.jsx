@@ -15,8 +15,8 @@ setupIonicReact({
   hardwareBackButton: false,
   mode: 'ios',
   rippleEffect: false,
-  scrollAssist: true,
-  scrollPadding: true,
+  scrollAssist: false,
+  scrollPadding: false,
 });
 
 disableAppSounds();

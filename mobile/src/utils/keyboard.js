@@ -1,41 +1,31 @@
 import { Capacitor } from '@capacitor/core';
 
-const KEYBOARD_FALLBACK_PX = 320;
-
 const isFormField = (el) =>
   el?.matches?.(
     'input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable="true"]'
   );
 
-function keyboardInsetPx() {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue('--rb-keyboard-inset');
-  const n = parseFloat(raw);
-  return Number.isFinite(n) && n > 0 ? n : KEYBOARD_FALLBACK_PX;
+function visibleBottom() {
+  const vv = window.visualViewport;
+  if (vv) return vv.offsetTop + vv.height - 16;
+  return window.innerHeight - 16;
 }
 
-export function setKeyboardOpen(open, insetPx = 0) {
+export function setKeyboardOpen(open) {
   document.documentElement.classList.toggle('rb-keyboard-open', open);
-  if (!open) {
-    document.documentElement.style.setProperty('--rb-keyboard-inset', '0px');
-    return;
-  }
-  const inset = insetPx > 0 ? insetPx : KEYBOARD_FALLBACK_PX;
-  document.documentElement.style.setProperty('--rb-keyboard-inset', `${Math.round(inset)}px`);
 }
 
-/** Прокрутка поля ввода над клавиатурой (IonContent + fallback). */
+/** Прокрутка поля ввода в видимую область (Ionic сам уменьшает экран при resize: ionic). */
 export function scrollInputIntoView(e) {
   const el = e?.target;
   if (!el) return;
 
-  const delay = Capacitor.isNativePlatform() ? 420 : 280;
+  const delay = Capacitor.isNativePlatform() ? 360 : 200;
 
   setTimeout(async () => {
     const ionContent = el.closest('ion-content') || document.querySelector('ion-content');
-    const inset = keyboardInsetPx();
-    const headerReserve = 64;
-    const bottomPad = 24;
-    const safeBottom = window.innerHeight - inset - bottomPad;
+    const headerReserve = 72;
+    const safeBottom = visibleBottom();
 
     if (ionContent?.getScrollElement && ionContent.scrollToPoint) {
       try {
@@ -44,27 +34,27 @@ export function scrollInputIntoView(e) {
         let delta = 0;
 
         if (rect.bottom > safeBottom) {
-          delta = rect.bottom - safeBottom + 16;
+          delta = rect.bottom - safeBottom + 12;
         } else if (rect.top < headerReserve) {
           delta = rect.top - headerReserve - 8;
         }
 
         if (delta !== 0) {
-          await ionContent.scrollToPoint(0, scrollEl.scrollTop + delta, 280);
+          const next = Math.max(0, scrollEl.scrollTop + delta);
+          await ionContent.scrollToPoint(0, next, 250);
         }
         return;
       } catch {
-        /* fallback below */
+        /* fallback */
       }
     }
 
     if (typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }, delay);
 }
 
-/** Курсор в конец — удобнее при повторном фокусе. */
 export function focusInputEnd(e) {
   const el = e?.target;
   if (!el || el.selectionStart == null) return;
@@ -72,7 +62,7 @@ export function focusInputEnd(e) {
   try {
     el.setSelectionRange(len, len);
   } catch {
-    /* readonly / unsupported */
+    /* ignore */
   }
 }
 
@@ -84,9 +74,18 @@ export function onInputFocus(e) {
 
 export function initKeyboardInset() {
   const cleanups = [];
+  let scrollTimer = null;
+
+  const scheduleScroll = (target) => {
+    if (!target) return;
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => scrollInputIntoView({ target }), 380);
+  };
 
   const onFocusIn = (e) => {
-    if (isFormField(e.target)) setKeyboardOpen(true);
+    if (!isFormField(e.target)) return;
+    setKeyboardOpen(true);
+    scheduleScroll(e.target);
   };
 
   const onFocusOut = () => {
@@ -94,7 +93,7 @@ export function initKeyboardInset() {
       if (!isFormField(document.activeElement)) {
         setKeyboardOpen(false);
       }
-    }, 150);
+    }, 120);
   };
 
   document.addEventListener('focusin', onFocusIn, true);
@@ -102,50 +101,26 @@ export function initKeyboardInset() {
   cleanups.push(() => {
     document.removeEventListener('focusin', onFocusIn, true);
     document.removeEventListener('focusout', onFocusOut, true);
+    clearTimeout(scrollTimer);
   });
-
-  const vv = window.visualViewport;
-  if (vv) {
-    const onViewportChange = () => {
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      if (inset > 40) {
-        setKeyboardOpen(true, inset);
-      } else if (!isFormField(document.activeElement)) {
-        setKeyboardOpen(false);
-      }
-    };
-    vv.addEventListener('resize', onViewportChange);
-    vv.addEventListener('scroll', onViewportChange);
-    cleanups.push(() => {
-      vv.removeEventListener('resize', onViewportChange);
-      vv.removeEventListener('scroll', onViewportChange);
-    });
-  }
 
   if (Capacitor.isNativePlatform()) {
     import('@capacitor/keyboard')
       .then(({ Keyboard }) => {
         Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
 
-        const onShow = (info) => {
-          setKeyboardOpen(true, info.keyboardHeight);
-          const active = document.activeElement;
-          if (isFormField(active)) {
-            scrollInputIntoView({ target: active });
-          }
-        };
-
-        Keyboard.addListener('keyboardWillShow', onShow).then((handle) =>
-          cleanups.push(() => handle.remove())
+        Keyboard.addListener('keyboardWillShow', () => setKeyboardOpen(true)).then((h) =>
+          cleanups.push(() => h.remove())
         );
-        Keyboard.addListener('keyboardDidShow', onShow).then((handle) =>
-          cleanups.push(() => handle.remove())
+        Keyboard.addListener('keyboardDidShow', () => {
+          setKeyboardOpen(true);
+          scheduleScroll(document.activeElement);
+        }).then((h) => cleanups.push(() => h.remove()));
+        Keyboard.addListener('keyboardWillHide', () => setKeyboardOpen(false)).then((h) =>
+          cleanups.push(() => h.remove())
         );
-        Keyboard.addListener('keyboardWillHide', () => setKeyboardOpen(false)).then((handle) =>
-          cleanups.push(() => handle.remove())
-        );
-        Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false)).then((handle) =>
-          cleanups.push(() => handle.remove())
+        Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false)).then((h) =>
+          cleanups.push(() => h.remove())
         );
       })
       .catch(() => {});

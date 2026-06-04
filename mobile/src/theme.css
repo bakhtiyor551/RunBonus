@@ -1678,8 +1678,6 @@ ion-app {
 
 ion-content {
   --background: var(--rb-bg);
-  --keyboard-offset: var(--rb-keyboard-inset, 0px);
-  --padding-bottom: calc(var(--keyboard-offset) + env(safe-area-inset-bottom, 0px));
 }
 
 ion-page .rb-bottom-nav {
@@ -1696,19 +1694,11 @@ html.rb-keyboard-open .rb-shop-fixed-bar {
 }
 
 html.cap-ios .rb-main {
-  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px) + var(--rb-keyboard-inset, 0px));
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 
 html.rb-keyboard-open .rb-main {
-  padding-bottom: calc(32px + var(--rb-keyboard-inset, 0px)) !important;
-}
-
-html.rb-keyboard-open .withdraw-page {
-  padding-bottom: calc(32px + var(--rb-keyboard-inset, 0px));
-}
-
-html.rb-keyboard-open .withdraw-form {
-  padding-bottom: calc(16px + var(--rb-keyboard-inset, 0px));
+  padding-bottom: 24px !important;
 }
 
 .rb-login-page {
@@ -1834,7 +1824,6 @@ html.rb-keyboard-open .withdraw-form {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  scroll-margin-bottom: calc(80px + var(--rb-keyboard-inset, 0px));
 }
 
 .withdraw-field {
@@ -1898,7 +1887,6 @@ html.rb-keyboard-open .withdraw-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: calc(24px + var(--rb-keyboard-inset, 0px));
 }
 
 .withdraw-skeleton {
