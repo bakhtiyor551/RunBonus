@@ -6,6 +6,8 @@ PODS:
   - CapacitorCordova (6.2.1)
   - CapacitorGeolocation (6.1.1):
     - Capacitor
+  - CapacitorKeyboard (6.0.4):
+    - Capacitor
   - CapacitorNetwork (6.0.4):
     - Capacitor
   - CapacitorStatusBar (6.0.3):
@@ -16,6 +18,7 @@ DEPENDENCIES:
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
+  - "CapacitorKeyboard (from `../../node_modules/@capacitor/keyboard`)"
   - "CapacitorNetwork (from `../../node_modules/@capacitor/network`)"
   - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
 
@@ -28,6 +31,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorGeolocation:
     :path: "../../node_modules/@capacitor/geolocation"
+  CapacitorKeyboard:
+    :path: "../../node_modules/@capacitor/keyboard"
   CapacitorNetwork:
     :path: "../../node_modules/@capacitor/network"
   CapacitorStatusBar:
@@ -38,9 +43,10 @@ SPEC CHECKSUMS:
   CapacitorApp: a19ccb4f5f32d2534be5c6f524d5a9b614a1e8a7
   CapacitorCordova: 8d93e14982f440181be7304aa9559ca631d77fff
   CapacitorGeolocation: ef657a46a125be74010f4ce57caae173c23204d2
+  CapacitorKeyboard: e8cd50fd5cbdd023a5947a5c0f5cca6e5aa5a253
   CapacitorNetwork: 093efa3664b692a971bdd01be70523291cd6a87f
   CapacitorStatusBar: 149cde8f1328ec3aa6cbdd872a55137ae3f98b16
 
-PODFILE CHECKSUM: 60c24d97b90eea91efbcdf6bfaeabd5a373dcce6
+PODFILE CHECKSUM: 5a48bb136b9395625d6078600ecce5accd011111
 
 COCOAPODS: 1.16.2
