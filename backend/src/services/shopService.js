@@ -472,16 +472,24 @@ export async function assertProductSizeInStock(
     let colorRow = null;
     if (colorId) {
       const [rows] = await q(
-        `SELECT id FROM product_colors WHERE id = ? AND product_id = ? AND status = 'active'`,
+        `SELECT id, label FROM product_colors WHERE id = ? AND product_id = ? AND status = 'active'`,
         [colorId, productId]
       );
       colorRow = rows[0] || null;
     } else if (color?.trim()) {
       const [rows] = await q(
-        `SELECT id FROM product_colors WHERE product_id = ? AND label = ? AND status = 'active'`,
+        `SELECT id, label FROM product_colors WHERE product_id = ? AND label = ? AND status = 'active'`,
         [productId, color.trim()]
       );
       colorRow = rows[0] || null;
+      if (!colorRow) {
+        const [allColors] = await q(
+          `SELECT id, label FROM product_colors WHERE product_id = ? AND status = 'active'`,
+          [productId]
+        );
+        colorRow =
+          allColors.find((c) => stockColorLabelsMatch(c.label, color)) || null;
+      }
     }
 
     if (colorRow) {

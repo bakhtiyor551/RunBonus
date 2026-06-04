@@ -36,6 +36,7 @@ export async function createOrder(data, userId = null) {
     product_id,
     size,
     color: orderColor,
+    color_id: orderColorId,
     quantity = 1,
     customer_name,
     phone,
@@ -101,11 +102,23 @@ export async function createOrder(data, userId = null) {
   try {
     await conn.beginTransaction();
 
+    const [products] = await conn.query(
+      `SELECT * FROM products WHERE id = ? AND status = 'active'`,
+      [product_id]
+    );
+    if (!products.length) {
+      const err = new Error('Товар не найден');
+      err.status = 404;
+      throw err;
+    }
+    product = products[0];
+
   if (size) {
-    await assertProductSizeInStock(pool, {
+    await assertProductSizeInStock(conn, {
       productId: product_id,
       size,
       color: orderColor,
+      colorId: orderColorId,
       qty,
     });
   }
@@ -214,6 +227,7 @@ async function createOrderPaidWithBonus(data, userId) {
     product_id,
     size,
     color: orderColor,
+    color_id: orderColorId,
     quantity = 1,
     customer_name,
     phone,
@@ -246,6 +260,7 @@ async function createOrderPaidWithBonus(data, userId) {
         productId: product_id,
         size,
         color: orderColor,
+        colorId: orderColorId,
         qty,
       });
     }
