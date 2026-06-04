@@ -1678,10 +1678,17 @@ ion-app {
 
 ion-content {
   --background: var(--rb-bg);
+  --keyboard-offset: var(--rb-keyboard-inset, 0px);
+  --padding-bottom: calc(var(--keyboard-offset) + env(safe-area-inset-bottom, 0px));
+}
+
+html.rb-keyboard-open .rb-bottom-nav {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 html.cap-ios .rb-main {
-  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px) + var(--rb-keyboard-inset, 0px));
 }
 
 .rb-login-page {
@@ -1807,6 +1814,7 @@ html.cap-ios .rb-main {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  scroll-margin-bottom: calc(80px + var(--rb-keyboard-inset, 0px));
 }
 
 .withdraw-field {
@@ -1847,10 +1855,30 @@ html.cap-ios .rb-main {
   opacity: 0.5;
 }
 
+.withdraw-field .rb-phone-input {
+  border-radius: var(--rb-radius-full);
+  border: 1px solid rgba(68, 73, 51, 0.4);
+  background: var(--rb-surface-high);
+  min-height: 48px;
+}
+
+.withdraw-field .rb-phone-input__prefix {
+  padding-left: 16px;
+  color: #e2e2e2;
+}
+
+.withdraw-field .rb-phone-input__field {
+  border: none !important;
+  background: transparent !important;
+  padding: 12px 16px 12px 8px !important;
+  border-radius: 0 !important;
+}
+
 .withdraw-page {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding-bottom: calc(24px + var(--rb-keyboard-inset, 0px));
 }
 
 .withdraw-skeleton {
@@ -1979,6 +2007,9 @@ html.cap-ios .rb-main {
 .withdraw-form__submit {
   width: 100%;
   margin-top: 4px;
+  position: sticky;
+  bottom: calc(8px + var(--rb-keyboard-inset, 0px));
+  z-index: 5;
 }
 
 .withdraw-link-btn {
