@@ -177,6 +177,7 @@ export async function createOrder(data, userId = null) {
       await decrementStockForOrder(conn, {
         productId: product_id,
         size,
+        color: orderColor,
         quantity: qty,
         orderId,
       });
@@ -314,6 +315,7 @@ async function createOrderPaidWithBonus(data, userId) {
       await decrementStockForOrder(conn, {
         productId: product_id,
         size,
+        color: orderColor,
         quantity: qty,
         orderId,
       });

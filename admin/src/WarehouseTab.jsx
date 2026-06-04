@@ -12,9 +12,15 @@ const REASON_LABELS = {
 const EMPTY_RECEIPT = {
   product_id: '',
   size: '',
+  color: '',
   quantity: 1,
   comment: '',
 };
+
+function hexForPreset(c) {
+  if (c.hex_code && /^#[0-9A-Fa-f]{6}$/i.test(c.hex_code)) return c.hex_code;
+  return '#888888';
+}
 
 export default function WarehouseTab() {
   const [stock, setStock] = useState([]);
@@ -47,11 +53,14 @@ export default function WarehouseTab() {
     [stock, form.product_id]
   );
 
+  const colorOptions = useMemo(() => selectedProduct?.colors || [], [selectedProduct]);
+
+  const needsColor = colorOptions.length > 0;
+
   const sizeOptions = useMemo(() => {
     if (!selectedProduct) return [];
-    const fromStock = (selectedProduct.sizes || []).map((s) => s.size);
-    if (fromStock.length) return fromStock;
-    return [];
+    const sizes = new Set((selectedProduct.sizes || []).map((s) => s.size));
+    return [...sizes].filter(Boolean).sort();
   }, [selectedProduct]);
 
   const filteredStock = useMemo(() => {
@@ -65,10 +74,19 @@ export default function WarehouseTab() {
     );
   }, [stock, filter]);
 
+  const resetProductFields = (productId) => ({
+    ...EMPTY_RECEIPT,
+    product_id: productId,
+  });
+
   const submitReceipt = async (e) => {
     e.preventDefault();
     if (!form.product_id || !form.size?.trim()) {
-      alert('Выберите товар и укажите размер');
+      alert('Выберите товар и размер');
+      return;
+    }
+    if (needsColor && !form.color?.trim()) {
+      alert('Выберите цвет');
       return;
     }
     setSaving(true);
@@ -78,11 +96,12 @@ export default function WarehouseTab() {
         body: JSON.stringify({
           product_id: Number(form.product_id),
           size: form.size.trim(),
+          color: form.color?.trim() || null,
           quantity: Number(form.quantity) || 1,
           comment: form.comment?.trim() || null,
         }),
       });
-      setForm({ ...EMPTY_RECEIPT, product_id: form.product_id });
+      setForm(resetProductFields(form.product_id));
       load();
     } catch (err) {
       alert(err.message);
@@ -98,14 +117,14 @@ export default function WarehouseTab() {
           <Icon name="inventory_2" /> Поступление на склад
         </h2>
         <p className="hint">
-          Добавьте товар на склад. При покупке клиентом остаток списывается автоматически; при отмене заказа — возвращается.
+          Выберите товар, цвет (если есть варианты), размер и количество. При заказе списание идёт по тому же цвету.
         </p>
         <form className="settings-form warehouse-receipt-form" onSubmit={submitReceipt}>
           <label>
             Товар
             <select
               value={form.product_id}
-              onChange={(e) => setForm({ ...EMPTY_RECEIPT, product_id: e.target.value })}
+              onChange={(e) => setForm(resetProductFields(e.target.value))}
               required
             >
               <option value="">— выберите —</option>
@@ -117,6 +136,30 @@ export default function WarehouseTab() {
               ))}
             </select>
           </label>
+
+          {needsColor && (
+            <label>
+              Цвет *
+              <div className="warehouse-color-picker">
+                {colorOptions.map((c) => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    className={`warehouse-color-chip${form.color === c.label ? ' warehouse-color-chip--active' : ''}`}
+                    onClick={() => setForm({ ...form, color: c.label })}
+                    title={c.label}
+                  >
+                    <span
+                      className="warehouse-color-chip__swatch"
+                      style={{ background: hexForPreset(c) }}
+                    />
+                    <span>{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </label>
+          )}
+
           <label>
             Размер
             {sizeOptions.length > 0 ? (
@@ -194,13 +237,16 @@ export default function WarehouseTab() {
                   </span>
                 </div>
                 <h3>{p.product_name}</h3>
+                {p.colors?.length > 0 && (
+                  <p className="hint">Цвета: {p.colors.map((c) => c.label).join(', ')}</p>
+                )}
                 {!p.sizes?.length ? (
-                  <p className="hint">Размеры не заданы — укажите размер при поступлении</p>
+                  <p className="hint">Остатков нет — добавьте поступление</p>
                 ) : (
                   <ul className="warehouse-size-list">
                     {p.sizes.map((s) => (
-                      <li key={`${p.product_id}-${s.size}`}>
-                        <span>{s.size}</span>
+                      <li key={`${p.product_id}-${s.size}-${s.color_label || ''}`}>
+                        <span>{s.label || s.size}</span>
                         <strong className={Number(s.stock_qty) <= 0 ? 'text-danger' : ''}>
                           {s.stock_qty} шт.
                         </strong>
@@ -226,6 +272,7 @@ export default function WarehouseTab() {
                   <th>Дата</th>
                   <th>Товар</th>
                   <th>Размер</th>
+                  <th>Цвет</th>
                   <th>Операция</th>
                   <th>Кол-во</th>
                   <th>Заказ</th>
@@ -240,6 +287,7 @@ export default function WarehouseTab() {
                       #{m.product_id} {m.product_name}
                     </td>
                     <td>{m.size}</td>
+                    <td>{m.color_label || '—'}</td>
                     <td>
                       {m.movement_type === 'in' ? '+' : '−'} {REASON_LABELS[m.reason] || m.reason}
                     </td>

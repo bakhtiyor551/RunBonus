@@ -3455,3 +3455,36 @@ code {
 .reports-tab .glass-card + .glass-card {
   margin-top: 1rem;
 }
+
+.warehouse-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.warehouse-color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--outline-variant, rgba(0, 0, 0, 0.12));
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.warehouse-color-chip--active {
+  border-color: var(--primary-fixed-dim, #2563eb);
+  background: rgba(37, 99, 235, 0.08);
+  font-weight: 600;
+}
+
+.warehouse-color-chip__swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
