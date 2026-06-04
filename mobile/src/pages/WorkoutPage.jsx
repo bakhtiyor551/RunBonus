@@ -195,7 +195,13 @@ export default function WorkoutPage({ user, setUser }) {
           <main className="rb-main" style={{ paddingTop: 48 }}>
             <CelebrateBlock result={result} />
             <ResultCards result={result} />
-            <AdBanner placement="banner_workout" user={user} style={{ marginTop: 24 }} />
+            <AdBanner
+              key={`workout-ad-${result.workout_id ?? result.id ?? 'done'}`}
+              placement="banner_workout"
+              user={user}
+              className="rb-ad-banner--workout"
+              style={{ marginTop: 24 }}
+            />
             <button type="button" className="rb-btn-pill" style={{ width: '100%', marginTop: 32 }} onClick={() => navigate('/')}>
               Готово
               <Icon name="arrow_forward" />

@@ -279,33 +279,73 @@ export async function recordAdEvent({ campaignId, userId, eventType }) {
   }
 }
 
+function adTypesForPlacement(placement) {
+  if (placement === 'banner_workout') return ['banner_workout', 'promo'];
+  return ['banner_home', 'promo'];
+}
+
+function matchesAudience(campaign, city, level) {
+  if (campaign.audience_cities?.length && city) {
+    if (!campaign.audience_cities.includes(city)) return false;
+  }
+  if (campaign.audience_levels?.length && level) {
+    const allowed = campaign.audience_levels.map((l) => String(l).toLowerCase());
+    if (!allowed.includes(String(level).toLowerCase())) return false;
+  }
+  return true;
+}
+
 /** Баннеры для мобильного приложения. */
 export async function listActiveBanners({ placement = 'banner_home', user = null } = {}) {
   if (!(await hasAdsTables())) return [];
-  const today = new Date().toISOString().slice(0, 10);
+  const types = adTypesForPlacement(placement);
+  const primaryType = types[0];
   const [rows] = await pool.query(
     `SELECT c.id, c.title, c.description, c.banner_url, c.target_url, c.ad_type,
             c.audience_cities, c.audience_levels, c.audience_activity
      FROM ad_campaigns c
-     WHERE c.status = 'active' AND c.ad_type = ?
-       AND c.start_date <= ? AND c.end_date >= ?
+     WHERE c.status = 'active' AND c.ad_type IN (?)
+       AND c.start_date <= CURDATE() AND c.end_date >= CURDATE()
        AND c.banner_url IS NOT NULL AND TRIM(c.banner_url) != ''
-     ORDER BY c.id DESC LIMIT 5`,
-    [placement, today, today]
+     ORDER BY (c.ad_type = ?) DESC, c.id DESC LIMIT 5`,
+    [types, primaryType]
   );
 
-  const city = user?.city?.trim();
-  const level = user?.level_code;
+  const city = user?.city?.trim() || null;
+  const level = user?.level_code ? String(user.level_code).toLowerCase() : null;
 
-  return rows
-    .map(mapCampaign)
-    .filter((c) => {
-      if (c.audience_cities?.length) {
-        if (!city || !c.audience_cities.includes(city)) return false;
-      }
-      if (c.audience_levels?.length) {
-        if (!level || !c.audience_levels.includes(String(level).toLowerCase())) return false;
-      }
-      return true;
-    });
+  const mapped = rows.map(mapCampaign);
+  const matched = mapped.filter((c) => matchesAudience(c, city, level));
+  const poolList = matched.length
+    ? matched
+    : mapped.filter((c) => !c.audience_cities?.length && !c.audience_levels?.length);
+
+  return poolList.sort((a, b) => {
+    if (a.ad_type === primaryType && b.ad_type !== primaryType) return -1;
+    if (b.ad_type === primaryType && a.ad_type !== primaryType) return 1;
+    return Number(b.id) - Number(a.id);
+  });
+}
+
+/** Город и уровень клиента для таргетинга баннеров. */
+export async function resolveBannerAudienceUser(userId, query = {}) {
+  const user = {
+    city: query.city?.trim() || null,
+    level_code: query.level?.trim()?.toLowerCase() || null,
+  };
+  if (!userId) return user;
+
+  const [rows] = await pool.query(`SELECT city FROM users WHERE id = ?`, [userId]);
+  if (!user.city && rows[0]?.city) user.city = String(rows[0].city).trim();
+
+  try {
+    const { getUserLevelSummary } = await import('./customerLevelService.js');
+    const summary = await getUserLevelSummary(userId);
+    if (!user.level_code && summary?.current_level_code) {
+      user.level_code = String(summary.current_level_code).toLowerCase();
+    }
+  } catch {
+    /* уровни не настроены */
+  }
+  return user;
 }
