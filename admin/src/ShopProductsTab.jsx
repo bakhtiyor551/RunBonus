@@ -149,7 +149,13 @@ export default function ShopProductsTab() {
       status: p.status,
       colors: colorRows,
       sizes: p.sizes?.length ? p.sizes : emptyForm.sizes,
-      images: p.images?.length ? p.images : emptyForm.images,
+      images: p.images?.length
+        ? p.images.map((img, i) =>
+            typeof img === 'string'
+              ? { image_url: img, sort_order: i }
+              : { image_url: img.image_url || '', sort_order: img.sort_order ?? i }
+          )
+        : emptyForm.images,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -319,15 +325,54 @@ export default function ShopProductsTab() {
                   rows={3}
                 />
               </label>
-              <label>
-                URL фото
-                <input
-                  value={form.images[0]?.image_url || ''}
-                  onChange={(e) =>
-                    setForm({ ...form, images: [{ image_url: e.target.value, sort_order: 0 }] })
+              <div className="shop-product-images-editor">
+                <p className="hint" style={{ margin: '0 0 8px' }}>
+                  Фото товара (можно несколько)
+                </p>
+                {form.images.map((img, idx) => (
+                  <div key={idx} className="shop-product-image-row glass-card" style={{ padding: 12, marginBottom: 8 }}>
+                    <label>
+                      URL фото {idx + 1}
+                      <input
+                        value={img.image_url}
+                        onChange={(e) => {
+                          const images = [...form.images];
+                          images[idx] = { ...images[idx], image_url: e.target.value, sort_order: idx };
+                          setForm({ ...form, images });
+                        }}
+                      />
+                    </label>
+                    {form.images.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--ghost"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            images: form.images
+                              .filter((_, i) => i !== idx)
+                              .map((row, i) => ({ ...row, sort_order: i })),
+                          })
+                        }
+                      >
+                        Удалить фото
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      images: [...form.images, { image_url: '', sort_order: form.images.length }],
+                    })
                   }
-                />
-              </label>
+                >
+                  + Фото
+                </button>
+              </div>
               <label>
                 Размеры (через запятую)
                 <input

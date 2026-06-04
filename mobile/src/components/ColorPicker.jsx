@@ -13,7 +13,7 @@ const LABEL_HEX = {
   blue: '#3b82f6',
 };
 
-function hexForColor(c) {
+export function hexForColor(c) {
   if (c.hex_code && /^#[0-9A-Fa-f]{3,8}$/.test(c.hex_code)) return c.hex_code;
   const key = String(c.label || '')
     .toLowerCase()
@@ -49,6 +49,13 @@ export default function ColorPicker({ colors, value, onChange }) {
               <span className="rb-color-chip__swatch" style={{ background: hex }} />
               <span className="rb-color-chip__label">{c.label}</span>
               {active && <Icon name="check" style={{ fontSize: 16, marginLeft: 4 }} />}
+              {c.image_url && (
+                <img
+                  src={c.image_url}
+                  alt=""
+                  className="rb-color-chip__preview"
+                />
+              )}
             </button>
           );
         })}

@@ -4,24 +4,72 @@ import { IonPage, IonContent } from '@ionic/react';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
+import { buildProductImages } from '../components/ProductImageGallery';
+import { hexForColor } from '../components/ColorPicker';
 import { cartCount } from '../services/cart';
 import { fetchShopCatalog } from '../utils/shopCatalog';
 
+function productColors(product) {
+  if (product.colors?.length) return product.colors;
+  if (product.color) return [{ label: product.color }];
+  return [];
+}
+
+function previewImageFor(product, selectedColor) {
+  const imgs = buildProductImages(product, selectedColor);
+  return imgs[0] || null;
+}
+
 function ProductCard({ product, onOpen }) {
+  const colors = productColors(product);
+  const [selectedColor, setSelectedColor] = useState(colors[0] || null);
+  const previewImage = previewImageFor(product, selectedColor);
   const sizes = (product.sizes || []).filter((s) => s.in_stock).map((s) => s.size);
-  const colorLabels = (product.colors || []).map((c) => c.label).filter(Boolean);
+  const colorLabels = colors.map((c) => c.label).filter(Boolean);
   const colorsText =
     colorLabels.length > 1
       ? colorLabels.join(', ')
       : colorLabels[0] || product.color || '';
 
+  const handleColorClick = (e, color) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedColor(color);
+  };
+
   return (
     <button type="button" className="glass-card rb-shop-card" onClick={() => onOpen(product.id)}>
       <div className="rb-shop-card__img">
-        {product.image_url ? (
-          <img src={product.image_url} alt="" />
+        {previewImage ? (
+          <img src={previewImage} alt="" />
         ) : (
           <Icon name="directions_run" filled style={{ fontSize: 40, color: 'var(--rb-neon)' }} />
+        )}
+        {colors.length > 1 && (
+          <div className="rb-shop-card__colors">
+            {colors.map((c) => {
+              const active = selectedColor?.label === c.label && (selectedColor?.id ?? null) === (c.id ?? null);
+              return (
+                <button
+                  key={c.id ?? c.label}
+                  type="button"
+                  className={`rb-shop-card__color-dot${active ? ' rb-shop-card__color-dot--active' : ''}`}
+                  title={c.label}
+                  onClick={(e) => handleColorClick(e, c)}
+                  aria-label={c.label}
+                >
+                  {c.image_url ? (
+                    <img src={c.image_url} alt="" />
+                  ) : (
+                    <span
+                      className="rb-shop-card__color-dot-fallback"
+                      style={{ background: hexForColor(c) }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
       <div className="rb-shop-card__body">

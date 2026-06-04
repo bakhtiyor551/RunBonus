@@ -871,6 +871,7 @@ select {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.04);
+  position: relative;
 }
 
 .rb-shop-card__img img {
@@ -881,6 +882,78 @@ select {
 
 .rb-shop-card__body {
   padding: 14px;
+}
+
+.rb-shop-card__colors {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rb-shop-card__color-dot {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.rb-shop-card__color-dot--active {
+  border-color: var(--rb-neon);
+  box-shadow: 0 0 0 2px rgba(195, 244, 0, 0.35);
+}
+
+.rb-shop-card__color-dot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rb-shop-card__color-dot-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #444, #888);
+}
+
+.rb-product-gallery__hero {
+  margin-bottom: 0;
+}
+
+.rb-product-gallery__thumbs {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.rb-product-gallery__thumb {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: var(--rb-surface-high);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.rb-product-gallery__thumb--active {
+  border-color: var(--rb-neon);
+}
+
+.rb-product-gallery__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .rb-shop-detail-hero {
@@ -952,6 +1025,15 @@ select {
 .rb-color-chip__label {
   max-width: 140px;
   text-align: left;
+}
+
+.rb-color-chip__preview {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: cover;
+  margin-left: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .rb-shop-categories {
