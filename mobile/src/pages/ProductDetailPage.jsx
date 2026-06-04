@@ -6,6 +6,7 @@ import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
 import QuantityStepper from '../components/QuantityStepper';
 import ColorPicker from '../components/ColorPicker';
+import ProductImageGallery, { buildProductImages } from '../components/ProductImageGallery';
 import { addToCart } from '../services/cart';
 import { showToast } from '../utils/toast';
 
@@ -21,8 +22,8 @@ export default function ProductDetailPage() {
   const colors = product?.colors?.length ? product.colors : product?.color ? [{ label: product.color }] : [];
 
   const displayImage = useMemo(() => {
-    if (selectedColor?.image_url) return selectedColor.image_url;
-    return product?.image_url || null;
+    const imgs = buildProductImages(product, selectedColor);
+    return imgs[0] || null;
   }, [product, selectedColor]);
 
   useEffect(() => {
@@ -93,13 +94,17 @@ export default function ProductDetailPage() {
       <AppHeader onBack={() => navigate(-1)} />
       <IonContent>
         <main className="rb-main">
-          <div className="rb-shop-detail-hero glass-card">
-            {displayImage ? (
-              <img src={displayImage} alt="" />
-            ) : (
-              <Icon name="directions_run" filled style={{ fontSize: 72, color: 'var(--rb-neon)' }} />
-            )}
-          </div>
+          <ProductImageGallery product={product} selectedColor={selectedColor} />
+
+          {colors.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <ColorPicker
+                colors={colors}
+                value={selectedColor?.label}
+                onChange={setSelectedColor}
+              />
+            </div>
+          )}
 
           <h1 className="rb-headline font-display" style={{ margin: '16px 0 4px' }}>
             {product.name}
@@ -119,17 +124,7 @@ export default function ProductDetailPage() {
             {product.description}
           </p>
 
-          {colors.length > 0 && (
-            <div style={{ marginTop: 24 }}>
-              <ColorPicker
-                colors={colors}
-                value={selectedColor?.label}
-                onChange={setSelectedColor}
-              />
-            </div>
-          )}
-
-          <section style={{ marginTop: colors.length ? 0 : 24 }}>
+          <section style={{ marginTop: 24 }}>
             <p className="rb-label" style={{ marginBottom: 8 }}>
               Размер
             </p>

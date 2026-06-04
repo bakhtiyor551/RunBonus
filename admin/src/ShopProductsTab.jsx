@@ -553,18 +553,23 @@ export default function ShopProductsTab() {
       color: p.color || '',
       price: String(p.price),
       status: p.status,
-      default_stock: p.sizes?.[0]?.stock_qty ?? 5,
       colors: p.colors?.length
         ? p.colors.map((c) => ({
-            label: c.label || '',
+            label: c.label,
             hex_code: c.hex_code || '',
             image_url: c.image_url || '',
           }))
         : p.color
           ? [{ label: p.color, hex_code: '', image_url: '' }]
           : emptyForm.colors,
-      sizes: p.sizes?.length ? p.sizes : [],
-      images: p.images?.length ? p.images : emptyForm.images,
+      sizes: p.sizes?.length ? p.sizes : emptyForm.sizes,
+      images: p.images?.length
+        ? p.images.map((img, i) =>
+            typeof img === 'string'
+              ? { image_url: img, sort_order: i }
+              : { image_url: img.image_url || '', sort_order: img.sort_order ?? i }
+          )
+        : emptyForm.images,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -578,18 +583,27 @@ export default function ShopProductsTab() {
 
   const save = async (e) => {
     e.preventDefault();
-    const payload = {
-      ...form,
-      price: Number(form.price),
-      category_id: form.category_id != null && String(form.category_id).trim() !== '' ? form.category_id : null,
-      colors: form.colors.filter((c) => c.label?.trim()),
-      sizes: form.sizes.filter((s) => s.size?.trim()),
-      images: form.images.filter((i) => i.image_url?.trim()),
-    };
-    if (editId) {
-      await adminApi(`/api/admin/shop/products/${editId}`, { method: 'PUT', body: JSON.stringify(payload) });
-    } else {
-      await adminApi('/api/admin/shop/products', { method: 'POST', body: JSON.stringify(payload) });
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        price: Number(form.price),
+        category_id: form.category_id != null && String(form.category_id).trim() !== '' ? form.category_id : null,
+        colors: form.colors.filter((c) => c.label?.trim()),
+        sizes: form.sizes.filter((s) => s.size?.trim()),
+        images: form.images.filter((i) => i.image_url?.trim()),
+      };
+      if (editId) {
+        await adminApi(`/api/admin/shop/products/${editId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      } else {
+        await adminApi('/api/admin/shop/products', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      closeForm();
+      load();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -663,31 +677,6 @@ export default function ShopProductsTab() {
           <Icon name="add" /> Новый товар
         </button>
       </div>
-
-      {!loading && (
-        <div className="shop-category-chips shop-category-chips--filter">
-          <span className="hint" style={{ alignSelf: 'center', marginRight: 4 }}>
-            Фильтр:
-          </span>
-          <button
-            type="button"
-            className={`shop-category-chip${filterCategory === '' ? ' shop-category-chip--active' : ''}`}
-            onClick={() => setFilterCategory('')}
-          >
-            Все ({products.length})
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`shop-category-chip${filterCategory === c.id ? ' shop-category-chip--active' : ''}`}
-              onClick={() => setFilterCategory(c.id)}
-            >
-              {c.name} ({products.filter((p) => p.category_id === c.id).length})
-            </button>
-          ))}
-        </div>
-      )}
 
       {editId && (
         <div className="glass-card card shop-products-editor" style={{ marginTop: 20 }}>

@@ -233,29 +233,10 @@ export default function CartPage({ user }) {
                 ))}
               </div>
 
-              <div className="glass-card" style={{ padding: 14, marginBottom: 16 }}>
-                <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 13 }}>
-                  Товары: {itemsTotal} сомони
-                </p>
-                {deliveryFee > 0 && (
-                  <p className="rb-text-muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
-                    Доставка: {deliveryFee} сомони
-                  </p>
-                )}
-                <p className="rb-headline font-display" style={{ margin: 0 }}>
-                  Итого: {total} сомони
-                </p>
-              </div>
-
               <form onSubmit={checkout} className="glass-card" style={{ padding: 20 }} noValidate>
                 <h2 className="font-display" style={{ fontSize: 18, margin: '0 0 16px' }}>
                   Оформление заказа
                 </h2>
-                <DeliveryMethodPicker
-                  methods={deliveryMethods}
-                  value={form.delivery_method}
-                  onChange={(id) => setForm({ ...form, delivery_method: id })}
-                />
 
                 {[
                   ['customer_name', 'Имя', 'text'],
@@ -328,7 +309,28 @@ export default function CartPage({ user }) {
                     />
                   </div>
                 </div>
-                <button type="submit" className="rb-btn-primary" disabled={submitting} style={{ width: '100%' }}>
+
+                <div className="glass-card" style={{ padding: 14, marginBottom: 16, background: 'var(--rb-surface-high)' }}>
+                  <p className="rb-text-muted" style={{ margin: '0 0 4px', fontSize: 13 }}>
+                    Товары: {itemsTotal} сомони
+                  </p>
+                  {deliveryFee > 0 && (
+                    <p className="rb-text-muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
+                      Доставка: {deliveryFee} сомони
+                    </p>
+                  )}
+                  <p className="rb-headline font-display" style={{ margin: 0 }}>
+                    Итого: {total} сомони
+                  </p>
+                </div>
+
+                <DeliveryMethodPicker
+                  methods={deliveryMethods}
+                  value={form.delivery_method}
+                  onChange={(id) => setForm({ ...form, delivery_method: id })}
+                />
+
+                <button type="submit" className="rb-btn-primary" disabled={submitting} style={{ width: '100%', marginTop: 16 }}>
                   {submitting ? 'Оформление…' : 'Оформить заказ'}
                 </button>
               </form>
