@@ -10,6 +10,7 @@ export default function QuantityStepper({
   max = QTY_MAX,
   compact = false,
   label,
+  disabled = false,
 }) {
   const qty = Math.min(max, Math.max(min, Number(value) || min));
 
@@ -28,7 +29,7 @@ export default function QuantityStepper({
           type="button"
           className="rb-qty-stepper__btn"
           onClick={dec}
-          disabled={qty <= min}
+          disabled={disabled || qty <= min}
           aria-label="Уменьшить"
         >
           <Icon name="remove" />
@@ -38,7 +39,7 @@ export default function QuantityStepper({
           type="button"
           className="rb-qty-stepper__btn"
           onClick={inc}
-          disabled={qty >= max}
+          disabled={disabled || qty >= max}
           aria-label="Увеличить"
         >
           <Icon name="add" />
