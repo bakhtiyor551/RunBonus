@@ -26,48 +26,34 @@ function normalizeCategories(list) {
   return list.map(normalizeCategory).filter(Boolean);
 }
 
+/** Запасные названия по коду (если API не вернул name). */
 const CATEGORY_NAME_FALLBACK = {
-  1: 'Бег',
-  2: 'Город',
-  3: 'Трейл',
-  running: 'Бег',
-  urban: 'Город',
-  trail: 'Трейл',
+  shoes: 'Кроссовки',
+  tshirt: 'Футболки',
+  shorts: 'Шорты',
 };
 
-export function categoryLabelFromProduct(product) {
-  const name = String(product?.category_name || '').trim();
-  if (name) return name;
-  const id = product?.category_id;
+export function categoryLabelFromId(id, categories = []) {
   if (id == null || id === '') return '';
   const key = String(id);
-  return CATEGORY_NAME_FALLBACK[id] ?? CATEGORY_NAME_FALLBACK[key] ?? CATEGORY_NAME_FALLBACK[key.toLowerCase()] ?? key;
+  const fromApi = categories.find((c) => String(c.id) === key);
+  if (fromApi?.name) return fromApi.name;
+  return CATEGORY_NAME_FALLBACK[key] ?? CATEGORY_NAME_FALLBACK[key.toLowerCase()] ?? '';
 }
 
-export function categoriesFromProducts(products) {
-  const map = new Map();
-  for (const p of products || []) {
-    const label = categoryLabelFromProduct(p);
-    if (!label && (p.category_id == null || p.category_id === '')) continue;
-    const cat = normalizeCategory({
-      id: p.category_id,
-      name: label || p.category_id,
-      slug: p.category_id,
-    });
-    if (cat) map.set(String(cat.id), cat);
-  }
-  return [...map.values()].sort((a, b) => a.sort_order - b.sort_order || String(a.id).localeCompare(String(b.id)));
+export function categoryLabelFromProduct(product, categories = []) {
+  const name = String(product?.category_name || '').trim();
+  if (name) return name;
+  return categoryLabelFromId(product?.category_id, categories);
 }
 
-export function mergeCategories(apiCategories, products) {
-  const merged = new Map();
-  for (const c of normalizeCategories(apiCategories)) {
-    merged.set(String(c.id), c);
-  }
-  for (const c of categoriesFromProducts(products)) {
-    if (!merged.has(String(c.id))) merged.set(String(c.id), c);
-  }
-  return [...merged.values()].sort((a, b) => a.sort_order - b.sort_order || String(a.id).localeCompare(String(b.id)));
+function enrichProducts(products, categories) {
+  if (!categories.length) return products;
+  return products.map((p) => {
+    const label = categoryLabelFromProduct(p, categories);
+    if (!label || label === p.category_name) return p;
+    return { ...p, category_name: label };
+  });
 }
 
 export async function fetchShopCategories() {
@@ -98,19 +84,15 @@ export async function fetchShopCatalog(categoryId = null) {
     [categories, products] = await Promise.all([fetchShopCategories(), fetchShopProducts(categoryId)]);
   }
 
-  if (!categories.length && products.length) {
-    categories = categoriesFromProducts(products);
-  }
-
   if (!categories.length) {
     try {
-      const allProducts = await fetchShopProducts(null);
-      categories = mergeCategories(categories, allProducts);
-      if (id == null) products = allProducts;
+      categories = await fetchShopCategories();
     } catch {
       /* ignore */
     }
   }
+
+  products = enrichProducts(products, categories);
 
   return { categories, products };
 }
