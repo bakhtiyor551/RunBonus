@@ -68,12 +68,7 @@ router.get('/shop-catalog', async (req, res) => {
         : null;
     const categories = await listCatalogShopCategories();
     let products = [];
-    try {
-      products = await listActiveProducts({ categoryId: filterId });
-    } catch (err) {
-      console.error('shop-catalog products:', err);
-      products = await listActiveProducts({ categoryId: null });
-    }
+    products = await listActiveProducts({ categoryId: filterId });
     res.json({ categories, products });
   } catch (err) {
     console.error(err);

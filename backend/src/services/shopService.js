@@ -169,24 +169,27 @@ function resolveCategory(catMap, categoryId) {
 
 const LEGACY_SHOE_FILTER_IDS = ['1', '2', '3', 'running', 'urban', 'trail'];
 
+function sqlCategoryFilterValues(categoryId) {
+  const filterId = normalizeCategoryId(categoryId);
+  if (filterId == null) return null;
+  const normalized = normalizeProductCategoryId(filterId) ?? filterId;
+  const key = String(normalized);
+  if (key === 'shoes') return ['shoes', ...LEGACY_SHOE_FILTER_IDS];
+  return [key];
+}
+
 export async function listActiveProducts({ categoryId = null } = {}) {
-  const filterId = categoryId != null ? normalizeCategoryId(categoryId) : null;
+  const filterValues = categoryId != null ? sqlCategoryFilterValues(categoryId) : null;
 
   let products = [];
   const baseSql = `SELECT * FROM products WHERE status = 'active'`;
-  if (filterId) {
+  if (filterValues?.length) {
     try {
-      if (String(filterId) === 'shoes') {
-        const ids = ['shoes', ...LEGACY_SHOE_FILTER_IDS];
-        const [rows] = await pool.query(
-          `${baseSql} AND CAST(category_id AS CHAR) IN (?) ORDER BY id ASC`,
-          [ids]
-        );
-        products = rows;
-      } else {
-        const [rows] = await pool.query(`${baseSql} AND category_id = ? ORDER BY id ASC`, [filterId]);
-        products = rows;
-      }
+      const [rows] = await pool.query(
+        `${baseSql} AND CAST(category_id AS CHAR) IN (?) ORDER BY id ASC`,
+        [filterValues]
+      );
+      products = rows;
     } catch (err) {
       if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
       const [rows] = await pool.query(`${baseSql} ORDER BY id ASC`);

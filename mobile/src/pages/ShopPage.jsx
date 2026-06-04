@@ -7,7 +7,7 @@ import Icon from '../components/Icon';
 import { buildProductImages } from '../components/ProductImageGallery';
 import { hexForColor } from '../components/ColorPicker';
 import { cartCount } from '../services/cart';
-import { fetchShopCatalog } from '../utils/shopCatalog';
+import { fetchShopCatalog, normalizeProductCategoryId } from '../utils/shopCatalog';
 import { sizesForColor, productHasStock } from '../utils/productSizes';
 
 function productColors(product) {
@@ -149,6 +149,24 @@ export default function ShopPage() {
     return String(categoryId) === String(tabId);
   };
 
+  const displayedProducts = useMemo(() => {
+    if (categoryId == null) return products;
+    const want = String(normalizeProductCategoryId(categoryId) ?? categoryId);
+    return products.filter((p) => {
+      const got = normalizeProductCategoryId(p.category_id);
+      return got != null && String(got) === want;
+    });
+  }, [products, categoryId]);
+
+  const selectCategory = (tabId) => {
+    const next = tabId ?? null;
+    setCategoryId((prev) => {
+      if (prev == null && next == null) return prev;
+      if (prev != null && next != null && String(prev) === String(next)) return prev;
+      return next;
+    });
+  };
+
   return (
     <IonPage>
       <AppHeader />
@@ -210,8 +228,7 @@ export default function ShopPage() {
                   key={c.id ?? 'all'}
                   type="button"
                   className={`rb-shop-category-chip${isCategoryActive(c.id) ? ' rb-shop-category-chip--active' : ''}`}
-                  onClick={() => setCategoryId(c.id)}
-                  disabled={loading}
+                  onClick={() => selectCategory(c.id)}
                 >
                   {c.name}
                 </button>
@@ -220,15 +237,15 @@ export default function ShopPage() {
           )}
 
           {loading && <p className="rb-text-muted">Загрузка…</p>}
-          {!loading && categoryId != null && !products.length && !categoriesError && (
+          {!loading && categoryId != null && !displayedProducts.length && !categoriesError && (
             <p className="rb-text-muted">В этой категории пока нет товаров. Назначьте категорию товару в админке.</p>
           )}
-          {!loading && categoryId == null && !products.length && !categoriesError && (
+          {!loading && categoryId == null && !displayedProducts.length && !categoriesError && (
             <p className="rb-text-muted">Товары скоро появятся</p>
           )}
 
           <div className="rb-shop-grid">
-            {products.map((p) => (
+            {displayedProducts.map((p) => (
               <ProductCard key={p.id} product={p} onOpen={(pid) => navigate(`/shop/${pid}`)} />
             ))}
           </div>
