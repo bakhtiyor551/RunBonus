@@ -300,8 +300,12 @@ export async function listActiveBanners({ placement = 'banner_home', user = null
   return rows
     .map(mapCampaign)
     .filter((c) => {
-      if (c.audience_cities?.length && city && !c.audience_cities.includes(city)) return false;
-      if (c.audience_levels?.length && level && !c.audience_levels.includes(level)) return false;
+      if (c.audience_cities?.length) {
+        if (!city || !c.audience_cities.includes(city)) return false;
+      }
+      if (c.audience_levels?.length) {
+        if (!level || !c.audience_levels.includes(String(level).toLowerCase())) return false;
+      }
       return true;
     });
 }

@@ -21,6 +21,7 @@ import {
   subscribeWorkoutSession,
 } from '../services/workoutTracker';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
+import AdBanner from '../components/AdBanner';
 
 /** 0–5 км зелёный, 5–10 оранжевый, 10+ красный */
 function workoutDistanceTier(km) {
@@ -194,6 +195,7 @@ export default function WorkoutPage({ user, setUser }) {
           <main className="rb-main" style={{ paddingTop: 48 }}>
             <CelebrateBlock result={result} />
             <ResultCards result={result} />
+            <AdBanner placement="banner_workout" user={user} style={{ marginTop: 24 }} />
             <button type="button" className="rb-btn-pill" style={{ width: '100%', marginTop: 32 }} onClick={() => navigate('/')}>
               Готово
               <Icon name="arrow_forward" />

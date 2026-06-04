@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
+import { config } from '../config.js';
 import { authUser, requireActiveUser } from '../middleware/auth.js';
 import { validateShoeQr } from '../services/shoeValidateService.js';
 import {
@@ -233,7 +235,11 @@ router.get('/ads/banners', async (req, res) => {
   try {
     const { listActiveBanners } = await import('../services/adsService.js');
     const placement = req.query.placement || 'banner_home';
-    const banners = await listActiveBanners({ placement, user: null });
+    const user = {
+      city: req.query.city?.trim() || null,
+      level_code: req.query.level?.trim() || null,
+    };
+    const banners = await listActiveBanners({ placement, user });
     res.json(banners);
   } catch (err) {
     console.error(err);
@@ -241,7 +247,20 @@ router.get('/ads/banners', async (req, res) => {
   }
 });
 
-router.post('/ads/event', async (req, res) => {
+function optionalUserId(req, res, next) {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    try {
+      const payload = jwt.verify(header.slice(7), config.jwtSecret);
+      req.userId = payload.userId;
+    } catch {
+      /* токен недействителен — событие без user_id */
+    }
+  }
+  next();
+}
+
+router.post('/ads/event', optionalUserId, async (req, res) => {
   try {
     const { recordAdEvent } = await import('../services/adsService.js');
     const { campaign_id, event_type } = req.body || {};
