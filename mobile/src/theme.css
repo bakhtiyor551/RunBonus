@@ -676,6 +676,32 @@ select {
   line-height: 1.35;
 }
 
+.rb-phone-input {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.rb-phone-input__prefix {
+  flex-shrink: 0;
+  padding: 0 0 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--rb-on-surface-variant);
+  user-select: none;
+}
+
+.rb-phone-input__field {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-left: 8px !important;
+}
+
 .rb-city-picker-trigger {
   display: flex;
   align-items: center;

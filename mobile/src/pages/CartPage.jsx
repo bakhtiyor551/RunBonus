@@ -12,6 +12,7 @@ import { getCart, removeFromCart, clearCart, setCartItemQuantity } from '../serv
 import { emptyOrderForm, validateOrderForm } from '../utils/orderForm';
 import MobileTransferModal from '../components/MobileTransferModal';
 import CityPicker from '../components/CityPicker';
+import PhoneInput from '../components/PhoneInput';
 import { showToast } from '../utils/toast';
 import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
 import { DELIVERY_METHODS_FALLBACK, deliveryRequiresAddress } from '../utils/deliveryMethods';
@@ -242,7 +243,6 @@ export default function CartPage({ user }) {
 
                 {[
                   ['customer_name', 'Имя', 'text'],
-                  ['phone', 'Телефон', 'tel'],
                 ].map(([key, label, type]) => (
                   <div key={key} style={{ marginBottom: 12 }}>
                     <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
@@ -258,6 +258,13 @@ export default function CartPage({ user }) {
                     </div>
                   </div>
                 ))}
+
+                <PhoneInput
+                  value={form.phone}
+                  onChange={(phone) => setForm({ ...form, phone })}
+                  label="Телефон"
+                  style={{ marginBottom: 12 }}
+                />
 
                 <CityPicker value={form.city} onChange={(city) => setForm({ ...form, city })} />
 

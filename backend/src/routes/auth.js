@@ -303,9 +303,16 @@ router.patch('/profile', authUser, async (req, res) => {
     const firstName = String(req.body.firstName ?? req.body.first_name ?? '').trim();
     const lastName = String(req.body.lastName ?? req.body.last_name ?? '').trim();
     const avatarBase64 = req.body.avatarBase64 ?? req.body.avatar_base64 ?? null;
+    const cityRaw = req.body.city;
 
     if (!firstName || !lastName) {
       return res.status(400).json({ error: 'Укажите имя и фамилию' });
+    }
+
+    const userCity =
+      cityRaw !== undefined && cityRaw !== null ? String(cityRaw).trim() : null;
+    if (cityRaw !== undefined && !userCity) {
+      return res.status(400).json({ error: 'Выберите город' });
     }
 
     const name = buildDisplayName(firstName, lastName);
@@ -315,10 +322,20 @@ router.patch('/profile', authUser, async (req, res) => {
       avatarUrl = saveAvatarFromDataUrl(req.userId, avatarBase64);
     }
 
-    if (avatarUrl) {
+    if (avatarUrl && userCity != null) {
+      await pool.query(
+        'UPDATE users SET name = ?, first_name = ?, last_name = ?, avatar_url = ?, city = ? WHERE id = ?',
+        [name, firstName, lastName, avatarUrl, userCity, req.userId]
+      );
+    } else if (avatarUrl) {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ?, avatar_url = ? WHERE id = ?',
         [name, firstName, lastName, avatarUrl, req.userId]
+      );
+    } else if (userCity != null) {
+      await pool.query(
+        'UPDATE users SET name = ?, first_name = ?, last_name = ?, city = ? WHERE id = ?',
+        [name, firstName, lastName, userCity, req.userId]
       );
     } else {
       await pool.query(
