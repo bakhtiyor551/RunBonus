@@ -338,27 +338,12 @@ function ProductForm({
           </section>
 
           <section className="shop-product-form__section">
-            <h4>3. Размеры и остаток</h4>
-            <label>
-              Остаток на каждый размер
-              <input
-                type="number"
-                min="0"
-                value={form.default_stock}
-                onChange={(e) => {
-                  const qty = Number(e.target.value) || 0;
-                  setForm({
-                    ...form,
-                    default_stock: qty,
-                    sizes: form.sizes.map((s) => ({ ...s, stock_qty: qty })),
-                  });
-                }}
-              />
-            </label>
+            <h4>3. Размеры</h4>
+            <p className="hint">Остатки пополняются во вкладке «Склад». Здесь выбираются только доступные размеры.</p>
             <SizeSelector
               categoryId={form.category_id}
               sizes={form.sizes}
-              stockQty={Number(form.default_stock) || 5}
+              stockQty={0}
               onChange={(sizes) => setForm({ ...form, sizes })}
             />
           </section>

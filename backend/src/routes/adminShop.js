@@ -30,6 +30,11 @@ import {
   updateCourier,
   assignCourierToOrder,
 } from '../services/courierService.js';
+import {
+  listWarehouseStock,
+  listStockMovements,
+  addStock,
+} from '../services/warehouseService.js';
 
 const router = Router();
 
@@ -256,6 +261,37 @@ router.patch('/product-categories/:id/status', authAdmin, async (req, res) => {
     if (err.status) return res.status(err.status).json({ error: err.message });
     console.error(err);
     res.status(500).json({ error: 'Ошибка обновления статуса' });
+  }
+});
+
+router.get('/warehouse/stock', authAdmin, async (_req, res) => {
+  try {
+    const stock = await listWarehouseStock();
+    res.json(stock);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки склада' });
+  }
+});
+
+router.get('/warehouse/movements', authAdmin, async (req, res) => {
+  try {
+    const movements = await listStockMovements(req.query.limit);
+    res.json(movements);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки истории' });
+  }
+});
+
+router.post('/warehouse/stock', authAdmin, async (req, res) => {
+  try {
+    const result = await addStock(req.body);
+    res.status(201).json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка поступления на склад' });
   }
 });
 

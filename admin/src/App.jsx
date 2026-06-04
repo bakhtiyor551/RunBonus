@@ -12,6 +12,7 @@ import ShopProductsTab from './ShopProductsTab';
 import ShopCategoriesTab from './ShopCategoriesTab';
 import ShopOrdersTab from './ShopOrdersTab';
 import PaymentMethodsTab from './PaymentMethodsTab';
+import WarehouseTab from './WarehouseTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -144,6 +145,11 @@ export default function App() {
           {tab === 10 && (
             <div className="page-content">
               <PaymentMethodsTab />
+            </div>
+          )}
+          {tab === 12 && (
+            <div className="page-content">
+              <WarehouseTab />
             </div>
           )}
           {tab === 5 && (

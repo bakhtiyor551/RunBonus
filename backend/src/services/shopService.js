@@ -238,10 +238,21 @@ export async function adminSaveProduct(data, id = null) {
         `UPDATE products SET name=?, slug=?, description=?, color=?, price=?, status=?, category_id=? WHERE id=?`,
         [name, slug || null, description || null, primaryColor, price, status || 'active', catId, productId]
       );
+      const [existingSizes] = await conn.query(
+        `SELECT size, stock_qty FROM product_sizes WHERE product_id = ?`,
+        [productId]
+      );
+      const stockBySize = new Map(existingSizes.map((s) => [s.size, Number(s.stock_qty) || 0]));
       await conn.query(`DELETE FROM product_sizes WHERE product_id = ?`, [productId]);
       await conn.query(`DELETE FROM product_images WHERE product_id = ?`, [productId]);
       if (await hasColorsTable()) {
         await conn.query(`DELETE FROM product_colors WHERE product_id = ?`, [productId]);
+      }
+      for (const s of sizes || []) {
+        await conn.query(
+          `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
+          [productId, s.size, stockBySize.get(s.size) ?? 0, s.status || 'active']
+        );
       }
     } else {
       const [r] = await conn.query(
@@ -259,11 +270,13 @@ export async function adminSaveProduct(data, id = null) {
       );
     }
 
-    for (const s of sizes || []) {
-      await conn.query(
-        `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
-        [productId, s.size, s.stock_qty ?? 0, s.status || 'active']
-      );
+    if (!id) {
+      for (const s of sizes || []) {
+        await conn.query(
+          `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
+          [productId, s.size, 0, s.status || 'active']
+        );
+      }
     }
 
     if (await hasColorsTable()) {
