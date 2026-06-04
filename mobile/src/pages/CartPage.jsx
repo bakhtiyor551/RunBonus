@@ -163,8 +163,8 @@ export default function CartPage({ user }) {
               Мои заказы
             </button>
           </main>
-          <BottomNav />
         </IonContent>
+        <BottomNav />
       </IonPage>
     );
   }
@@ -347,8 +347,8 @@ export default function CartPage({ user }) {
             </>
           )}
         </main>
-        <BottomNav />
       </IonContent>
+      <BottomNav />
 
       <MobileTransferModal
         open={mobileModalOpen}

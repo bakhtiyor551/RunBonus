@@ -250,8 +250,8 @@ export default function ShopPage() {
             ))}
           </div>
         </main>
-        <BottomNav />
       </IonContent>
+      <BottomNav />
     </IonPage>
   );
 }

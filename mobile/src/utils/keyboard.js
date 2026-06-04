@@ -1,3 +1,16 @@
+import { Capacitor } from '@capacitor/core';
+
+const isFormField = (el) =>
+  el?.matches?.(
+    'input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable="true"]'
+  );
+
+function setKeyboardOpen(open, insetPx = 0) {
+  document.documentElement.classList.toggle('rb-keyboard-open', open);
+  const inset = open && insetPx > 0 ? `${Math.round(insetPx)}px` : '0px';
+  document.documentElement.style.setProperty('--rb-keyboard-inset', inset);
+}
+
 /** Прокрутка поля ввода над клавиатурой (iOS / Android WebView). */
 export function scrollInputIntoView(e) {
   const el = e?.target;
@@ -22,29 +35,83 @@ export function focusInputEnd(e) {
 }
 
 export function onInputFocus(e) {
+  setKeyboardOpen(true);
   focusInputEnd(e);
   scrollInputIntoView(e);
 }
 
 export function initKeyboardInset() {
-  const vv = window.visualViewport;
-  if (!vv) return () => {};
+  const cleanups = [];
 
-  const update = () => {
-    const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    const open = inset > 40;
-    document.documentElement.style.setProperty('--rb-keyboard-inset', open ? `${inset}px` : '0px');
-    document.documentElement.classList.toggle('rb-keyboard-open', open);
+  const onFocusIn = (e) => {
+    if (isFormField(e.target)) setKeyboardOpen(true);
   };
 
-  vv.addEventListener('resize', update);
-  vv.addEventListener('scroll', update);
-  update();
+  const onFocusOut = () => {
+    setTimeout(() => {
+      if (!isFormField(document.activeElement)) {
+        setKeyboardOpen(false);
+      }
+    }, 150);
+  };
+
+  document.addEventListener('focusin', onFocusIn, true);
+  document.addEventListener('focusout', onFocusOut, true);
+  cleanups.push(() => {
+    document.removeEventListener('focusin', onFocusIn, true);
+    document.removeEventListener('focusout', onFocusOut, true);
+  });
+
+  const vv = window.visualViewport;
+  if (vv) {
+    const onViewportChange = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      if (inset > 40) {
+        setKeyboardOpen(true, inset);
+      } else if (!isFormField(document.activeElement)) {
+        setKeyboardOpen(false);
+      }
+    };
+    vv.addEventListener('resize', onViewportChange);
+    vv.addEventListener('scroll', onViewportChange);
+    cleanups.push(() => {
+      vv.removeEventListener('resize', onViewportChange);
+      vv.removeEventListener('scroll', onViewportChange);
+    });
+  }
+
+  if (Capacitor.isNativePlatform()) {
+    import('@capacitor/keyboard')
+      .then(({ Keyboard }) => {
+        Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+
+        Keyboard.addListener('keyboardWillShow', (info) => {
+          setKeyboardOpen(true, info.keyboardHeight);
+        }).then((handle) => cleanups.push(() => handle.remove()));
+
+        Keyboard.addListener('keyboardDidShow', (info) => {
+          setKeyboardOpen(true, info.keyboardHeight);
+        }).then((handle) => cleanups.push(() => handle.remove()));
+
+        Keyboard.addListener('keyboardWillHide', () => {
+          setKeyboardOpen(false);
+        }).then((handle) => cleanups.push(() => handle.remove()));
+
+        Keyboard.addListener('keyboardDidHide', () => {
+          setKeyboardOpen(false);
+        }).then((handle) => cleanups.push(() => handle.remove()));
+      })
+      .catch(() => {});
+  }
 
   return () => {
-    vv.removeEventListener('resize', update);
-    vv.removeEventListener('scroll', update);
-    document.documentElement.style.removeProperty('--rb-keyboard-inset');
-    document.documentElement.classList.remove('rb-keyboard-open');
+    cleanups.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        /* ignore */
+      }
+    });
+    setKeyboardOpen(false);
   };
 }

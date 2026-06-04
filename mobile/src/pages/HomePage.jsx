@@ -184,10 +184,10 @@ export default function HomePage({ user, setUser }) {
             </div>
           </section>
         </main>
-        <BottomNav />
-        <StatsDetailModal type={statsModal} workouts={workouts} onClose={() => setStatsModal(null)} />
-        <WorkoutDetailModal workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
       </IonContent>
+      <BottomNav />
+      <StatsDetailModal type={statsModal} workouts={workouts} onClose={() => setStatsModal(null)} />
+      <WorkoutDetailModal workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
     </IonPage>
   );
 }

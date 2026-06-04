@@ -1682,13 +1682,25 @@ ion-content {
   --padding-bottom: calc(var(--keyboard-offset) + env(safe-area-inset-bottom, 0px));
 }
 
+ion-page .rb-bottom-nav {
+  position: fixed;
+  z-index: 50;
+}
+
 html.rb-keyboard-open .rb-bottom-nav {
-  visibility: hidden;
-  pointer-events: none;
+  display: none !important;
+}
+
+html.rb-keyboard-open .rb-shop-fixed-bar {
+  display: none !important;
 }
 
 html.cap-ios .rb-main {
   padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px) + var(--rb-keyboard-inset, 0px));
+}
+
+html.rb-keyboard-open .rb-main {
+  padding-bottom: calc(24px + var(--rb-keyboard-inset, 0px)) !important;
 }
 
 .rb-login-page {

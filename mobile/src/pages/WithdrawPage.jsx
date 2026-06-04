@@ -374,8 +374,8 @@ export default function WithdrawPage({ user, setUser }) {
             </section>
           )}
         </main>
-        <BottomNav />
       </IonContent>
+      <BottomNav />
     </IonPage>
   );
 }

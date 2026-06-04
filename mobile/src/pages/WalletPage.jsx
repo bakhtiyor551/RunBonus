@@ -67,9 +67,9 @@ export default function WalletPage({ user }) {
             </div>
           </section>
         </main>
-        <BottomNav />
-        <OperationDetailModal operation={selectedOperation} onClose={() => setSelectedOperation(null)} />
       </IonContent>
+      <BottomNav />
+      <OperationDetailModal operation={selectedOperation} onClose={() => setSelectedOperation(null)} />
     </IonPage>
   );
 }

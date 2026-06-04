@@ -23,6 +23,7 @@
     "@capacitor/core": "^6.1.2",
     "@capacitor/geolocation": "^6.0.1",
     "@capacitor/ios": "^6.2.1",
+    "@capacitor/keyboard": "^6.0.4",
     "@capacitor/network": "^6.0.4",
     "@capacitor/status-bar": "^6.0.3",
     "@ionic/react": "^8.3.2",
