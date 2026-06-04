@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
-import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import { formatBalance } from '../utils/format';
 import { formatLocalPhoneInput, phoneValidationMessage } from '../utils/phone';
@@ -235,7 +234,7 @@ export default function WithdrawPage({ user, setUser }) {
             </div>
           )}
 
-          {error && showForm && (
+          {showForm && error && (
             <div className="glass-card withdraw-alert withdraw-alert--compact">
               <p className="rb-text-error" style={{ margin: 0 }}>{error}</p>
             </div>
@@ -325,10 +324,6 @@ export default function WithdrawPage({ user, setUser }) {
                 />
               </label>
 
-              {error && (
-                <p className="rb-text-error" style={{ marginBottom: 8 }}>{error}</p>
-              )}
-
               <button
                 type="submit"
                 className="rb-btn-pill withdraw-form__submit"
@@ -375,7 +370,6 @@ export default function WithdrawPage({ user, setUser }) {
           )}
         </main>
       </IonContent>
-      <BottomNav />
     </IonPage>
   );
 }

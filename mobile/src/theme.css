@@ -1700,7 +1700,15 @@ html.cap-ios .rb-main {
 }
 
 html.rb-keyboard-open .rb-main {
-  padding-bottom: calc(24px + var(--rb-keyboard-inset, 0px)) !important;
+  padding-bottom: calc(32px + var(--rb-keyboard-inset, 0px)) !important;
+}
+
+html.rb-keyboard-open .withdraw-page {
+  padding-bottom: calc(32px + var(--rb-keyboard-inset, 0px));
+}
+
+html.rb-keyboard-open .withdraw-form {
+  padding-bottom: calc(16px + var(--rb-keyboard-inset, 0px));
 }
 
 .rb-login-page {
@@ -2018,10 +2026,7 @@ html.rb-keyboard-open .rb-main {
 
 .withdraw-form__submit {
   width: 100%;
-  margin-top: 4px;
-  position: sticky;
-  bottom: calc(8px + var(--rb-keyboard-inset, 0px));
-  z-index: 5;
+  margin-top: 12px;
 }
 
 .withdraw-link-btn {

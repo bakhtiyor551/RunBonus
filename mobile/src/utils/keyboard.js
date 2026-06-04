@@ -1,25 +1,67 @@
 import { Capacitor } from '@capacitor/core';
 
+const KEYBOARD_FALLBACK_PX = 320;
+
 const isFormField = (el) =>
   el?.matches?.(
     'input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable="true"]'
   );
 
-function setKeyboardOpen(open, insetPx = 0) {
-  document.documentElement.classList.toggle('rb-keyboard-open', open);
-  const inset = open && insetPx > 0 ? `${Math.round(insetPx)}px` : '0px';
-  document.documentElement.style.setProperty('--rb-keyboard-inset', inset);
+function keyboardInsetPx() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--rb-keyboard-inset');
+  const n = parseFloat(raw);
+  return Number.isFinite(n) && n > 0 ? n : KEYBOARD_FALLBACK_PX;
 }
 
-/** Прокрутка поля ввода над клавиатурой (iOS / Android WebView). */
+export function setKeyboardOpen(open, insetPx = 0) {
+  document.documentElement.classList.toggle('rb-keyboard-open', open);
+  if (!open) {
+    document.documentElement.style.setProperty('--rb-keyboard-inset', '0px');
+    return;
+  }
+  const inset = insetPx > 0 ? insetPx : KEYBOARD_FALLBACK_PX;
+  document.documentElement.style.setProperty('--rb-keyboard-inset', `${Math.round(inset)}px`);
+}
+
+/** Прокрутка поля ввода над клавиатурой (IonContent + fallback). */
 export function scrollInputIntoView(e) {
   const el = e?.target;
-  if (!el || typeof el.scrollIntoView !== 'function') return;
-  requestAnimationFrame(() => {
-    setTimeout(() => {
+  if (!el) return;
+
+  const delay = Capacitor.isNativePlatform() ? 420 : 280;
+
+  setTimeout(async () => {
+    const ionContent = el.closest('ion-content') || document.querySelector('ion-content');
+    const inset = keyboardInsetPx();
+    const headerReserve = 64;
+    const bottomPad = 24;
+    const safeBottom = window.innerHeight - inset - bottomPad;
+
+    if (ionContent?.getScrollElement && ionContent.scrollToPoint) {
+      try {
+        const scrollEl = await ionContent.getScrollElement();
+        const rect = el.getBoundingClientRect();
+        let delta = 0;
+
+        if (rect.bottom > safeBottom) {
+          delta = rect.bottom - safeBottom + 16;
+        } else if (rect.top < headerReserve) {
+          delta = rect.top - headerReserve - 8;
+        }
+
+        if (delta !== 0) {
+          await ionContent.scrollToPoint(0, scrollEl.scrollTop + delta, 280);
+        }
+        return;
+      } catch {
+        /* fallback below */
+      }
+    }
+
+    if (typeof el.scrollIntoView === 'function') {
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }, 320);
-  });
+    }
+  }, delay);
 }
 
 /** Курсор в конец — удобнее при повторном фокусе. */
@@ -85,21 +127,26 @@ export function initKeyboardInset() {
       .then(({ Keyboard }) => {
         Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
 
-        Keyboard.addListener('keyboardWillShow', (info) => {
+        const onShow = (info) => {
           setKeyboardOpen(true, info.keyboardHeight);
-        }).then((handle) => cleanups.push(() => handle.remove()));
+          const active = document.activeElement;
+          if (isFormField(active)) {
+            scrollInputIntoView({ target: active });
+          }
+        };
 
-        Keyboard.addListener('keyboardDidShow', (info) => {
-          setKeyboardOpen(true, info.keyboardHeight);
-        }).then((handle) => cleanups.push(() => handle.remove()));
-
-        Keyboard.addListener('keyboardWillHide', () => {
-          setKeyboardOpen(false);
-        }).then((handle) => cleanups.push(() => handle.remove()));
-
-        Keyboard.addListener('keyboardDidHide', () => {
-          setKeyboardOpen(false);
-        }).then((handle) => cleanups.push(() => handle.remove()));
+        Keyboard.addListener('keyboardWillShow', onShow).then((handle) =>
+          cleanups.push(() => handle.remove())
+        );
+        Keyboard.addListener('keyboardDidShow', onShow).then((handle) =>
+          cleanups.push(() => handle.remove())
+        );
+        Keyboard.addListener('keyboardWillHide', () => setKeyboardOpen(false)).then((handle) =>
+          cleanups.push(() => handle.remove())
+        );
+        Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false)).then((handle) =>
+          cleanups.push(() => handle.remove())
+        );
       })
       .catch(() => {});
   }
