@@ -10,7 +10,7 @@ import { initNativeShell } from './nativeShell.js';
 import { disableAppSounds } from './utils/disableAppSounds.js';
 import { initKeyboardInset } from './utils/keyboard.js';
 import { refreshAdSettings } from './services/adSettings.js';
-import { initAdMob } from './services/admob.js';
+ import { initAdMob } from './services/admob.js';
 import './theme.css';
 
 setupIonicReact({
