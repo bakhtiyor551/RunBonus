@@ -6,6 +6,7 @@ import { periodQuery } from '../reports/reportUtils';
 
 const SECTIONS = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'settings', label: 'Настройки' },
   { id: 'advertisers', label: 'Рекламодатели' },
   { id: 'campaigns', label: 'Кампании' },
   { id: 'statistics', label: 'Статистика' },
@@ -53,6 +54,8 @@ export default function AdsTab() {
   const [campForm, setCampForm] = useState(emptyCampaign);
   const [editAdvId, setEditAdvId] = useState(null);
   const [editCampId, setEditCampId] = useState(null);
+  const [adSettings, setAdSettings] = useState({ google_ads_enabled: true });
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +78,8 @@ export default function AdsTab() {
         setPayments(await adminApi('/api/admin/ads/payments'));
       } else if (section === 'tariffs') {
         setTariffs(await adminApi('/api/admin/ads/tariffs'));
+      } else if (section === 'settings') {
+        setAdSettings(await adminApi('/api/admin/ads/settings'));
       }
     } catch {
       /* ignore */
@@ -123,6 +128,21 @@ export default function AdsTab() {
     setCampForm({ ...campForm, [field]: next });
   };
 
+  const saveAdSettings = async (google_ads_enabled) => {
+    setSettingsSaving(true);
+    try {
+      const data = await adminApi('/api/admin/ads/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ google_ads_enabled }),
+      });
+      setAdSettings(data);
+    } catch (e) {
+      alert(e.message || 'Не удалось сохранить');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
   return (
     <div className="page-content ads-page">
       <h2>Реклама</h2>
@@ -159,6 +179,30 @@ export default function AdsTab() {
               <h3 className="stat-card__value">{item.value}</h3>
             </div>
           ))}
+        </div>
+      )}
+
+      {!loading && section === 'settings' && (
+        <div className="glass-card card" style={{ maxWidth: 560 }}>
+          <h3>Google AdMob в приложении</h3>
+          <p className="hint" style={{ marginBottom: 20 }}>
+            Баннеры Google Ads и Google Play на главной, после тренировки и в магазине. Партнёрские баннеры RunBonus
+            (кампании ниже) не затрагиваются.
+          </p>
+          <label className="settings-form__checkbox">
+            <input
+              type="checkbox"
+              checked={adSettings.google_ads_enabled !== false}
+              disabled={settingsSaving}
+              onChange={(e) => saveAdSettings(e.target.checked)}
+            />
+            Показывать рекламу Google в мобильном приложении
+          </label>
+          {adSettings.updated_at && (
+            <p className="hint" style={{ marginTop: 16 }}>
+              Обновлено: {new Date(adSettings.updated_at).toLocaleString('ru-RU')}
+            </p>
+          )}
         </div>
       )}
 

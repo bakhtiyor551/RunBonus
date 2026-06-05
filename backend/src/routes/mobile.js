@@ -237,6 +237,19 @@ function optionalUserId(req, res, next) {
   next();
 }
 
+router.get('/ads/config', async (_req, res) => {
+  try {
+    const { getAdSettings } = await import('../services/adsService.js');
+    const settings = await getAdSettings();
+    res.json({
+      google_ads_enabled: settings.google_ads_enabled !== false,
+    });
+  } catch (err) {
+    console.error(err);
+    res.json({ google_ads_enabled: true });
+  }
+});
+
 router.get('/ads/banners', optionalUserId, async (req, res) => {
   try {
     const { listActiveBanners, resolveBannerAudienceUser } = await import('../services/adsService.js');

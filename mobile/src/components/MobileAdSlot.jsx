@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import AdBanner from './AdBanner';
 import { adUnitId, AD_SLOT_HEIGHT, adsEnabled } from '../config/mobileAds';
 import { hideBannerAd, showBannerAd } from '../services/admob';
+import { subscribeGoogleAdsSetting } from '../services/adSettings';
 
 const LABELS = {
   google: 'Google Ads',
@@ -18,7 +19,11 @@ const LABELS = {
 export default function MobileAdSlot({ network, page, active = false, className = '', style }) {
   const unitId = adUnitId(network, page);
   const [nativeShown, setNativeShown] = useState(false);
-  const isNative = adsEnabled();
+  const [googleAllowed, setGoogleAllowed] = useState(adsEnabled());
+
+  useEffect(() => subscribeGoogleAdsSetting(() => setGoogleAllowed(adsEnabled())), []);
+
+  const isNative = googleAllowed;
 
   useEffect(() => {
     if (!isNative || !active || !unitId) {
@@ -73,7 +78,14 @@ export default function MobileAdSlot({ network, page, active = false, className 
 /** RunBonus (админка) + Google Ads + Google Play. */
 export function PageAdSlots({ page, user, runBonusPlacement, className = '', style }) {
   const [activeNetwork, setActiveNetwork] = useState('google');
+  const [googleAllowed, setGoogleAllowed] = useState(adsEnabled());
   const wrapRef = useRef(null);
+
+  useEffect(() => subscribeGoogleAdsSetting(() => setGoogleAllowed(adsEnabled())), []);
+
+  useEffect(() => {
+    if (!googleAllowed) hideBannerAd().catch(() => {});
+  }, [googleAllowed]);
 
   useEffect(() => {
     return () => {
@@ -82,7 +94,7 @@ export function PageAdSlots({ page, user, runBonusPlacement, className = '', sty
   }, []);
 
   useEffect(() => {
-    if (!adsEnabled()) return undefined;
+    if (!googleAllowed) return undefined;
     const root = wrapRef.current;
     if (!root) return undefined;
 
@@ -102,19 +114,23 @@ export function PageAdSlots({ page, user, runBonusPlacement, className = '', sty
 
     slots.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, [page]);
+  }, [page, googleAllowed]);
 
   return (
     <div ref={wrapRef} className={`rb-page-ads ${className}`.trim()} style={style}>
       {runBonusPlacement && (
         <AdBanner placement={runBonusPlacement} user={user} className="rb-ad-banner--partner" />
       )}
-      <div data-ad-network="google">
-        <MobileAdSlot network="google" page={page} active={activeNetwork === 'google'} />
-      </div>
-      <div data-ad-network="play">
-        <MobileAdSlot network="play" page={page} active={activeNetwork === 'play'} />
-      </div>
+      {googleAllowed && (
+        <>
+          <div data-ad-network="google">
+            <MobileAdSlot network="google" page={page} active={activeNetwork === 'google'} />
+          </div>
+          <div data-ad-network="play">
+            <MobileAdSlot network="play" page={page} active={activeNetwork === 'play'} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

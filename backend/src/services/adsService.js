@@ -349,3 +349,43 @@ export async function resolveBannerAudienceUser(userId, query = {}) {
   }
   return user;
 }
+
+const DEFAULT_AD_SETTINGS = { google_ads_enabled: true };
+
+async function hasAdSettingsTable() {
+  try {
+    await pool.query(`SELECT 1 FROM ad_settings LIMIT 1`);
+    return true;
+  } catch (e) {
+    if (e.code === 'ER_NO_SUCH_TABLE') return false;
+    throw e;
+  }
+}
+
+export async function getAdSettings() {
+  if (!(await hasAdSettingsTable())) return { ...DEFAULT_AD_SETTINGS };
+  const [rows] = await pool.query(`SELECT google_ads_enabled, updated_at FROM ad_settings WHERE id = 1`);
+  if (!rows.length) return { ...DEFAULT_AD_SETTINGS };
+  return {
+    google_ads_enabled: Boolean(rows[0].google_ads_enabled),
+    updated_at: rows[0].updated_at,
+  };
+}
+
+export async function isGoogleAdsEnabled() {
+  const settings = await getAdSettings();
+  return settings.google_ads_enabled !== false;
+}
+
+export async function updateAdSettings(data) {
+  if (!(await hasAdSettingsTable())) {
+    throw Object.assign(new Error('Таблица ad_settings не создана. Запустите миграцию 023.'), { status: 503 });
+  }
+  const enabled = data.google_ads_enabled !== false && data.google_ads_enabled !== 0 && data.google_ads_enabled !== '0';
+  await pool.query(
+    `INSERT INTO ad_settings (id, google_ads_enabled) VALUES (1, ?)
+     ON DUPLICATE KEY UPDATE google_ads_enabled = VALUES(google_ads_enabled)`,
+    [enabled ? 1 : 0]
+  );
+  return getAdSettings();
+}

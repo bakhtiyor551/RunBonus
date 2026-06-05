@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { isGoogleAdsAllowedByServer } from '../services/adSettings';
 
 /** Тестовые ID Google AdMob (замените на свои в .env.production). */
 const TEST = {
@@ -37,7 +38,8 @@ export function adUnitId(network, page) {
 
 export function adsEnabled() {
   if (import.meta.env.VITE_ADMOB_ENABLED === 'false') return false;
-  return Capacitor.isNativePlatform();
+  if (!Capacitor.isNativePlatform()) return false;
+  return isGoogleAdsAllowedByServer();
 }
 
 export const AD_SLOT_HEIGHT = {

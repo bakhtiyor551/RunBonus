@@ -1,0 +1,11 @@
+-- Настройки рекламных платформ (Google AdMob и т.д.)
+
+CREATE TABLE IF NOT EXISTS ad_settings (
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY DEFAULT 1,
+  google_ads_enabled TINYINT(1) NOT NULL DEFAULT 1,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO ad_settings (id, google_ads_enabled)
+VALUES (1, 1)
+ON DUPLICATE KEY UPDATE id = id;

@@ -26,6 +26,8 @@ import {
 } from './services/geolocation';
 import { syncActiveWorkoutWithServer } from './services/activeWorkout';
 import { startWorkoutSession, stopWorkoutSession } from './services/workoutTracker';
+import { refreshAdSettings } from './services/adSettings';
+import { initAdMob, hideBannerAd } from './services/admob';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -78,6 +80,10 @@ function App() {
           setUser(profile);
         })
         .catch(() => {});
+      refreshAdSettings().then((enabled) => {
+        if (enabled) initAdMob();
+        else hideBannerAd().catch(() => {});
+      });
     };
     window.addEventListener('online', refreshProfile);
     return () => window.removeEventListener('online', refreshProfile);
@@ -85,6 +91,10 @@ function App() {
 
   useEffect(() => {
     if (!user) return;
+    refreshAdSettings().then((enabled) => {
+      if (enabled) initAdMob();
+      else hideBannerAd().catch(() => {});
+    });
     initWorkoutLifecycle();
     if (user.needsActivation) return;
     syncActiveWorkoutWithServer()

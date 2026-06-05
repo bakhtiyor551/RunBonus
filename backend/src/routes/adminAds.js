@@ -10,6 +10,8 @@ import {
   saveAdPayment,
   getAdsStatistics,
   getAdsDashboard,
+  getAdSettings,
+  updateAdSettings,
 } from '../services/adsService.js';
 
 const router = Router();
@@ -110,6 +112,24 @@ router.post('/payments', authAdmin, async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(e.status || 500).json({ error: e.message || 'Ошибка' });
+  }
+});
+
+router.get('/settings', authAdmin, async (_req, res) => {
+  try {
+    res.json(await getAdSettings());
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Ошибка загрузки настроек' });
+  }
+});
+
+router.put('/settings', authAdmin, async (req, res) => {
+  try {
+    res.json(await updateAdSettings(req.body || {}));
+  } catch (e) {
+    console.error(e);
+    res.status(e.status || 500).json({ error: e.message || 'Ошибка сохранения' });
   }
 });
 
