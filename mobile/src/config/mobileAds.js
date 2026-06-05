@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { getAdConfig } from '../services/adConfig.js';
 
 /** Тестовые ID Google AdMob (замените на свои в .env.production). */
 const TEST = {
@@ -24,6 +25,8 @@ function envOrTest(envKey, testKey) {
 }
 
 export function admobAppId() {
+  const fromServer = getAdConfig().admob_app_id?.trim();
+  if (fromServer) return fromServer;
   const fromEnv = import.meta.env.VITE_ADMOB_APP_ID;
   if (fromEnv && String(fromEnv).trim()) return String(fromEnv).trim();
   return TEST.appId;
@@ -31,13 +34,25 @@ export function admobAppId() {
 
 /** @param {'google' | 'play'} network @param {'home' | 'workout' | 'shop'} page */
 export function adUnitId(network, page) {
+  const fromServer = getAdConfig().units?.[network]?.[page]?.trim();
+  if (fromServer) return fromServer;
   const key = `VITE_ADMOB_${network.toUpperCase()}_${page.toUpperCase()}`;
   return envOrTest(key, network);
 }
 
 export function adsEnabled() {
   if (import.meta.env.VITE_ADMOB_ENABLED === 'false') return false;
+  if (!getAdConfig().admob_enabled) return false;
   return Capacitor.isNativePlatform();
+}
+
+export function admobTestMode() {
+  if (import.meta.env.VITE_ADMOB_TEST === 'true') return true;
+  return Boolean(getAdConfig().admob_test_mode);
+}
+
+export function partnerAdsEnabled() {
+  return getAdConfig().partner_ads_enabled !== false;
 }
 
 export const AD_SLOT_HEIGHT = {

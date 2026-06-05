@@ -239,6 +239,22 @@ function optionalUserId(req, res, next) {
   next();
 }
 
+router.get('/ads/config', async (_req, res) => {
+  try {
+    const { getMobileAdConfig } = await import('../services/adsService.js');
+    res.json(await getMobileAdConfig());
+  } catch (err) {
+    console.error(err);
+    res.json({
+      admob_enabled: true,
+      admob_test_mode: false,
+      admob_app_id: '',
+      units: { google: {}, play: {} },
+      partner_ads_enabled: true,
+    });
+  }
+});
+
 router.get('/ads/banners', optionalUserId, async (req, res) => {
   try {
     const { listActiveBanners, resolveBannerAudienceUser } = await import('../services/adsService.js');

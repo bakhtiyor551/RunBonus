@@ -2,6 +2,129 @@ import { pool } from '../db.js';
 import { parseReportPeriod, sqlBetween } from '../utils/reportPeriod.js';
 
 let adsReady = null;
+let adSettingsReady = null;
+
+const DEFAULT_AD_SETTINGS = {
+  partner_ads_enabled: true,
+  impression_cost: 0.01,
+  admob_enabled: true,
+  admob_test_mode: false,
+  admob_app_id: '',
+  admob_google_home: '',
+  admob_google_workout: '',
+  admob_google_shop: '',
+  admob_play_home: '',
+  admob_play_workout: '',
+  admob_play_shop: '',
+};
+
+function mapAdSettings(row) {
+  if (!row) return { ...DEFAULT_AD_SETTINGS };
+  return {
+    partner_ads_enabled: Boolean(row.partner_ads_enabled),
+    impression_cost: Number(row.impression_cost) || 0.01,
+    admob_enabled: Boolean(row.admob_enabled),
+    admob_test_mode: Boolean(row.admob_test_mode),
+    admob_app_id: row.admob_app_id?.trim() || '',
+    admob_google_home: row.admob_google_home?.trim() || '',
+    admob_google_workout: row.admob_google_workout?.trim() || '',
+    admob_google_shop: row.admob_google_shop?.trim() || '',
+    admob_play_home: row.admob_play_home?.trim() || '',
+    admob_play_workout: row.admob_play_workout?.trim() || '',
+    admob_play_shop: row.admob_play_shop?.trim() || '',
+  };
+}
+
+async function hasAdSettingsTable() {
+  if (adSettingsReady != null) return adSettingsReady;
+  try {
+    await pool.query(`SELECT 1 FROM ad_settings LIMIT 1`);
+    adSettingsReady = true;
+  } catch (e) {
+    if (e.code === 'ER_NO_SUCH_TABLE') adSettingsReady = false;
+    else throw e;
+  }
+  return adSettingsReady;
+}
+
+export async function getAdSettings() {
+  if (!(await hasAdSettingsTable())) return { ...DEFAULT_AD_SETTINGS };
+  const [rows] = await pool.query(`SELECT * FROM ad_settings WHERE id = 1`);
+  return mapAdSettings(rows[0]);
+}
+
+export async function updateAdSettings(data) {
+  if (!(await hasAdSettingsTable())) {
+    throw Object.assign(new Error('Запустите миграцию 024_ad_settings.sql'), { status: 503 });
+  }
+  const current = await getAdSettings();
+  const next = {
+    partner_ads_enabled: data.partner_ads_enabled ?? current.partner_ads_enabled,
+    impression_cost: Math.max(0, Number(data.impression_cost ?? current.impression_cost) || 0),
+    admob_enabled: data.admob_enabled ?? current.admob_enabled,
+    admob_test_mode: data.admob_test_mode ?? current.admob_test_mode,
+    admob_app_id: data.admob_app_id?.trim() ?? current.admob_app_id,
+    admob_google_home: data.admob_google_home?.trim() ?? current.admob_google_home,
+    admob_google_workout: data.admob_google_workout?.trim() ?? current.admob_google_workout,
+    admob_google_shop: data.admob_google_shop?.trim() ?? current.admob_google_shop,
+    admob_play_home: data.admob_play_home?.trim() ?? current.admob_play_home,
+    admob_play_workout: data.admob_play_workout?.trim() ?? current.admob_play_workout,
+    admob_play_shop: data.admob_play_shop?.trim() ?? current.admob_play_shop,
+  };
+
+  await pool.query(
+    `UPDATE ad_settings SET
+      partner_ads_enabled = ?,
+      impression_cost = ?,
+      admob_enabled = ?,
+      admob_test_mode = ?,
+      admob_app_id = ?,
+      admob_google_home = ?,
+      admob_google_workout = ?,
+      admob_google_shop = ?,
+      admob_play_home = ?,
+      admob_play_workout = ?,
+      admob_play_shop = ?
+     WHERE id = 1`,
+    [
+      next.partner_ads_enabled ? 1 : 0,
+      next.impression_cost,
+      next.admob_enabled ? 1 : 0,
+      next.admob_test_mode ? 1 : 0,
+      next.admob_app_id || null,
+      next.admob_google_home || null,
+      next.admob_google_workout || null,
+      next.admob_google_shop || null,
+      next.admob_play_home || null,
+      next.admob_play_workout || null,
+      next.admob_play_shop || null,
+    ]
+  );
+  return getAdSettings();
+}
+
+/** Публичная конфигурация AdMob для мобильного приложения. */
+export async function getMobileAdConfig() {
+  const settings = await getAdSettings();
+  return {
+    admob_enabled: settings.admob_enabled,
+    admob_test_mode: settings.admob_test_mode,
+    admob_app_id: settings.admob_app_id,
+    units: {
+      google: {
+        home: settings.admob_google_home,
+        workout: settings.admob_google_workout,
+        shop: settings.admob_google_shop,
+      },
+      play: {
+        home: settings.admob_play_home,
+        workout: settings.admob_play_workout,
+        shop: settings.admob_play_shop,
+      },
+    },
+    partner_ads_enabled: settings.partner_ads_enabled,
+  };
+}
 
 async function hasAdsTables() {
   if (adsReady != null) return adsReady;
@@ -397,7 +520,11 @@ export async function recordAdEvent({ campaignId, userId, eventType }) {
     [campaignId, userId || null, eventType]
   );
   if (eventType === 'impression') {
-    await pool.query(`UPDATE ad_campaigns SET spent = spent + 0.01 WHERE id = ?`, [campaignId]).catch(() => {});
+    const { impression_cost } = await getAdSettings();
+    const cost = Math.max(0, Number(impression_cost) || 0);
+    if (cost > 0) {
+      await pool.query(`UPDATE ad_campaigns SET spent = spent + ? WHERE id = ?`, [cost, campaignId]).catch(() => {});
+    }
   }
 }
 
@@ -420,6 +547,8 @@ function matchesAudience(campaign, city, level) {
 /** Баннеры для мобильного приложения. */
 export async function listActiveBanners({ placement = 'banner_home', user = null } = {}) {
   if (!(await hasAdsTables())) return [];
+  const { partner_ads_enabled } = await getAdSettings();
+  if (!partner_ads_enabled) return [];
   const types = adTypesForPlacement(placement);
   const primaryType = types[0];
   const [rows] = await pool.query(

@@ -6,12 +6,27 @@ import { periodQuery } from '../reports/reportUtils';
 
 const SECTIONS = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'settings', label: 'Настройки' },
   { id: 'advertisers', label: 'Рекламодатели' },
   { id: 'campaigns', label: 'Кампании' },
   { id: 'statistics', label: 'Статистика' },
   { id: 'payments', label: 'Платежи' },
   { id: 'tariffs', label: 'Тарифы' },
 ];
+
+const EMPTY_SETTINGS = {
+  partner_ads_enabled: true,
+  impression_cost: '0.01',
+  admob_enabled: true,
+  admob_test_mode: false,
+  admob_app_id: '',
+  admob_google_home: '',
+  admob_google_workout: '',
+  admob_google_shop: '',
+  admob_play_home: '',
+  admob_play_workout: '',
+  admob_play_shop: '',
+};
 
 const AD_TYPES = [
   { id: 'banner_home', label: 'Баннер на главной', hint: 'Карусель на главном экране приложения. Рекомендуемый размер баннера: 1080×400 px.' },
@@ -255,6 +270,7 @@ export default function AdsTab() {
   const [editAdvId, setEditAdvId] = useState(null);
   const [editCampId, setEditCampId] = useState(null);
   const [editTariffId, setEditTariffId] = useState(null);
+  const [settingsForm, setSettingsForm] = useState(EMPTY_SETTINGS);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -262,6 +278,14 @@ export default function AdsTab() {
       const q = periodQuery(period);
       if (section === 'dashboard') {
         setDashboard(await adminApi(`/api/admin/ads/dashboard?${q}`));
+      } else if (section === 'settings') {
+        const data = await adminApi('/api/admin/ads/settings');
+        const s = data.settings || {};
+        setSettingsForm({
+          ...EMPTY_SETTINGS,
+          ...s,
+          impression_cost: String(s.impression_cost ?? EMPTY_SETTINGS.impression_cost),
+        });
       } else if (section === 'advertisers') {
         setAdvertisers(await adminApi('/api/admin/ads/advertisers'));
       } else if (section === 'campaigns') {
@@ -315,6 +339,31 @@ export default function AdsTab() {
       load();
     } catch (err) {
       alert(err.message || 'Не удалось сохранить');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveSettings = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const data = await adminApi('/api/admin/ads/settings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...settingsForm,
+          impression_cost: Number(settingsForm.impression_cost),
+        }),
+      });
+      const s = data.settings || {};
+      setSettingsForm({
+        ...EMPTY_SETTINGS,
+        ...s,
+        impression_cost: String(s.impression_cost ?? EMPTY_SETTINGS.impression_cost),
+      });
+      alert(data.message || 'Настройки сохранены');
+    } catch (err) {
+      alert(err.message || 'Не удалось сохранить настройки');
     } finally {
       setSaving(false);
     }
@@ -495,6 +544,129 @@ export default function AdsTab() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && section === 'settings' && (
+        <form className="ads-form settings-form glass-card card" onSubmit={saveSettings}>
+          <header className="ads-form__head">
+            <h3>Настройки рекламы</h3>
+          </header>
+
+          <FormSection
+            title="Партнёрские баннеры"
+            hint="Кампании рекламодателей RunBonus в приложении (главная, после тренировки, магазин)"
+          >
+            <label className="settings-form__checkbox">
+              <input
+                type="checkbox"
+                checked={settingsForm.partner_ads_enabled}
+                onChange={(e) => setSettingsForm({ ...settingsForm, partner_ads_enabled: e.target.checked })}
+              />
+              {' '}Показывать баннеры партнёров в приложении
+            </label>
+            <label>
+              Списание с бюджета за показ (TJS)
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={settingsForm.impression_cost}
+                onChange={(e) => setSettingsForm({ ...settingsForm, impression_cost: e.target.value })}
+              />
+              <span className="ads-field-hint">Сумма, которая списывается с бюджета кампании за каждый показ</span>
+            </label>
+          </FormSection>
+
+          <FormSection
+            title="Google AdMob"
+            hint="Реклама Google и Google Play в мобильном приложении. ID из admob.google.com"
+          >
+            <label className="settings-form__checkbox">
+              <input
+                type="checkbox"
+                checked={settingsForm.admob_enabled}
+                onChange={(e) => setSettingsForm({ ...settingsForm, admob_enabled: e.target.checked })}
+              />
+              {' '}AdMob включён в приложении
+            </label>
+            <label className="settings-form__checkbox">
+              <input
+                type="checkbox"
+                checked={settingsForm.admob_test_mode}
+                onChange={(e) => setSettingsForm({ ...settingsForm, admob_test_mode: e.target.checked })}
+              />
+              {' '}Тестовые объявления (для отладки)
+            </label>
+            <label>
+              AdMob App ID
+              <input
+                value={settingsForm.admob_app_id}
+                onChange={(e) => setSettingsForm({ ...settingsForm, admob_app_id: e.target.value })}
+                placeholder="ca-app-pub-XXXXXXXX~YYYYYYYY"
+              />
+            </label>
+            <p className="hint ads-form__section-hint">Google Ads — блоки на страницах</p>
+            <div className="ads-form__row">
+              <label>
+                Главная
+                <input
+                  value={settingsForm.admob_google_home}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, admob_google_home: e.target.value })}
+                  placeholder="ca-app-pub-…/…"
+                />
+              </label>
+              <label>
+                После тренировки
+                <input
+                  value={settingsForm.admob_google_workout}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, admob_google_workout: e.target.value })}
+                  placeholder="ca-app-pub-…/…"
+                />
+              </label>
+            </div>
+            <label>
+              Магазин
+              <input
+                value={settingsForm.admob_google_shop}
+                onChange={(e) => setSettingsForm({ ...settingsForm, admob_google_shop: e.target.value })}
+                placeholder="ca-app-pub-…/…"
+              />
+            </label>
+            <p className="hint ads-form__section-hint">Google Play — блоки на страницах</p>
+            <div className="ads-form__row">
+              <label>
+                Главная
+                <input
+                  value={settingsForm.admob_play_home}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, admob_play_home: e.target.value })}
+                  placeholder="ca-app-pub-…/…"
+                />
+              </label>
+              <label>
+                После тренировки
+                <input
+                  value={settingsForm.admob_play_workout}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, admob_play_workout: e.target.value })}
+                  placeholder="ca-app-pub-…/…"
+                />
+              </label>
+            </div>
+            <label>
+              Магазин
+              <input
+                value={settingsForm.admob_play_shop}
+                onChange={(e) => setSettingsForm({ ...settingsForm, admob_play_shop: e.target.value })}
+                placeholder="ca-app-pub-…/…"
+              />
+            </label>
+          </FormSection>
+
+          <div className="ads-form__footer">
+            <button type="submit" className="btn btn--primary" disabled={saving}>
+              {saving ? 'Сохранение…' : 'Сохранить настройки'}
+            </button>
+          </div>
+        </form>
       )}
 
       {!loading && section === 'advertisers' && (
