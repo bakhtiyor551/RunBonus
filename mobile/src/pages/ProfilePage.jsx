@@ -271,8 +271,8 @@ export default function ProfilePage({ user, setUser, onLogout }) {
             </>
           )}
         </main>
-        <BottomNav />
       </IonContent>
+      <BottomNav />
     </IonPage>
   );
 }

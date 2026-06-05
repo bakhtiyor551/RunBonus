@@ -3,7 +3,7 @@ const EARTH_RADIUS_KM = 6371;
 /** ~0.1 м — считать координаты одинаковыми */
 const COORD_EPS = 1e-6;
 
-export const MAX_GPS_ACCURACY_M = 50;
+export const MAX_GPS_ACCURACY_M = 80;
 /** Лимит по умолчанию + 1 км/ч допуск (см. workoutValidation GPS_SPEED_TOLERANCE_KMH) */
 export const MAX_GPS_SPEED_KMH = 19;
 

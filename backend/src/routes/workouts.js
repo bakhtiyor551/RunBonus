@@ -73,17 +73,28 @@ router.get('/active', authUser, async (req, res) => {
     const conn = await pool.getConnection();
     try {
       await closeStaleWorkouts(conn, req.userId);
-      const existing = await getInProgressWorkout(conn, req.userId);
-      if (!existing) {
-        return res.json({ active: false, workoutId: null });
+      const [rows] = await conn.query(
+        `SELECT id, started_at, status FROM workouts
+         WHERE user_id = ? AND status = 'in_progress'
+         ORDER BY started_at DESC LIMIT 1`,
+        [req.userId]
+      );
+      if (!rows.length) {
+        return res.json({ active: false, workoutId: null, id: null });
       }
-      res.json({ active: true, workoutId: existing.id, id: existing.id });
+      res.json({
+        active: true,
+        workoutId: rows[0].id,
+        id: rows[0].id,
+        started_at: rows[0].started_at,
+        status: rows[0].status,
+      });
     } finally {
       conn.release();
     }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Ошибка' });
+    res.status(500).json({ error: 'Ошибка загрузки активной тренировки' });
   }
 });
 
@@ -129,30 +140,6 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
     res.status(500).json({ error: CLIENT_START_ERRORS.GENERIC });
   } finally {
     conn.release();
-  }
-});
-
-/** Текущая незавершённая тренировка пользователя (для синхронизации с приложением). */
-router.get('/active', authUser, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT id, started_at, status FROM workouts
-       WHERE user_id = ? AND status = 'in_progress'
-       ORDER BY started_at DESC LIMIT 1`,
-      [req.userId]
-    );
-    if (!rows.length) {
-      return res.json({ workoutId: null, id: null });
-    }
-    res.json({
-      workoutId: rows[0].id,
-      id: rows[0].id,
-      started_at: rows[0].started_at,
-      status: rows[0].status,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка загрузки активной тренировки' });
   }
 });
 
@@ -258,6 +245,19 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     }
 
     const workout = workouts[0];
+
+    if (workout.status !== 'in_progress') {
+      await conn.rollback();
+      return {
+        status: 400,
+        body: {
+          error: 'Эта тренировка уже завершена. Начните новую с главного экрана.',
+          code: 'WORKOUT_NOT_ACTIVE',
+          workout_id: workout.id,
+          status: workout.status,
+        },
+      };
+    }
 
     if (clientPoints?.length) {
       let last = await getLastWorkoutPoint(workoutId, conn);

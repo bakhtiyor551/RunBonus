@@ -111,8 +111,8 @@ export default function MyOrdersPage() {
             ))}
           </div>
         </main>
-        <BottomNav />
       </IonContent>
+      <BottomNav />
     </IonPage>
   );
 }

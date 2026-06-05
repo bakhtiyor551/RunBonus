@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
-import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import { formatBalance } from '../utils/format';
+import { formatLocalPhoneInput, phoneValidationMessage } from '../utils/phone';
+import { onInputFocus } from '../utils/keyboard';
 
 const STATUS_CLASS = {
   pending: 'withdraw-status--pending',
@@ -100,6 +101,11 @@ export default function WithdrawPage({ user, setUser }) {
       setError('Укажите номер кошелька');
       return;
     }
+    const walletErr = phoneValidationMessage(form.wallet_number);
+    if (walletErr) {
+      setError(walletErr === 'Укажите номер телефона' ? 'Укажите номер кошелька' : walletErr);
+      return;
+    }
     if (!amount || amount <= 0) {
       setError('Укажите сумму больше 0');
       return;
@@ -152,7 +158,7 @@ export default function WithdrawPage({ user, setUser }) {
   return (
     <IonPage>
       <AppHeader showAvatar={false} onBack={() => navigate('/wallet')} />
-      <IonContent>
+      <IonContent scrollEvents>
         <main className="rb-main withdraw-page">
           {loading && (
             <div className="glass-card withdraw-skeleton" aria-busy="true">
@@ -228,7 +234,7 @@ export default function WithdrawPage({ user, setUser }) {
             </div>
           )}
 
-          {error && showForm && (
+          {showForm && error && (
             <div className="glass-card withdraw-alert withdraw-alert--compact">
               <p className="rb-text-error" style={{ margin: 0 }}>{error}</p>
             </div>
@@ -265,15 +271,25 @@ export default function WithdrawPage({ user, setUser }) {
 
               <label className="withdraw-field">
                 <span className="rb-label">Номер кошелька</span>
-                <input
-                  className="withdraw-field__input"
-                  placeholder="900000000"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={form.wallet_number}
-                  onChange={(e) => setForm({ ...form, wallet_number: e.target.value })}
-                  required
-                />
+                <div className="rb-input-wrap rb-phone-input">
+                  <span className="rb-phone-input__prefix" aria-hidden="true">
+                    +992
+                  </span>
+                  <input
+                    className="withdraw-field__input rb-phone-input__field"
+                    placeholder="90 123 4567"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    enterKeyHint="next"
+                    maxLength={9}
+                    value={form.wallet_number}
+                    onChange={(e) =>
+                      setForm({ ...form, wallet_number: formatLocalPhoneInput(e.target.value) })
+                    }
+                    onFocus={onInputFocus}
+                    required
+                  />
+                </div>
               </label>
 
               <label className="withdraw-field">
@@ -281,11 +297,14 @@ export default function WithdrawPage({ user, setUser }) {
                 <input
                   className="withdraw-field__input"
                   type="number"
+                  inputMode="decimal"
+                  enterKeyHint="next"
                   min={settings.min_amount}
                   step="0.01"
                   placeholder={`от ${settings.min_amount}`}
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  onFocus={onInputFocus}
                   required
                 />
                 <button type="button" className="withdraw-link-btn" onClick={fillMaxAmount}>
@@ -298,14 +317,12 @@ export default function WithdrawPage({ user, setUser }) {
                 <input
                   className="withdraw-field__input"
                   placeholder="Необязательно"
+                  enterKeyHint="done"
                   value={form.client_comment}
                   onChange={(e) => setForm({ ...form, client_comment: e.target.value })}
+                  onFocus={onInputFocus}
                 />
               </label>
-
-              {error && (
-                <p className="rb-text-error" style={{ marginBottom: 8 }}>{error}</p>
-              )}
 
               <button
                 type="submit"
@@ -352,7 +369,6 @@ export default function WithdrawPage({ user, setUser }) {
             </section>
           )}
         </main>
-        <BottomNav />
       </IonContent>
     </IonPage>
   );

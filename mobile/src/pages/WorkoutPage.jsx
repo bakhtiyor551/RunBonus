@@ -21,7 +21,7 @@ import {
   subscribeWorkoutSession,
 } from '../services/workoutTracker';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
-import AdBanner from '../components/AdBanner';
+import { PageAdSlots } from '../components/MobileAdSlot';
 
 /** 0–5 км зелёный, 5–10 оранжевый, 10+ красный */
 function workoutDistanceTier(km) {
@@ -54,6 +54,12 @@ export default function WorkoutPage({ user, setUser }) {
         if (cancelled) return;
 
         if (!sync.workoutId) {
+          if (sync.offline && localHint) {
+            setWorkoutId(Number(localHint));
+            setActiveWorkoutId(Number(localHint));
+            await startWorkoutSession(Number(localHint), api);
+            return;
+          }
           if (sync.stale && localHint) {
             alert(
               'Сохранённая тренировка на сервере не найдена (уже завершена). Начните новую с главной.'
@@ -69,7 +75,7 @@ export default function WorkoutPage({ user, setUser }) {
 
         setWorkoutId(sync.workoutId);
         setActiveWorkoutId(sync.workoutId);
-        await startWorkoutSession(sync.workoutId, api);
+        await startWorkoutSession(sync.workoutId, api, { startedAt: sync.startedAt });
       } catch (e) {
         if (!cancelled) {
           alert(e.message || 'Не удалось открыть тренировку');
@@ -195,10 +201,11 @@ export default function WorkoutPage({ user, setUser }) {
           <main className="rb-main" style={{ paddingTop: 48 }}>
             <CelebrateBlock result={result} />
             <ResultCards result={result} />
-            <AdBanner
-              key={`workout-ad-${result.workout_id ?? result.id ?? 'done'}`}
-              placement="banner_workout"
+            <PageAdSlots
+              key={`workout-ads-${result.workout_id ?? result.id ?? 'done'}`}
+              page="workout"
               user={user}
+              runBonusPlacement="banner_workout"
               className="rb-ad-banner--workout"
               style={{ marginTop: 24 }}
             />

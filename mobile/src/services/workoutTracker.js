@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import {
   startBackgroundTracking,
   haversineKm,
@@ -11,7 +12,8 @@ import {
 } from './geolocation';
 
 const SYNC_INTERVAL_MS = 8000;
-const BACKGROUND_POLL_MS = 10000;
+const BACKGROUND_POLL_MS = 5000;
+const BACKGROUND_POLL_SLOW_MS = 10000;
 
 let session = null;
 const listeners = new Set();
@@ -88,8 +90,9 @@ async function pollPositionOnce() {
 /**
  * @param {number|string} workoutId
  * @param {(path: string, init?: RequestInit) => Promise<any>} api
+ * @param {{ startedAt?: number|null }} [options]
  */
-export async function startWorkoutSession(workoutId, api) {
+export async function startWorkoutSession(workoutId, api, options = {}) {
   const id = Number(workoutId);
   if (session?.workoutId === id) {
     syncElapsedSeconds();
@@ -101,7 +104,12 @@ export async function startWorkoutSession(workoutId, api) {
 
   const saved = loadWorkoutLocal(id);
   const points = saved?.points?.length ? filterTrackPoints(saved.points) : [];
-  const startedAt = saved?.startedAt || Date.now();
+  const localStart = saved?.startedAt;
+  const serverStartedAt = options.startedAt > 0 ? options.startedAt : null;
+  const startedAt =
+    localStart && serverStartedAt
+      ? Math.min(localStart, serverStartedAt)
+      : (localStart ?? serverStartedAt ?? Date.now());
   const seconds = saved?.seconds || 0;
 
   session = {
@@ -144,6 +152,18 @@ export async function startWorkoutSession(workoutId, api) {
       if (!session || session.workoutId !== id) return;
       pollPositionOnce();
     }, BACKGROUND_POLL_MS);
+    session.onAppState = ({ isActive }) => {
+      if (!session || session.workoutId !== id) return;
+      clearInterval(session.backgroundPollId);
+      const interval = isActive ? BACKGROUND_POLL_MS : BACKGROUND_POLL_SLOW_MS;
+      session.backgroundPollId = setInterval(() => {
+        if (!session || session.workoutId !== id) return;
+        pollPositionOnce();
+      }, interval);
+    };
+    App.addListener('appStateChange', session.onAppState).then((handle) => {
+      if (session?.workoutId === id) session.appStateHandle = handle;
+    });
   }
 
   session.onVisibility = () => {
@@ -175,6 +195,7 @@ export function stopWorkoutSession() {
   clearInterval(session.syncId);
   clearInterval(session.backgroundPollId);
   session.stopGps?.();
+  session.appStateHandle?.remove?.();
   if (session.onVisibility) {
     document.removeEventListener('visibilitychange', session.onVisibility);
   }

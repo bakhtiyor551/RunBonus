@@ -15,7 +15,7 @@ import { formatBalance, formatWorkoutDate } from '../utils/format';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
-import AdBanner from '../components/AdBanner';
+import { PageAdSlots } from '../components/MobileAdSlot';
 
 function ActivityRow({ workout, onPress }) {
   const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
@@ -52,10 +52,16 @@ export default function HomePage({ user, setUser }) {
 
   const refreshActiveWorkout = () => {
     syncActiveWorkoutWithServer()
-      .then(({ workoutId }) => {
-        setActiveWorkoutIdState(workoutId ?? getWorkoutSession()?.workoutId ?? null);
+      .then(({ workoutId, offline }) => {
+        const sessionId = getWorkoutSession()?.workoutId ?? null;
+        const next = workoutId ?? sessionId;
+        if (offline && next == null) return;
+        setActiveWorkoutIdState(next);
       })
-      .catch(() => {});
+      .catch(() => {
+        const fallback = getWorkoutSession()?.workoutId ?? null;
+        if (fallback != null) setActiveWorkoutIdState(fallback);
+      });
   };
 
   useEffect(() => {
@@ -127,7 +133,13 @@ export default function HomePage({ user, setUser }) {
             </div>
           </section>
 
-          <AdBanner placement="banner_home" user={user} className="rb-ad-banner--home" style={{ marginBottom: 24 }} />
+          <PageAdSlots
+            page="home"
+            user={user}
+            runBonusPlacement="banner_home"
+            className="rb-ad-banner--home"
+            style={{ marginBottom: 24 }}
+          />
 
           <section style={{ marginBottom: 40 }}>
             {activeWorkoutId ? (
@@ -184,10 +196,10 @@ export default function HomePage({ user, setUser }) {
             </div>
           </section>
         </main>
-        <BottomNav />
-        <StatsDetailModal type={statsModal} workouts={workouts} onClose={() => setStatsModal(null)} />
-        <WorkoutDetailModal workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
       </IonContent>
+      <BottomNav />
+      <StatsDetailModal type={statsModal} workouts={workouts} onClose={() => setStatsModal(null)} />
+      <WorkoutDetailModal workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
     </IonPage>
   );
 }

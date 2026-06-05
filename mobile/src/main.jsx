@@ -8,15 +8,21 @@ import '@ionic/react/css/typography.css';
 import App from './App.jsx';
 import { initNativeShell } from './nativeShell.js';
 import { disableAppSounds } from './utils/disableAppSounds.js';
+import { initKeyboardInset } from './utils/keyboard.js';
+import { initAdMob } from './services/admob.js';
 import './theme.css';
 
 setupIonicReact({
   hardwareBackButton: false,
   mode: 'ios',
   rippleEffect: false,
+  scrollAssist: false,
+  scrollPadding: false,
 });
 
 disableAppSounds();
 initNativeShell();
+initKeyboardInset();
+initAdMob();
 
 createRoot(document.getElementById('root')).render(<App />);

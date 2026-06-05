@@ -52,10 +52,13 @@ function permissionOk(status) {
 async function requestAndroidBackgroundLocation() {
   if (Capacitor.getPlatform() !== 'android') return;
   try {
-    const status = await Geolocation.checkPermissions();
-    if (status.location === 'granted') {
-      await Geolocation.requestPermissions();
+    let status = await Geolocation.checkPermissions();
+    if (status.location !== 'granted') {
+      status = await Geolocation.requestPermissions();
     }
+    if (status.location !== 'granted') return;
+    // Android 10+: для трекинга в фоне нужно «Всегда» — повторный запрос после foreground.
+    await Geolocation.requestPermissions({ permissions: ['location'] });
   } catch {
     /* опционально */
   }

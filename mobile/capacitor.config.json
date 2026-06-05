@@ -22,6 +22,10 @@
     },
     "Geolocation": {
       "permissions": ["location", "coarseLocation"]
+    },
+    "Keyboard": {
+      "resize": "ionic",
+      "style": "dark"
     }
   }
 }

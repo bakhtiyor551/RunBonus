@@ -71,8 +71,8 @@ export default function LevelPage() {
           <main className="rb-main">
             <p className="rb-text-muted">Загрузка…</p>
           </main>
-          <BottomNav />
         </IonContent>
+        <BottomNav />
       </IonPage>
     );
   }
@@ -88,8 +88,8 @@ export default function LevelPage() {
             </h1>
             <p className="rb-text-muted">Активируйте кроссовки, чтобы начать прогресс уровней.</p>
           </main>
-          <BottomNav />
         </IonContent>
+        <BottomNav />
       </IonPage>
     );
   }
@@ -174,8 +174,8 @@ export default function LevelPage() {
             </div>
           </section>
         </main>
-        <BottomNav />
       </IonContent>
+      <BottomNav />
     </IonPage>
   );
 }

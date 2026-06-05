@@ -88,8 +88,8 @@ function App() {
     initWorkoutLifecycle();
     if (user.needsActivation) return;
     syncActiveWorkoutWithServer()
-      .then(({ workoutId }) => {
-        if (workoutId) startWorkoutSession(workoutId, api).catch(() => {});
+      .then(({ workoutId, startedAt }) => {
+        if (workoutId) startWorkoutSession(workoutId, api, { startedAt }).catch(() => {});
       })
       .catch(() => {});
   }, [user]);
