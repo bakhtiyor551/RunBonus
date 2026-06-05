@@ -4,7 +4,10 @@ import { App } from '@capacitor/app';
 import { API_URL } from '../api';
 
 const PROBE_TIMEOUT_MS = 5000;
-const PROBE_INTERVAL_MS = 5000;
+const PROBE_INTERVAL_MS = 8000;
+/** Сколько проверок подряд нужно, чтобы сменить статус (убирает мигание). */
+const OFFLINE_STREAK = 2;
+const ONLINE_STREAK = 1;
 
 let deviceHasLink = true;
 
@@ -45,14 +48,41 @@ export function subscribeConnectivity(onChange) {
   let intervalId;
   let removeNetworkListener;
   let removeAppListener;
+  let stableOnline = true;
+  let failStreak = 0;
+  let okStreak = 0;
 
   const publish = async () => {
     const online = await isOnline();
-    if (!cancelled) onChange(online);
+    if (cancelled) return;
+
+    if (online) {
+      failStreak = 0;
+      okStreak += 1;
+      if (!stableOnline && okStreak < ONLINE_STREAK) return;
+    } else {
+      okStreak = 0;
+      failStreak += 1;
+      if (stableOnline && failStreak < OFFLINE_STREAK) return;
+    }
+
+    if (online !== stableOnline) {
+      stableOnline = online;
+      onChange(stableOnline);
+    }
   };
 
   const onLinkChange = (connected) => {
     deviceHasLink = connected;
+    if (!connected) {
+      okStreak = 0;
+      failStreak = OFFLINE_STREAK;
+      if (!cancelled && stableOnline) {
+        stableOnline = false;
+        onChange(false);
+      }
+      return;
+    }
     publish();
   };
 

@@ -67,8 +67,6 @@ export function validateWorkout(points, durationSeconds, settings) {
     if (speed > speedRejectAbove) invalidSpeedCount++;
     else if (speed > runMax) suspiciousCount++;
 
-    if (speed > 0 && speed < WALK_MIN) invalidSpeedCount++;
-
     if (p.accuracy != null && Number(p.accuracy) > MAX_GPS_ACCURACY_M) {
       badAccuracyCount++;
     }

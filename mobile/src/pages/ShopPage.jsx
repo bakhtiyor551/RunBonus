@@ -9,6 +9,7 @@ import { hexForColor } from '../components/ColorPicker';
 import { cartCount } from '../services/cart';
 import { fetchShopCatalog, normalizeProductCategoryId } from '../utils/shopCatalog';
 import { sizesForColor, productHasStock } from '../utils/productSizes';
+import { PageAdSlots } from '../components/MobileAdSlot';
 
 function productColors(product) {
   if (product.colors?.length) return product.colors;
@@ -100,7 +101,7 @@ function ProductCard({ product, onOpen }) {
   );
 }
 
-export default function ShopPage() {
+export default function ShopPage({ user }) {
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -249,6 +250,8 @@ export default function ShopPage() {
               <ProductCard key={p.id} product={p} onOpen={(pid) => navigate(`/shop/${pid}`)} />
             ))}
           </div>
+
+          <PageAdSlots page="shop" user={user} style={{ marginTop: 24 }} />
         </main>
       </IonContent>
       <BottomNav />

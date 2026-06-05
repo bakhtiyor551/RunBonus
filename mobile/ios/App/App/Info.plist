@@ -51,6 +51,17 @@
 	<string>RunBonus продолжает учитывать дистанцию, когда приложение свёрнуто во время тренировки.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>RunBonus сканирует QR-код на кроссовках для активации.</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940255089942544~3347511713</string>
+	<key>SKAdNetworkItems</key>
+	<array>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>cstr6suwn9.skadnetwork</string>
+		</dict>
+	</array>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Идентификатор используется для показа персонализированной рекламы.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
