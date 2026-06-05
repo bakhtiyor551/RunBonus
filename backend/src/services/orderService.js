@@ -17,6 +17,7 @@ import { saveOrderReceiptFromDataUrl } from '../utils/orderReceipt.js';
 import { spendBonus } from './bonusService.js';
 import { getWalletSummary } from './withdrawalService.js';
 import { assertProductSizeInStock } from './shopService.js';
+import { decrementStockForOrder, restoreStockForCancelledOrder } from './warehouseService.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
@@ -36,6 +37,7 @@ export async function createOrder(data, userId = null) {
     product_id,
     size,
     color: orderColor,
+    color_id: orderColorId,
     quantity = 1,
     customer_name,
     phone,
@@ -95,81 +97,108 @@ export async function createOrder(data, userId = null) {
 
   const qty = Math.max(1, Math.min(10, Number(quantity) || 1));
 
-  const [products] = await pool.query(
-    `SELECT * FROM products WHERE id = ? AND status = 'active'`,
-    [product_id]
-  );
-  if (!products.length) {
-    const err = new Error('Товар не найден');
-    err.status = 404;
-    throw err;
-  }
-  const product = products[0];
+  const conn = await pool.getConnection();
+  let orderId;
+  let product;
+  try {
+    await conn.beginTransaction();
+
+    const [products] = await conn.query(
+      `SELECT * FROM products WHERE id = ? AND status = 'active'`,
+      [product_id]
+    );
+    if (!products.length) {
+      const err = new Error('Товар не найден');
+      err.status = 404;
+      throw err;
+    }
+    product = products[0];
 
   if (size) {
-    await assertProductSizeInStock(pool, {
+    await assertProductSizeInStock(conn, {
       productId: product_id,
       size,
       color: orderColor,
+      colorId: orderColorId,
       qty,
     });
   }
 
-  const price = Number(product.price);
-  const subtotal = Math.round(price * qty * 100) / 100;
-  const deliveryFee = await getDeliveryFee(delivery_method, Boolean(apply_delivery_fee));
-  const total = Math.round((subtotal + deliveryFee) * 100) / 100;
+    const baseValues = [
+      userId,
+      product_id,
+      size || null,
+      orderColor?.trim() || null,
+      qty,
+      Number(product.price),
+      0,
+      customer_name.trim(),
+      phone.trim(),
+      city?.trim() || null,
+      address?.trim() || null,
+      delivery_method,
+      0,
+      comment?.trim() || null,
+    ];
 
-  const baseValues = [
-    userId,
-    product_id,
-    size || null,
-    orderColor?.trim() || null,
-    qty,
-    price,
-    total,
-    customer_name.trim(),
-    phone.trim(),
-    city?.trim() || null,
-    address?.trim() || null,
-    delivery_method,
-    deliveryFee,
-    comment?.trim() || null,
-  ];
+    const price = Number(product.price);
+    const subtotal = Math.round(price * qty * 100) / 100;
+    const deliveryFee = await getDeliveryFee(delivery_method, Boolean(apply_delivery_fee));
+    const total = Math.round((subtotal + deliveryFee) * 100) / 100;
+    baseValues[6] = total;
+    baseValues[11] = deliveryFee;
 
-  let result;
-  try {
-    [result] = await pool.query(
-      `INSERT INTO shop_orders
-         (user_id, product_id, size, order_color, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, delivery_fee, comment, payment_method, payment_details, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
-      [...baseValues, payment_method, payment_details?.trim() || null]
-    );
+    let result;
+    try {
+      [result] = await conn.query(
+        `INSERT INTO shop_orders
+           (user_id, product_id, size, order_color, quantity, price, total_amount, customer_name, phone, city, address, delivery_method, delivery_fee, comment, payment_method, payment_details, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+        [...baseValues, payment_method, payment_details?.trim() || null]
+      );
+    } catch (err) {
+      if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+      [result] = await conn.query(
+        `INSERT INTO shop_orders
+           (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+        [
+          userId,
+          product_id,
+          size || null,
+          qty,
+          price,
+          total,
+          customer_name.trim(),
+          phone.trim(),
+          city?.trim() || null,
+          address?.trim() || null,
+          comment?.trim() || null,
+          payment_method,
+          payment_details?.trim() || null,
+        ]
+      );
+    }
+
+    orderId = result.insertId;
+
+    if (size) {
+      await decrementStockForOrder(conn, {
+        productId: product_id,
+        size,
+        color: orderColor,
+        quantity: qty,
+        orderId,
+      });
+    }
+
+    await conn.commit();
   } catch (err) {
-    if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
-    [result] = await pool.query(
-      `INSERT INTO shop_orders
-         (user_id, product_id, size, quantity, price, total_amount, customer_name, phone, city, address, comment, payment_method, payment_details, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
-      [
-        userId,
-        product_id,
-        size || null,
-        qty,
-        price,
-        total,
-        customer_name.trim(),
-        phone.trim(),
-        city?.trim() || null,
-        address?.trim() || null,
-        comment?.trim() || null,
-        payment_method,
-        payment_details?.trim() || null,
-      ]
-    );
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
   }
-
-  const orderId = result.insertId;
 
   let receiptUrl = paymentReceiptUrlInput || null;
   const needsReceipt = usesTransfer || payment_method === 'mobile';
@@ -199,6 +228,7 @@ async function createOrderPaidWithBonus(data, userId) {
     product_id,
     size,
     color: orderColor,
+    color_id: orderColorId,
     quantity = 1,
     customer_name,
     phone,
@@ -231,6 +261,7 @@ async function createOrderPaidWithBonus(data, userId) {
         productId: product_id,
         size,
         color: orderColor,
+        colorId: orderColorId,
         qty,
       });
     }
@@ -299,6 +330,16 @@ async function createOrderPaidWithBonus(data, userId) {
     }
 
     const orderId = result.insertId;
+
+    if (size) {
+      await decrementStockForOrder(conn, {
+        productId: product_id,
+        size,
+        color: orderColor,
+        quantity: qty,
+        orderId,
+      });
+    }
 
     await spendBonus(conn, {
       userId,
@@ -417,7 +458,33 @@ export async function updateOrderStatus(orderId, status) {
     err.status = 400;
     throw err;
   }
-  await pool.query(`UPDATE shop_orders SET status = ? WHERE id = ?`, [status, orderId]);
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [orders] = await conn.query(`SELECT status FROM shop_orders WHERE id = ? FOR UPDATE`, [orderId]);
+    if (!orders.length) {
+      const err = new Error('Заказ не найден');
+      err.status = 404;
+      throw err;
+    }
+    const prevStatus = orders[0].status;
+
+    await conn.query(`UPDATE shop_orders SET status = ? WHERE id = ?`, [status, orderId]);
+
+    if (status === 'cancelled' && prevStatus !== 'cancelled') {
+      await restoreStockForCancelledOrder(conn, orderId);
+    }
+
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+
   return getOrderById(orderId);
 }
 

@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { authAdmin } from '../middleware/auth.js';
-import { adminListProducts, adminSaveProduct } from '../services/shopService.js';
+import {
+  adminListProducts,
+  adminSaveProduct,
+  adminDeleteProduct,
+} from '../services/shopService.js';
 import {
   listAllShopCategoriesAdmin,
   createShopCategory,
@@ -15,11 +19,22 @@ import {
 } from '../services/orderService.js';
 import { pool } from '../db.js';
 import {
+  listAllProductCategoriesAdmin,
+  createProductCategory,
+  updateProductCategory,
+  setProductCategoryStatus,
+} from '../services/productCategoryService.js';
+import {
   listCouriers,
   createCourier,
   updateCourier,
   assignCourierToOrder,
 } from '../services/courierService.js';
+import {
+  listWarehouseStock,
+  listStockMovements,
+  addStock,
+} from '../services/warehouseService.js';
 
 const router = Router();
 
@@ -98,11 +113,12 @@ router.put('/products/:id', authAdmin, async (req, res) => {
 
 router.delete('/products/:id', authAdmin, async (req, res) => {
   try {
-    await pool.query(`UPDATE products SET status = 'inactive' WHERE id = ?`, [req.params.id]);
-    res.json({ ok: true });
+    const result = await adminDeleteProduct(req.params.id);
+    res.json(result);
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error(err);
-    res.status(500).json({ error: 'Ошибка' });
+    res.status(500).json({ error: 'Ошибка удаления' });
   }
 });
 
@@ -202,6 +218,80 @@ router.post('/orders/:id/assign-qr', authAdmin, async (req, res) => {
     if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
     console.error(err);
     res.status(500).json({ error: 'Ошибка привязки QR' });
+  }
+});
+
+router.get('/product-categories', authAdmin, async (_req, res) => {
+  try {
+    const categories = await listAllProductCategoriesAdmin();
+    res.json(categories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки категорий' });
+  }
+});
+
+router.post('/product-categories', authAdmin, async (req, res) => {
+  try {
+    const category = await createProductCategory(req.body);
+    res.status(201).json(category);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка создания' });
+  }
+});
+
+router.put('/product-categories/:id', authAdmin, async (req, res) => {
+  try {
+    const category = await updateProductCategory(req.params.id, req.body);
+    res.json(category);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сохранения' });
+  }
+});
+
+router.patch('/product-categories/:id/status', authAdmin, async (req, res) => {
+  try {
+    const category = await setProductCategoryStatus(req.params.id, req.body.status);
+    res.json(category);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка обновления статуса' });
+  }
+});
+
+router.get('/warehouse/stock', authAdmin, async (_req, res) => {
+  try {
+    const stock = await listWarehouseStock();
+    res.json(stock);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки склада' });
+  }
+});
+
+router.get('/warehouse/movements', authAdmin, async (req, res) => {
+  try {
+    const movements = await listStockMovements(req.query.limit);
+    res.json(movements);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки истории' });
+  }
+});
+
+router.post('/warehouse/stock', authAdmin, async (req, res) => {
+  try {
+    const result = await addStock(req.body);
+    res.status(201).json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка поступления на склад' });
   }
 });
 

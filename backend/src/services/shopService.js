@@ -60,8 +60,31 @@ function mapColorRow(row, colorSizeRows = []) {
   };
 }
 
+function normalizeStockColorLabel(color) {
+  return String(color || '').trim();
+}
+
+function stockColorLabelsMatch(a, b) {
+  return normalizeStockColorLabel(a).toLowerCase() === normalizeStockColorLabel(b).toLowerCase();
+}
+
+/** Остатки со склада: product_sizes с color_label → размеры по цвету. */
+function buildSizesByColorLabel(activeColors, sizes) {
+  const map = new Map();
+  for (const s of sizes) {
+    const label = normalizeStockColorLabel(s.color_label);
+    if (!label) continue;
+    const color = activeColors.find((c) => stockColorLabelsMatch(c.label, label));
+    if (!color) continue;
+    const cid = Number(color.id);
+    if (!map.has(cid)) map.set(cid, []);
+    map.get(cid).push(s);
+  }
+  return map;
+}
+
 function mapProductRow(row, images = [], sizes = [], colors = [], category = null, colorSizeRows = []) {
-  const activeSizes = sizes.filter((s) => s.status === 'active' && s.stock_qty > 0);
+  const activeSizes = sizes.filter((s) => s.status === 'active' && Number(s.stock_qty) > 0);
   const activeColors = colors.filter((c) => c.status === 'active');
   const sizesByColorId = new Map();
   for (const s of colorSizeRows) {
@@ -70,11 +93,22 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
     sizesByColorId.get(cid).push(s);
   }
 
+  const sizesByColorLabel = buildSizesByColorLabel(activeColors, sizes);
+  const hasWarehouseColorStock = sizesByColorLabel.size > 0;
+
   const usesPerColorSizes =
-    activeColors.length > 0 && colorSizeRows.length > 0 && sizesByColorId.size > 0;
+    (activeColors.length > 0 && colorSizeRows.length > 0 && sizesByColorId.size > 0) ||
+    (activeColors.length > 0 && hasWarehouseColorStock);
+
+  const genericSizes = sizes.filter((s) => !normalizeStockColorLabel(s.color_label));
 
   const colorList = activeColors.length
-    ? activeColors.map((c) => mapColorRow(c, sizesByColorId.get(Number(c.id)) || []))
+    ? activeColors.map((c) => {
+        const cid = Number(c.id);
+        const fromCatalog = sizesByColorId.get(cid) || [];
+        const fromWarehouse = sizesByColorLabel.get(cid) || [];
+        return mapColorRow(c, fromCatalog.length ? fromCatalog : fromWarehouse);
+      })
     : row.color
       ? [{ id: null, label: row.color, hex_code: null, image_url: null, sizes: [], in_stock: activeSizes.length > 0 }]
       : [];
@@ -89,10 +123,18 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
     ? colorList.some((c) => c.in_stock)
     : activeSizes.length > 0;
 
+  const productSizes = usesPerColorSizes
+    ? hasWarehouseColorStock
+      ? []
+      : genericSizes.map(mapSizeRow)
+    : sizes.map(mapSizeRow);
+
   return {
     id: row.id,
     name: row.name,
     slug: row.slug,
+    category_id: row.category_id || null,
+    category_name: row.category_name || null,
     description: row.description,
     color: defaultColor,
     colors: colorList,
@@ -105,7 +147,7 @@ function mapProductRow(row, images = [], sizes = [], colors = [], category = nul
     price: Number(row.price),
     status: row.status,
     in_stock,
-    sizes: usesPerColorSizes ? [] : sizes.map(mapSizeRow),
+    sizes: productSizes,
     images: images.map((i) => i.image_url).filter(Boolean),
     image_url: heroImage,
   };
@@ -219,7 +261,13 @@ export async function listActiveProducts({ categoryId = null } = {}) {
 }
 
 export async function getProductById(id) {
-  const [rows] = await pool.query(`SELECT * FROM products WHERE id = ? AND status = 'active'`, [id]);
+  const [rows] = await pool.query(
+    `SELECT p.*, c.name AS category_name
+     FROM products p
+     LEFT JOIN product_categories c ON c.id COLLATE utf8mb4_unicode_ci = p.category_id
+     WHERE p.id = ? AND p.status = 'active'`,
+    [id]
+  );
   if (!rows.length) return null;
   const [images] = await pool.query(
     `SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order, id`,
@@ -301,10 +349,21 @@ export async function adminSaveProduct(data, id = null) {
         `UPDATE products SET name=?, slug=?, description=?, color=?, price=?, status=?, category_id=? WHERE id=?`,
         [name, slug || null, description || null, primaryColor, price, status || 'active', catId, productId]
       );
+      const [existingSizes] = await conn.query(
+        `SELECT size, stock_qty FROM product_sizes WHERE product_id = ?`,
+        [productId]
+      );
+      const stockBySize = new Map(existingSizes.map((s) => [s.size, Number(s.stock_qty) || 0]));
       await conn.query(`DELETE FROM product_sizes WHERE product_id = ?`, [productId]);
       await conn.query(`DELETE FROM product_images WHERE product_id = ?`, [productId]);
       if (await hasColorsTable()) {
         await conn.query(`DELETE FROM product_colors WHERE product_id = ?`, [productId]);
+      }
+      for (const s of sizes || []) {
+        await conn.query(
+          `INSERT INTO product_sizes (product_id, size, stock_qty, status) VALUES (?,?,?,?)`,
+          [productId, s.size, stockBySize.get(s.size) ?? 0, s.status || 'active']
+        );
       }
     } else {
       const [r] = await conn.query(
@@ -374,6 +433,35 @@ export async function adminSaveProduct(data, id = null) {
   }
 }
 
+export async function adminDeleteProduct(id) {
+  const productId = Number(id);
+  if (!Number.isFinite(productId) || productId <= 0) {
+    const err = new Error('Некорректный ID товара');
+    err.status = 400;
+    throw err;
+  }
+
+  const [products] = await pool.query(`SELECT id, name FROM products WHERE id = ?`, [productId]);
+  if (!products.length) {
+    const err = new Error('Товар не найден');
+    err.status = 404;
+    throw err;
+  }
+
+  const [orders] = await pool.query(
+    `SELECT id FROM shop_orders WHERE product_id = ? LIMIT 1`,
+    [productId]
+  );
+  if (orders.length) {
+    const err = new Error('Нельзя удалить товар: есть связанные заказы');
+    err.status = 409;
+    throw err;
+  }
+
+  await pool.query(`DELETE FROM products WHERE id = ?`, [productId]);
+  return { ok: true, id: productId };
+}
+
 /** Проверка наличия размера (с учётом цвета). */
 export async function assertProductSizeInStock(
   db,
@@ -387,16 +475,53 @@ export async function assertProductSizeInStock(
     let colorRow = null;
     if (colorId) {
       const [rows] = await q(
-        `SELECT id FROM product_colors WHERE id = ? AND product_id = ? AND status = 'active'`,
+        `SELECT id, label FROM product_colors WHERE id = ? AND product_id = ? AND status = 'active'`,
         [colorId, productId]
       );
       colorRow = rows[0] || null;
     } else if (color?.trim()) {
       const [rows] = await q(
-        `SELECT id FROM product_colors WHERE product_id = ? AND label = ? AND status = 'active'`,
+        `SELECT id, label FROM product_colors WHERE product_id = ? AND label = ? AND status = 'active'`,
         [productId, color.trim()]
       );
       colorRow = rows[0] || null;
+      if (!colorRow) {
+        const [allColors] = await q(
+          `SELECT id, label FROM product_colors WHERE product_id = ? AND status = 'active'`,
+          [productId]
+        );
+        colorRow =
+          allColors.find((c) => stockColorLabelsMatch(c.label, color)) || null;
+      }
+    }
+
+    if (colorRow) {
+      const colorLabel = normalizeStockColorLabel(colorRow.label);
+      try {
+        const [labeled] = await q(
+          `SELECT stock_qty FROM product_sizes
+           WHERE product_id = ? AND size = ? AND color_label = ? AND status = 'active'`,
+          [productId, size, colorLabel]
+        );
+        if (labeled.length) {
+          if (Number(labeled[0].stock_qty) >= qty) return;
+          const err = new Error('Выбранный размер недоступен для этого цвета');
+          err.status = 400;
+          throw err;
+        }
+        const [anyLabeled] = await q(
+          `SELECT 1 FROM product_sizes WHERE product_id = ? AND TRIM(color_label) <> '' LIMIT 1`,
+          [productId]
+        );
+        if (anyLabeled.length) {
+          const err = new Error('Выбранный размер недоступен для этого цвета');
+          err.status = 400;
+          throw err;
+        }
+      } catch (e) {
+        if (e.status) throw e;
+        if (e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+      }
     }
 
     if (colorRow && (await hasColorSizesTable())) {
@@ -420,10 +545,12 @@ export async function assertProductSizeInStock(
   }
 
   const [sizeRows] = await q(
-    `SELECT * FROM product_sizes WHERE product_id = ? AND size = ? AND status = 'active'`,
+    `SELECT * FROM product_sizes
+     WHERE product_id = ? AND size = ? AND status = 'active'
+       AND (color_label IS NULL OR TRIM(color_label) = '')`,
     [productId, size]
   );
-  if (!sizeRows.length || sizeRows[0].stock_qty < qty) {
+  if (!sizeRows.length || Number(sizeRows[0].stock_qty) < qty) {
     const err = new Error('Выбранный размер недоступен');
     err.status = 400;
     throw err;

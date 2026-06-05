@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { admobAppId, adsEnabled } from '../config/mobileAds';
+import { admobAppId, adsEnabled, admobTestMode } from '../config/mobileAds';
 
 let initialized = false;
 let initPromise = null;
@@ -21,7 +21,7 @@ export async function initAdMob() {
     try {
       const { AdMob } = await loadAdMob();
       await AdMob.initialize({
-        initializeForTesting: import.meta.env.VITE_ADMOB_TEST === 'true',
+        initializeForTesting: admobTestMode(),
       });
       initialized = true;
       return true;
@@ -54,7 +54,7 @@ export async function showBannerAd(adUnitId) {
       adSize: BannerAdSize.ADAPTIVE_BANNER,
       position: BannerAdPosition.BOTTOM_CENTER,
       margin: Capacitor.getPlatform() === 'ios' ? 72 : 64,
-      isTesting: import.meta.env.VITE_ADMOB_TEST === 'true',
+      isTesting: admobTestMode(),
     });
 
     currentAdId = adUnitId;

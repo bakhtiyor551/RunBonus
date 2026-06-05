@@ -167,6 +167,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
       product_id,
       size,
       color,
+      color_id,
       quantity,
       customer_name,
       phone,
@@ -188,6 +189,7 @@ router.post('/orders', authUser, requireActiveUser, async (req, res) => {
         product_id,
         size,
         color,
+        color_id,
         quantity,
         customer_name,
         phone,
@@ -239,14 +241,17 @@ function optionalUserId(req, res, next) {
 
 router.get('/ads/config', async (_req, res) => {
   try {
-    const { getAdSettings } = await import('../services/adsService.js');
-    const settings = await getAdSettings();
-    res.json({
-      google_ads_enabled: settings.google_ads_enabled !== false,
-    });
+    const { getMobileAdConfig } = await import('../services/adsService.js');
+    res.json(await getMobileAdConfig());
   } catch (err) {
     console.error(err);
-    res.json({ google_ads_enabled: true });
+    res.json({
+      admob_enabled: true,
+      admob_test_mode: false,
+      admob_app_id: '',
+      units: { google: {}, play: {} },
+      partner_ads_enabled: true,
+    });
   }
 });
 

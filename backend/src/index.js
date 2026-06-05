@@ -61,6 +61,7 @@ app.use('/api/mobile', mobileRoutes);
 app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/shop', adminShopRoutes);
+app.use('/api/admin/reports', adminReportsRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/reports', adminReportsRoutes);
 app.use('/api/admin/ads', adminAdsRoutes);

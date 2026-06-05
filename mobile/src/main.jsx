@@ -9,8 +9,8 @@ import App from './App.jsx';
 import { initNativeShell } from './nativeShell.js';
 import { disableAppSounds } from './utils/disableAppSounds.js';
 import { initKeyboardInset } from './utils/keyboard.js';
-import { refreshAdSettings } from './services/adSettings.js';
- import { initAdMob } from './services/admob.js';
+import { loadAdConfig } from './services/adConfig.js';
+import { initAdMob } from './services/admob.js';
 import './theme.css';
 
 setupIonicReact({
@@ -24,8 +24,6 @@ setupIonicReact({
 disableAppSounds();
 initNativeShell();
 initKeyboardInset();
-refreshAdSettings().then((enabled) => {
-  if (enabled) initAdMob();
-});
+loadAdConfig().finally(() => initAdMob());
 
 createRoot(document.getElementById('root')).render(<App />);
