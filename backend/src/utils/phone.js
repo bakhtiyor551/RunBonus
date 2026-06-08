@@ -1,18 +1,19 @@
+/** 9 цифр мобильного номера (любой оператор, только начинается с 9). */
+export function toLocalPhoneDigits(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('992')) {
+    digits = digits.slice(3);
+  }
+  if (digits.length !== 9 || !digits.startsWith('9')) return null;
+  return digits;
+}
+
 /** Нормализация телефона для Таджикистана: 992XXXXXXXXX */
 export function normalizePhone(raw) {
-  const digits = String(raw || '').replace(/\D/g, '');
-  if (!digits) return null;
-
-  if (digits.length === 12 && digits.startsWith('992')) {
-    return digits;
-  }
-  if (digits.length === 9 && digits.startsWith('9')) {
-    return `992${digits}`;
-  }
-  if (digits.length === 10 && digits.startsWith('992')) {
-    return digits.slice(0, 12);
-  }
-  return null;
+  const local = toLocalPhoneDigits(raw);
+  if (!local) return null;
+  return `992${local}`;
 }
 
 export function formatPhoneDisplay(phone992) {
