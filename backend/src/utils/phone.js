@@ -1,11 +1,11 @@
-/** 9 цифр мобильного номера (любой оператор, только начинается с 9). */
+/** 9 цифр после +992. */
 export function toLocalPhoneDigits(raw) {
   let digits = String(raw || '').replace(/\D/g, '');
   if (!digits) return null;
   if (digits.startsWith('992')) {
     digits = digits.slice(3);
   }
-  if (digits.length !== 9 || !digits.startsWith('9')) return null;
+  if (digits.length !== 9) return null;
   return digits;
 }
 
