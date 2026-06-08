@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { IonApp } from '@ionic/react';
 import { useEffect, useState } from 'react';
 import { api, cacheUser, getCachedUser, isNetworkError, logoutApi, onForcedLogout, setToken } from './api';
@@ -28,7 +28,16 @@ import { syncActiveWorkoutWithServer } from './services/activeWorkout';
 import { startWorkoutSession, stopWorkoutSession } from './services/workoutTracker';
 import { refreshAdSettings } from './services/adSettings';
 import { initAdMob, hideBannerAd } from './services/admob';
-import { initPushNotifications, unregisterPushNotifications } from './services/pushNotifications';
+import { initPushNotifications, unregisterPushNotifications, setPushNavigationHandler } from './services/pushNotifications';
+
+function PushNavigationBridge() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    setPushNavigationHandler((path) => navigate(path));
+    return () => setPushNavigationHandler(null);
+  }, [navigate]);
+  return null;
+}
 
 function App() {
   const [user, setUser] = useState(null);
@@ -153,6 +162,7 @@ function App() {
     <>
       <IonApp>
         <BrowserRouter>
+          <PushNavigationBridge />
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
             <Route path="/wallet" element={<WalletPage user={user} />} />

@@ -37,8 +37,18 @@ async function sendTokenToServer(token) {
   });
 }
 
+let navigateHandler = null;
+
+export function setPushNavigationHandler(handler) {
+  navigateHandler = typeof handler === 'function' ? handler : null;
+}
+
 function handleNotificationAction(action) {
   const data = action?.notification?.data || action?.data || {};
+  if (data.type === 'order_status') {
+    navigateHandler?.('/orders');
+    return;
+  }
   const url = data.url;
   if (url && typeof url === 'string' && /^https?:\/\//i.test(url)) {
     window.open(url, '_system');

@@ -18,6 +18,7 @@ import { spendBonus } from './bonusService.js';
 import { getWalletSummary } from './withdrawalService.js';
 import { assertProductSizeInStock } from './shopService.js';
 import { decrementStockForOrder, restoreStockForCancelledOrder } from './warehouseService.js';
+import { sendOrderStatusPush } from './pushNotificationService.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
@@ -30,6 +31,23 @@ const STATUS_LABELS = {
 
 export function statusLabel(status) {
   return STATUS_LABELS[status] || status;
+}
+
+function buildOrderStatusPushBody(order, status) {
+  const label = statusLabel(status);
+  const product = order.product_name ? ` «${order.product_name}»` : '';
+  return `Заказ #${order.id}${product}: ${label}`;
+}
+
+function notifyOrderStatusPush(order, prevStatus, newStatus) {
+  if (!order?.user_id || prevStatus === newStatus) return;
+  sendOrderStatusPush({
+    userId: order.user_id,
+    orderId: order.id,
+    title: 'Статус заказа',
+    body: buildOrderStatusPushBody(order, newStatus),
+    status: newStatus,
+  }).catch((err) => console.warn('[Push] order status:', err.message));
 }
 
 export async function createOrder(data, userId = null) {
@@ -460,6 +478,7 @@ export async function updateOrderStatus(orderId, status) {
   }
 
   const conn = await pool.getConnection();
+  let prevStatus = null;
   try {
     await conn.beginTransaction();
 
@@ -469,7 +488,7 @@ export async function updateOrderStatus(orderId, status) {
       err.status = 404;
       throw err;
     }
-    const prevStatus = orders[0].status;
+    prevStatus = orders[0].status;
 
     await conn.query(`UPDATE shop_orders SET status = ? WHERE id = ?`, [status, orderId]);
 
@@ -485,7 +504,9 @@ export async function updateOrderStatus(orderId, status) {
     conn.release();
   }
 
-  return getOrderById(orderId);
+  const order = await getOrderById(orderId);
+  notifyOrderStatusPush(order, prevStatus, status);
+  return order;
 }
 
 export async function assignQrToOrder(orderId, uniqueIdRaw, adminDeviceId = null) {
@@ -513,7 +534,9 @@ export async function assignQrToOrder(orderId, uniqueIdRaw, adminDeviceId = null
     );
 
     await conn.commit();
-    return { order: await getOrderById(orderId), shoe };
+    const updated = await getOrderById(orderId);
+    notifyOrderStatusPush(updated, order.status, 'qr_issued');
+    return { order: updated, shoe };
   } catch (err) {
     await conn.rollback();
     throw err;

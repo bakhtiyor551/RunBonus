@@ -111,6 +111,15 @@ async function resolveTokensForAudience({ cities = [], levels = [] } = {}) {
     .filter(Boolean);
 }
 
+async function getUserPushTokens(userId) {
+  if (!userId || !(await hasPushTables())) return [];
+  const [rows] = await pool.query(
+    `SELECT token FROM user_push_tokens WHERE user_id = ?`,
+    [userId]
+  );
+  return rows.map((r) => r.token).filter(Boolean);
+}
+
 async function pruneInvalidTokens(tokens) {
   if (!tokens.length || !(await hasPushTables())) return;
   const placeholders = tokens.map(() => '?').join(',');
@@ -172,6 +181,39 @@ export async function sendPushToTokens(tokens, { title, body, data = {} }) {
   if (invalid.length) await pruneInvalidTokens(invalid);
 
   return { sent, failed, skipped: false };
+}
+
+/** Push пользователю при смене статуса заказа. */
+export async function sendOrderStatusPush({ userId, orderId, title, body, status }) {
+  if (!userId || !orderId) {
+    return { sent: 0, failed: 0, skipped: true, reason: 'no_user' };
+  }
+
+  const tokens = await getUserPushTokens(userId);
+  const pushTitle = title || 'Статус заказа';
+  const pushBody = body || 'Статус вашего заказа обновлён';
+
+  const result = await sendPushToTokens(tokens, {
+    title: pushTitle,
+    body: pushBody,
+    data: {
+      type: 'order_status',
+      order_id: String(orderId),
+      status: String(status || ''),
+    },
+  });
+
+  try {
+    await pool.query(
+      `INSERT INTO push_notification_log (campaign_id, title, body, sent_count, failed_count)
+       VALUES (NULL, ?, ?, ?, ?)`,
+      [pushTitle, pushBody, result.sent, result.failed]
+    );
+  } catch {
+    /* optional */
+  }
+
+  return { ...result, recipients: tokens.length };
 }
 
 export async function sendCampaignPush(campaign) {
