@@ -5,6 +5,8 @@ backend/.env
 backend/.env.local
 backend/.env.*.local
 !backend/.env.example
+backend/secrets/
+backend/scripts/*firebase-adminsdk*.json
 
 # Сборки (Vite / Capacitor)
 dist/
