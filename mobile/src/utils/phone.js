@@ -4,7 +4,7 @@ export function digitsOnlyPhone(raw) {
   return String(raw || '').replace(/\D/g, '');
 }
 
-/** 9 цифр после +992 (любой оператор: 90, 91, 92, 93, 98, 99, 917…). */
+/** 9 цифр после +992. */
 export function toLocalPhoneDigits(raw) {
   let digits = digitsOnlyPhone(raw);
   if (digits.startsWith('992')) {
@@ -18,17 +18,16 @@ export function formatLocalPhoneInput(raw) {
   return toLocalPhoneDigits(raw);
 }
 
-/** 9 цифр, начинается с 9 (мобильный Таджикистан). */
+/** 9 цифр после +992. */
 export function isValidLocalPhone(value) {
   const digits = toLocalPhoneDigits(value);
-  return digits.length === PHONE_LOCAL_LENGTH && digits.startsWith('9');
+  return digits.length === PHONE_LOCAL_LENGTH;
 }
 
 export function phoneValidationMessage(value) {
   const digits = toLocalPhoneDigits(value);
   if (!digits) return 'Укажите номер телефона';
   if (digits.length !== PHONE_LOCAL_LENGTH) return `Введите ${PHONE_LOCAL_LENGTH} цифр номера`;
-  if (!digits.startsWith('9')) return 'Номер должен начинаться с 9';
   return null;
 }
 
