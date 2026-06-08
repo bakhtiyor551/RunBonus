@@ -26,7 +26,7 @@ export default function PhoneInput({
           maxLength={9}
           value={local}
           onChange={(e) => onChange(formatLocalPhoneInput(e.target.value))}
-          placeholder="90 123 4567"
+          placeholder="--- --- ---"
           required={required}
           aria-label={`${label}, 9 цифр после +992`}
         />
