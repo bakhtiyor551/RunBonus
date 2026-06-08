@@ -165,7 +165,7 @@ function AudienceChip({ label, selected, onToggle }) {
   );
 }
 
-function CampaignCard({ campaign, onEdit, onDelete }) {
+function CampaignCard({ campaign, onEdit, onDelete, onSendPush, sendingPushId }) {
   const cities = (campaign.audience_cities || []).join(', ') || 'Все города';
   const levels =
     (campaign.audience_levels || []).map((l) => LEVELS.find((x) => x.id === l)?.label || l).join(', ') ||
@@ -239,6 +239,16 @@ function CampaignCard({ campaign, onEdit, onDelete }) {
         )}
       </dl>
       <div className="entity-card__actions ads-campaign-card__actions">
+        {campaign.ad_type === 'push' && onSendPush && (
+          <button
+            type="button"
+            className="btn btn--sm btn--primary"
+            disabled={sendingPushId === campaign.id}
+            onClick={() => onSendPush(campaign)}
+          >
+            {sendingPushId === campaign.id ? 'Отправка…' : 'Отправить push'}
+          </button>
+        )}
         <button type="button" className="btn btn--sm" onClick={() => onEdit(campaign)}>
           Изменить
         </button>
@@ -264,6 +274,7 @@ export default function AdsTab() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingPushId, setSendingPushId] = useState(null);
   const [advForm, setAdvForm] = useState(emptyAdvertiser);
   const [campForm, setCampForm] = useState(emptyCampaign);
   const [tariffForm, setTariffForm] = useState(emptyTariff);
@@ -457,6 +468,28 @@ export default function AdsTab() {
     const arr = campForm[field] || [];
     const allSelected = values.every((v) => arr.includes(v));
     setCampForm({ ...campForm, [field]: allSelected ? [] : [...values] });
+  };
+
+  const sendPushCampaign = async (campaign) => {
+    if (
+      !confirm(
+        `Отправить push «${campaign.title}»?\n\nАудитория: города и уровни из кампании. Пользователи без разрешения на уведомления не получат сообщение.`
+      )
+    ) {
+      return;
+    }
+    setSendingPushId(campaign.id);
+    try {
+      const data = await adminApi(`/api/admin/ads/campaigns/${campaign.id}/send-push`, {
+        method: 'POST',
+        body: '{}',
+      });
+      alert(data.message || `Отправлено: ${data.sent}`);
+    } catch (err) {
+      alert(err.message || 'Не удалось отправить push');
+    } finally {
+      setSendingPushId(null);
+    }
   };
 
   const deleteCampaign = async (campaign) => {
@@ -1118,7 +1151,14 @@ export default function AdsTab() {
             {!campaigns.length && <p className="hint">Создайте первую кампанию в форме слева</p>}
             <div className="ads-cards-grid">
               {campaigns.map((c) => (
-                <CampaignCard key={c.id} campaign={c} onEdit={editCampaign} onDelete={deleteCampaign} />
+                <CampaignCard
+                  key={c.id}
+                  campaign={c}
+                  onEdit={editCampaign}
+                  onDelete={deleteCampaign}
+                  onSendPush={sendPushCampaign}
+                  sendingPushId={sendingPushId}
+                />
               ))}
             </div>
           </div>

@@ -14,7 +14,9 @@ import {
   getAdsDashboard,
   getAdSettings,
   updateAdSettings,
+  getCampaignById,
 } from '../services/adsService.js';
+import { sendCampaignPush, isPushConfigured } from '../services/pushNotificationService.js';
 
 const router = Router();
 
@@ -179,6 +181,38 @@ router.put('/settings', authAdmin, async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(e.status || 500).json({ error: e.message || 'Ошибка сохранения' });
+  }
+});
+
+router.post('/campaigns/:id/send-push', authAdmin, async (req, res) => {
+  try {
+    if (!isPushConfigured()) {
+      return res.status(503).json({
+        error: 'Firebase не настроен. Укажите FIREBASE_SERVICE_ACCOUNT_PATH в .env на сервере.',
+      });
+    }
+    const campaign = await getCampaignById(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Кампания не найдена' });
+    }
+    if (campaign.ad_type !== 'push') {
+      return res.status(400).json({ error: 'Эта кампания не является push-уведомлением' });
+    }
+    const result = await sendCampaignPush(campaign);
+    if (result.skipped && result.reason === 'no_tokens') {
+      return res.status(400).json({
+        error: 'Нет зарегистрированных устройств для выбранной аудитории',
+        ...result,
+      });
+    }
+    res.json({
+      ok: true,
+      message: `Отправлено: ${result.sent}, ошибок: ${result.failed}`,
+      ...result,
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(e.status || 500).json({ error: e.message || 'Ошибка отправки push' });
   }
 });
 

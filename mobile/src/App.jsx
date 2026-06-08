@@ -28,6 +28,7 @@ import { syncActiveWorkoutWithServer } from './services/activeWorkout';
 import { startWorkoutSession, stopWorkoutSession } from './services/workoutTracker';
 import { refreshAdSettings } from './services/adSettings';
 import { initAdMob, hideBannerAd } from './services/admob';
+import { initPushNotifications, unregisterPushNotifications } from './services/pushNotifications';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -95,6 +96,7 @@ function App() {
       if (enabled) initAdMob();
       else hideBannerAd().catch(() => {});
     });
+    initPushNotifications().catch(() => {});
     initWorkoutLifecycle();
     if (user.needsActivation) return;
     syncActiveWorkoutWithServer()
@@ -114,6 +116,7 @@ function App() {
   };
 
   const logout = async () => {
+    await unregisterPushNotifications().catch(() => {});
     await logoutApi();
     setUser(null);
   };

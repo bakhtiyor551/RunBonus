@@ -31,4 +31,19 @@ export const config = {
     /** 11-символьный хеш Android для автоподстановки кода (SMS Retriever) */
     appHash: (process.env.SMS_APP_HASH || '').trim(),
   },
+  firebase: {
+    /** JSON строка service account (FIREBASE_SERVICE_ACCOUNT_JSON) */
+    serviceAccount: (() => {
+      const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        console.warn('[config] FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON');
+        return null;
+      }
+    })(),
+    /** Путь к JSON файлу service account относительно backend/ */
+    serviceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim() || '',
+  },
 };

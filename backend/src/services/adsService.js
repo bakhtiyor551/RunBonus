@@ -356,6 +356,22 @@ export async function saveCampaign(data, id = null) {
   return mapCampaign(rows[0]);
 }
 
+export async function getCampaignById(id) {
+  if (!(await hasAdsTables())) return null;
+  const campaignId = Number(id);
+  if (!Number.isFinite(campaignId) || campaignId <= 0) return null;
+  const [rows] = await pool.query(
+    `SELECT c.*, a.company_name AS advertiser_name,
+            t.name AS tariff_name, t.days AS tariff_days, t.price AS tariff_price
+     FROM ad_campaigns c
+     JOIN advertisers a ON a.id = c.advertiser_id
+     LEFT JOIN ad_tariffs t ON t.id = c.tariff_id
+     WHERE c.id = ?`,
+    [campaignId]
+  );
+  return rows.length ? mapCampaign(rows[0]) : null;
+}
+
 export async function deleteCampaign(id) {
   if (!(await hasAdsTables())) throw Object.assign(new Error('Таблицы рекламы не созданы'), { status: 503 });
   const campaignId = Number(id);

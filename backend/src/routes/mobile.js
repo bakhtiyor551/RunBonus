@@ -287,4 +287,35 @@ router.post('/ads/event', optionalUserId, async (req, res) => {
   }
 });
 
+router.post('/push/register', authUser, async (req, res) => {
+  try {
+    const { savePushToken } = await import('../services/pushNotificationService.js');
+    const { token, platform } = req.body || {};
+    if (!token?.trim()) {
+      return res.status(400).json({ error: 'Токен не указан' });
+    }
+    const ok = await savePushToken(
+      req.userId,
+      token,
+      platform || 'android',
+      req.deviceId || null
+    );
+    res.json({ ok });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось сохранить токен' });
+  }
+});
+
+router.delete('/push/register', authUser, async (req, res) => {
+  try {
+    const { removePushToken } = await import('../services/pushNotificationService.js');
+    await removePushToken(req.userId, req.body?.token || null);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 export default router;

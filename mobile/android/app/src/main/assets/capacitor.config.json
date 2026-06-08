@@ -29,6 +29,13 @@
 		"Keyboard": {
 			"resize": "ionic",
 			"style": "dark"
+		},
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
 		}
 	}
 }
