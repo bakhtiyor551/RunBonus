@@ -173,10 +173,6 @@ export default function HomePage({ user, setUser }) {
             </div>
           </section>
 
-          <section style={{ marginBottom: 24 }}>
-            <DailyStepsCard steps={dailySteps} goal={dailyGoal} progress={dailyProgress} />
-          </section>
-
           <PageAdSlots
             page="home"
             user={user}
@@ -222,6 +218,9 @@ export default function HomePage({ user, setUser }) {
               >
                 <ProgressRing value={totalRuns} max={runsGoal} label="Тренировок" />
               </button>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <DailyStepsCard steps={dailySteps} goal={dailyGoal} progress={dailyProgress} />
             </div>
           </section>
 
