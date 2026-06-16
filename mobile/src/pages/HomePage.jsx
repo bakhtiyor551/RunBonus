@@ -157,21 +157,7 @@ export default function HomePage({ user, setUser }) {
         <main className="rb-main">
           <ShoeBindBanner user={user} />
 
-          <button type="button" className="glass-card rb-home-summary-link" onClick={() => navigate('/summary')}>
-            <div className="rb-home-summary-link__icon">
-              <Icon name="bar_chart" />
-            </div>
-            <div style={{ flex: 1, textAlign: 'left' }}>
-              <span className="rb-label">Аналитика</span>
-              <h2 className="rb-headline font-display" style={{ margin: '4px 0 0', fontSize: 20 }}>Сводка</h2>
-              <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                Кольца, цели, недельная статистика и рекорды
-              </p>
-            </div>
-            <Icon name="chevron_right" />
-          </button>
-
-          <section style={{ marginBottom: 32, marginTop: 24 }}>
+          <section style={{ marginBottom: 32 }}>
             <div className="glass-card" style={{ padding: 'var(--rb-card-padding)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <BoltIcon size="sm" glow />
@@ -185,10 +171,6 @@ export default function HomePage({ user, setUser }) {
                 Обновить
               </button>
             </div>
-          </section>
-
-          <section style={{ marginBottom: 24 }}>
-            <DailyStepsCard steps={dailySteps} goal={dailyGoal} progress={dailyProgress} />
           </section>
 
           <PageAdSlots
@@ -236,6 +218,9 @@ export default function HomePage({ user, setUser }) {
               >
                 <ProgressRing value={totalRuns} max={runsGoal} label="Тренировок" />
               </button>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <DailyStepsCard steps={dailySteps} goal={dailyGoal} progress={dailyProgress} />
             </div>
           </section>
 

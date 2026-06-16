@@ -3008,28 +3008,55 @@ html.rb-keyboard-open .rb-main {
   padding: var(--rb-card-padding);
 }
 
-.rb-home-summary-link {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  padding: var(--rb-card-padding);
-  margin-bottom: 0;
-  border: 1px solid rgba(195, 244, 0, 0.2);
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
+.rb-level-section h2 {
+  margin-bottom: 16px;
 }
 
-.rb-home-summary-link__icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: rgba(195, 244, 0, 0.12);
+.rb-level-badge {
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.rb-level-badge__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--rb-neon);
-  flex-shrink: 0;
+}
+
+.rb-level-badge__title {
+  margin: 0;
+  font-size: 28px;
+}
+
+.rb-level-subsection {
+  margin-top: 24px;
+}
+
+.rb-level-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rb-level-history__row {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.rb-level-achievements {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.rb-level-achievement {
+  padding: 16px;
 }
 

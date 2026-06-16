@@ -1,45 +1,28 @@
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
+import {
+  GPS_MAX_ACCURACY_M,
+  GPS_MIN_SEGMENT_M,
+  haversineKm,
+  haversineMeters,
+  isSameCoordinates,
+  isValidTrackPoint,
+  normalizeSpeedMps,
+  prepareTrackPoints,
+  shouldRecordGpsPoint,
+  speedMpsToKmh,
+} from './gpsFilter';
 
-/** Интервал опроса в браузере / fallback (сек). */
+export {
+  GPS_MAX_ACCURACY_M as MAX_ACCURACY_METERS,
+  GPS_MIN_SEGMENT_M as MIN_SEGMENT_METERS,
+  haversineKm,
+  isSameCoordinates,
+  shouldRecordGpsPoint,
+};
+
+/** Интервал опроса в браузере / fallback (мс). */
 const GPS_INTERVAL_MS = 8000;
-
-/** Минимальное смещение для новой точки маршрута (~5 м). */
-export const MIN_SEGMENT_METERS = 5;
-
-export const MAX_ACCURACY_METERS = 80;
-/** Согласовано с лимитом в настройках бонусов (max_speed_kmh) + допуск GPS */
-export const MAX_SPEED_KMH = 19;
-/** Минимальная скорость (км/ч), иначе считаем стоянием / шум GPS. */
-export const MIN_SPEED_KMH = 1.5;
-
-const MIN_RECORD_INTERVAL_MS = 3000;
-
-const COORD_EPS = 1e-6;
-const MAX_JUMP_METERS = 80;
-const MAX_JUMP_SECONDS = 4;
-/** Если новая точка в этом радиусе от «центра» последних точек — дрейф. */
-const STATIONARY_RADIUS_METERS = 28;
-const STATIONARY_RECENT_COUNT = 4;
-
-function minSegmentForAccuracy(accuracy) {
-  const acc = Number(accuracy);
-  if (!Number.isFinite(acc) || acc <= 0) return MIN_SEGMENT_METERS;
-  return Math.max(MIN_SEGMENT_METERS, Math.min(20, acc * 0.4));
-}
-
-function isNearStationaryCluster(recent, pos) {
-  if (!recent?.length || !pos) return false;
-  let sumLat = 0;
-  let sumLon = 0;
-  for (const p of recent) {
-    sumLat += p.latitude;
-    sumLon += p.longitude;
-  }
-  const cLat = sumLat / recent.length;
-  const cLon = sumLon / recent.length;
-  return haversineMeters(cLat, cLon, pos.latitude, pos.longitude) < STATIONARY_RADIUS_METERS;
-}
 
 function isNative() {
   return Capacitor.isNativePlatform();
@@ -57,7 +40,6 @@ async function requestAndroidBackgroundLocation() {
       status = await Geolocation.requestPermissions();
     }
     if (status.location !== 'granted') return;
-    // Android 10+: для трекинга в фоне нужно «Всегда» — повторный запрос после foreground.
     await Geolocation.requestPermissions({ permissions: ['location'] });
   } catch {
     /* опционально */
@@ -98,12 +80,12 @@ export async function requestLocationPermission() {
 
 function normalizePosition(pos) {
   const c = pos.coords || pos;
-  const rawSpeed = c.speed;
-  const mps = rawSpeed != null && rawSpeed >= 0 ? rawSpeed : 0;
+  const speedMps = normalizeSpeedMps(c.speed);
   return {
     latitude: c.latitude,
     longitude: c.longitude,
-    speed: mps * 3.6,
+    speedMps,
+    speed: speedMpsToKmh(speedMps),
     accuracy: c.accuracy,
     recorded_at: new Date().toISOString(),
   };
@@ -136,7 +118,7 @@ export async function startBackgroundTracking(onPosition) {
       {
         enableHighAccuracy: true,
         timeout: 20000,
-        maximumAge: 5000,
+        maximumAge: 2000,
       },
       (pos, err) => {
         if (err || !pos) return;
@@ -150,15 +132,15 @@ export async function startBackgroundTracking(onPosition) {
     const watchId = navigator.geolocation.watchPosition(
       (p) => onPosition(normalizePosition(p)),
       () => {},
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
   }
 
   const intervalId = setInterval(async () => {
     try {
-      const pos = await getCurrentPosition();
-      onPosition(pos);
+      const position = await getCurrentPosition();
+      onPosition(position);
     } catch {
       /* retry */
     }
@@ -167,131 +149,7 @@ export async function startBackgroundTracking(onPosition) {
   return () => clearInterval(intervalId);
 }
 
-function haversineMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const x =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
-
-export function isSameCoordinates(a, b) {
-  if (!a || !b) return false;
-  return (
-    Math.abs(a.latitude - b.latitude) < COORD_EPS &&
-    Math.abs(a.longitude - b.longitude) < COORD_EPS
-  );
-}
-
-function segmentSeconds(a, b) {
-  if (!a?.recorded_at || !b?.recorded_at) return null;
-  const dt = (new Date(b.recorded_at) - new Date(a.recorded_at)) / 1000;
-  return dt > 0 ? dt : null;
-}
-
-function isGpsJump(last, pos, distM) {
-  const dt = segmentSeconds(last, pos);
-  if (dt == null || dt > MAX_JUMP_SECONDS) return false;
-  return distM > MAX_JUMP_METERS;
-}
-
-function isValidTrackPoint(pos) {
-  if (pos.accuracy != null && pos.accuracy > MAX_ACCURACY_METERS) {
-    return false;
-  }
-  if (pos.speed != null && pos.speed > MAX_SPEED_KMH) {
-    return false;
-  }
-  return true;
-}
-
-/**
- * Стоит ли добавить точку в маршрут.
- */
-export function shouldRecordGpsPoint(last, pos, recentPoints = []) {
-  if (!isValidTrackPoint(pos)) {
-    return { record: false, reason: 'accuracy_or_speed' };
-  }
-
-  if (!last) {
-    return { record: true, segmentMeters: 0 };
-  }
-  if (isSameCoordinates(last, pos)) {
-    return { record: false, reason: 'duplicate' };
-  }
-
-  const elapsedMs = new Date(pos.recorded_at) - new Date(last.recorded_at);
-  if (elapsedMs > 0 && elapsedMs < MIN_RECORD_INTERVAL_MS) {
-    return { record: false, reason: 'interval' };
-  }
-
-  const distM = haversineMeters(last.latitude, last.longitude, pos.latitude, pos.longitude);
-  const minSeg = minSegmentForAccuracy(pos.accuracy ?? last.accuracy);
-
-  if (distM < minSeg) {
-    return { record: false, reason: 'drift', distM };
-  }
-
-  const recent = recentPoints.length
-    ? recentPoints.slice(-STATIONARY_RECENT_COUNT)
-    : [last];
-  if (isNearStationaryCluster(recent, pos)) {
-    return { record: false, reason: 'stationary', distM };
-  }
-
-  if (isGpsJump(last, pos, distM)) {
-    return { record: false, reason: 'jump', distM };
-  }
-
-  const dt = segmentSeconds(last, pos);
-  if (dt != null && dt > 0 && dt < 120) {
-    const speedKmh = (distM / 1000 / dt) * 3600;
-    if (speedKmh < MIN_SPEED_KMH) {
-      return { record: false, reason: 'slow', distM };
-    }
-  }
-
-  return { record: true, segmentMeters: distM };
-}
-
-/** Подготовка маршрута: валидные точки без подряд идущих дублей. */
-export function prepareTrackPoints(points) {
-  if (!points?.length) return [];
-  const sorted = [...points].sort(
-    (a, b) => new Date(a.recorded_at) - new Date(b.recorded_at)
-  );
-  const out = [];
-  for (const p of sorted) {
-    if (!isValidTrackPoint(p)) continue;
-    const last = out[out.length - 1];
-    if (last && isSameCoordinates(last, p)) continue;
-    out.push(p);
-  }
-  return out;
-}
-
-/** Дистанция: сумма Haversine между соседними точками. */
-export function haversineKm(points) {
-  const track = prepareTrackPoints(points);
-  if (track.length < 2) return 0;
-
-  let distM = 0;
-  for (let i = 1; i < track.length; i++) {
-    distM += haversineMeters(
-      track[i - 1].latitude,
-      track[i - 1].longitude,
-      track[i].latitude,
-      track[i].longitude
-    );
-  }
-  return Math.round((distM / 1000) * 1000) / 1000;
-}
-
-/** Оставить только значимые точки маршрута (для отправки на сервер). */
+/** Подготовка маршрута для отображения / отправки. */
 export function filterTrackPoints(points) {
   return prepareTrackPoints(points);
 }
@@ -339,3 +197,6 @@ export function loadWorkoutLocal(id) {
 export function clearWorkoutLocal(id) {
   localStorage.removeItem(WORKOUT_STORAGE_KEY(id));
 }
+
+// Re-export for tests / map utilities
+export { haversineMeters, isValidTrackPoint };

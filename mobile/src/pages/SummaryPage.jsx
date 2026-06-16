@@ -4,11 +4,10 @@ import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/r
 import { api, cacheUser } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
-import WorkoutDetailModal from '../components/WorkoutDetailModal';
 import Icon from '../components/Icon';
 import ActivityRings from '../components/summary/ActivityRings';
 import WeeklyChart from '../components/summary/WeeklyChart';
-import SummaryStatusBadge from '../components/summary/SummaryStatusBadge';
+import LevelSection from '../components/level/LevelSection';
 import { formatBalance } from '../utils/format';
 import { resolveAvatarUrl } from '../utils/avatar';
 import { fetchUserSummary } from '../services/summary';
@@ -65,40 +64,14 @@ function RecordRow({ label, value }) {
   );
 }
 
-function HistoryRow({ workout, onPress }) {
-  return (
-    <button type="button" className="glass-card rb-activity-card" onClick={() => onPress(workout)}>
-      <div className="rb-activity-card__icon">
-        <Icon name={workout.type === 'Бег' ? 'directions_run' : 'directions_walk'} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{workout.type}</h3>
-          <SummaryStatusBadge status={workout.status} />
-        </div>
-        <p className="rb-label" style={{ margin: '4px 0 0', textTransform: 'none', letterSpacing: 0 }}>
-          {new Date(workout.date).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
-          {workout.distance > 0 ? ` · ${workout.distance.toFixed(1)} км` : ''}
-          {workout.duration ? ` · ${workout.duration}` : ''}
-        </p>
-      </div>
-      {workout.bonus > 0 && (
-        <div style={{ textAlign: 'right' }}>
-          <span className="rb-headline font-display" style={{ color: 'var(--rb-neon)', fontSize: 18 }}>
-            +{workout.bonus.toFixed(1)}
-          </span>
-        </div>
-      )}
-    </button>
-  );
-}
-
 export default function SummaryPage({ user, setUser }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedWorkout, setSelectedWorkout] = useState(null);
+  const [levelData, setLevelData] = useState(null);
+  const [levelHistory, setLevelHistory] = useState([]);
+  const [levelLoading, setLevelLoading] = useState(true);
   const [deviceSteps, setDeviceSteps] = useState(0);
 
   const displayName = summary?.profile?.name || user.name || 'Пользователь';
@@ -125,11 +98,29 @@ export default function SummaryPage({ user, setUser }) {
     return data;
   }, [deviceSteps]);
 
+  const loadLevel = useCallback(async () => {
+    setLevelLoading(true);
+    try {
+      const [level, hist] = await Promise.all([
+        api('/api/me/level'),
+        api('/api/me/level-history'),
+      ]);
+      setLevelData(level);
+      setLevelHistory(hist);
+    } catch {
+      setLevelData(null);
+      setLevelHistory([]);
+    } finally {
+      setLevelLoading(false);
+    }
+  }, []);
+
   const refreshAll = useCallback(async () => {
     try {
       const [profile] = await Promise.all([
         api('/api/auth/me').catch(() => null),
         loadSummary(),
+        loadLevel(),
       ]);
       if (profile) {
         cacheUser(profile);
@@ -138,7 +129,7 @@ export default function SummaryPage({ user, setUser }) {
     } catch {
       /* offline */
     }
-  }, [loadSummary, setUser]);
+  }, [loadSummary, loadLevel, setUser]);
 
   useEffect(() => {
     setLoading(true);
@@ -161,7 +152,6 @@ export default function SummaryPage({ user, setUser }) {
     if (!loading && deviceSteps > 0) loadSummary().catch(() => {});
   }, [deviceSteps, loading, loadSummary]);
 
-  const last = summary?.last_workout;
   const records = summary?.personal_records;
 
   return (
@@ -235,34 +225,14 @@ export default function SummaryPage({ user, setUser }) {
             {loading ? <p className="rb-text-muted">Загрузка…</p> : <ActivityRings rings={summary?.rings} />}
           </section>
 
+          <LevelSection data={levelData} history={levelHistory} loading={levelLoading} />
+
           <section className="glass-card rb-summary-section">
             <h2 className="rb-headline font-display">Недельная статистика</h2>
             {loading ? <p className="rb-text-muted">Загрузка…</p> : (
               <WeeklyChart days={summary?.weekly} totals={summary?.weekly_totals} />
             )}
           </section>
-
-          {last && (
-            <section className="glass-card rb-summary-section rb-summary-last">
-              <h2 className="rb-headline font-display">Последняя тренировка</h2>
-              <div className="rb-summary-last__grid">
-                <div><span className="rb-label">Дата</span><strong>{new Date(last.date).toLocaleString('ru')}</strong></div>
-                <div><span className="rb-label">Тип</span><strong>{last.type}</strong></div>
-                <div><span className="rb-label">Дистанция</span><strong>{last.distance.toFixed(2)} км</strong></div>
-                <div><span className="rb-label">Время</span><strong>{last.duration}</strong></div>
-                <div><span className="rb-label">Скорость</span><strong>{last.avg_speed.toFixed(1)} км/ч</strong></div>
-                <div><span className="rb-label">Шаги</span><strong>{last.steps.toLocaleString('ru')}</strong></div>
-                <div><span className="rb-label">Заработано</span><strong>{last.bonus.toFixed(2)} с.</strong></div>
-                <div>
-                  <span className="rb-label">Статус</span>
-                  <SummaryStatusBadge status={last.status} />
-                </div>
-              </div>
-              {last.status === 'rejected' && last.reject_reason && (
-                <p className="rb-summary-last__reason">Причина: {last.reject_reason}</p>
-              )}
-            </section>
-          )}
 
           <section className="glass-card rb-summary-section">
             <h2 className="rb-headline font-display">Цели</h2>
@@ -284,40 +254,9 @@ export default function SummaryPage({ user, setUser }) {
               <RecordRow label="Самая высокая средняя скорость" value={`${records.max_avg_speed_kmh.toFixed(1)} км/ч`} />
             </section>
           )}
-
-          <section className="rb-summary-section">
-            <div className="rb-summary-section__head">
-              <h2 className="rb-headline font-display">История активности</h2>
-              <button type="button" className="rb-link" onClick={() => navigate('/workouts')}>
-                Смотреть всю историю
-              </button>
-            </div>
-            <div className="rb-summary-history">
-              {(summary?.recent_workouts || []).map((w) => (
-                <HistoryRow key={w.id} workout={w} onPress={setSelectedWorkout} />
-              ))}
-              {!loading && !(summary?.recent_workouts || []).length && (
-                <p className="rb-text-muted">Пока нет тренировок</p>
-              )}
-            </div>
-          </section>
         </main>
       </IonContent>
       <BottomNav />
-      <WorkoutDetailModal
-        workout={selectedWorkout ? {
-          id: selectedWorkout.id,
-          started_at: selectedWorkout.date,
-          distance_km: selectedWorkout.distance,
-          duration_seconds: selectedWorkout.duration_seconds,
-          calculated_bonus: selectedWorkout.bonus,
-          status: selectedWorkout.status === 'pending' ? 'suspicious' : selectedWorkout.status,
-          avg_speed: selectedWorkout.avg_speed,
-          steps_count: selectedWorkout.steps,
-          reject_reason: selectedWorkout.reject_reason,
-        } : null}
-        onClose={() => setSelectedWorkout(null)}
-      />
     </IonPage>
   );
 }
