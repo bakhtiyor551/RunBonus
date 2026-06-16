@@ -3,7 +3,10 @@ const EARTH_RADIUS_KM = 6371;
 /** ~0.1 м — считать координаты одинаковыми */
 const COORD_EPS = 1e-6;
 
-export const MAX_GPS_ACCURACY_M = 80;
+export const MAX_GPS_ACCURACY_M = 15;
+export const MIN_GPS_SEGMENT_M = 2.5;
+/** Ниже — считаем, что пользователь стоит (м/с). */
+export const GPS_STATIONARY_SPEED_MPS = 0.2;
 /** Лимит по умолчанию + 1 км/ч допуск (см. workoutValidation GPS_SPEED_TOLERANCE_KMH) */
 export const MAX_GPS_SPEED_KMH = 19;
 
@@ -50,7 +53,7 @@ export function isValidTrackPoint(p) {
 }
 
 /**
- * Сортировка, отсев плохих точек, удаление подряд идущих дублей координат.
+ * Сортировка, отсев плохих точек, фильтр минимального смещения.
  */
 export function prepareTrackPoints(points) {
   if (!points?.length) return [];
@@ -65,6 +68,13 @@ export function prepareTrackPoints(points) {
     if (!isValidTrackPoint(p)) continue;
     const last = out[out.length - 1];
     if (last && isSameCoordinates(last, p)) continue;
+    if (last) {
+      const distM =
+        haversineKm(last.latitude, last.longitude, p.latitude, p.longitude) * 1000;
+      if (distM < MIN_GPS_SEGMENT_M) continue;
+      const speedMps = p.speed != null ? Number(p.speed) / 3.6 : null;
+      if (speedMps != null && speedMps < GPS_STATIONARY_SPEED_MPS) continue;
+    }
     out.push(p);
   }
   return out;
@@ -87,10 +97,17 @@ export function calcDistanceFromPoints(points) {
   return Math.round(total * 1000) / 1000;
 }
 
-/** Нужно ли сохранять точку в БД (не дубль последней). */
+/** Нужно ли сохранять точку в БД (не дубль, мин. смещение). */
 export function shouldSaveGpsPoint(last, point) {
   const p = normalizeGpsPoint(point);
   if (!p || !isValidTrackPoint(p)) return false;
   if (last && isSameCoordinates(last, p)) return false;
+  if (last) {
+    const distM =
+      haversineKm(last.latitude, last.longitude, p.latitude, p.longitude) * 1000;
+    if (distM < MIN_GPS_SEGMENT_M) return false;
+    const speedMps = p.speed != null ? Number(p.speed) / 3.6 : null;
+    if (speedMps != null && speedMps < GPS_STATIONARY_SPEED_MPS) return false;
+  }
   return true;
 }

@@ -44,6 +44,8 @@ export default function WorkoutPage({ user, setUser }) {
     avgSpeed: 0,
     steps: 0,
     paused: false,
+    manualPaused: false,
+    autoPaused: false,
     gpsReady: false,
     gpsError: '',
     points: [],
@@ -246,7 +248,9 @@ export default function WorkoutPage({ user, setUser }) {
   const liveBadge = (
     <div className={`rb-badge-live ${live.paused ? 'rb-badge-live--paused' : ''}`}>
       <span className="rb-badge-live__dot" />
-      <span>{live.paused ? 'Пауза' : 'Активна'}</span>
+      <span>
+        {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Пауза' : 'Активна'}
+      </span>
     </div>
   );
 
@@ -287,10 +291,10 @@ export default function WorkoutPage({ user, setUser }) {
                 type="button"
                 className="rb-btn-outline rb-workout-controls__pause"
                 onClick={toggleWorkoutPause}
-                disabled={finishing}
+                disabled={finishing || live.autoPaused}
               >
-                <Icon name={live.paused ? 'play_arrow' : 'pause'} filled />
-                {live.paused ? 'Продолжить' : 'Пауза'}
+                <Icon name={live.manualPaused ? 'play_arrow' : 'pause'} filled />
+                {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Продолжить' : 'Пауза'}
               </button>
               <HoldToStopButton onStop={finish} disabled={finishing} />
             </div>

@@ -11,6 +11,15 @@ import {
   getCurrentPosition,
 } from './geolocation';
 import {
+  GPS_AUTO_PAUSE_MS,
+  GPS_AUTO_PAUSE_SPEED_MPS,
+  GPS_AUTO_RESUME_SPEED_MPS,
+  computeAvgSpeedKmh,
+  movingAverageSpeedMps,
+  normalizeSpeedMps,
+  speedMpsToKmh,
+} from './gpsFilter';
+import {
   startStepCounter,
   stopStepCounter,
   getSessionSteps,
@@ -39,28 +48,88 @@ function liveSnapshotFromSession() {
     distance: session.distance,
     currentSpeed: session.currentSpeed,
     steps: session.steps,
-    paused: session.paused,
+    paused: session.paused || session.autoPaused,
+    manualPaused: session.paused,
+    autoPaused: session.autoPaused,
   };
 }
 
 function computeAvgSpeed(distanceKm, movingSeconds) {
-  if (!movingSeconds || movingSeconds <= 0) return 0;
-  return (distanceKm / movingSeconds) * 3600;
+  return computeAvgSpeedKmh(distanceKm, movingSeconds);
 }
 
-function syncElapsedSeconds() {
+function totalPausedMsNow() {
   if (!session) return 0;
   let pausedMs = session.totalPausedMs;
   if (session.paused && session.pausedAt) {
     pausedMs += Date.now() - session.pausedAt;
   }
+  if (session.autoPaused && session.autoPausedAt) {
+    pausedMs += Date.now() - session.autoPausedAt;
+  }
+  return pausedMs;
+}
+
+function syncElapsedSeconds() {
+  if (!session) return 0;
+  const pausedMs = totalPausedMsNow();
   const elapsed = Math.floor((Date.now() - session.startedAt - pausedMs) / 1000);
-  session.seconds = Math.max(session.seconds, Math.max(0, elapsed));
+  session.movingSeconds = Math.max(0, elapsed);
+  session.seconds = Math.max(session.seconds, session.movingSeconds);
   session.pauseSeconds = Math.floor(pausedMs / 1000);
-  session.movingSeconds = session.seconds;
   session.avgSpeed = computeAvgSpeed(session.distance, session.movingSeconds);
   session.steps = getSessionSteps();
   return session.seconds;
+}
+
+function updateDisplaySpeed(pos) {
+  const mps = normalizeSpeedMps(pos.speedMps);
+  session.speedSamplesMps.push(mps);
+  if (session.speedSamplesMps.length > 6) {
+    session.speedSamplesMps = session.speedSamplesMps.slice(-6);
+  }
+  const avgMps = movingAverageSpeedMps(session.speedSamplesMps);
+  const kmh = speedMpsToKmh(avgMps);
+  session.currentSpeed = kmh;
+  if (kmh > 0) {
+    session.maxSpeed = Math.max(session.maxSpeed, kmh);
+  }
+}
+
+function processAutoPause(pos) {
+  if (!session || session.paused) return;
+
+  const mps = Number(pos.speedMps) || 0;
+
+  if (session.autoPaused) {
+    if (mps >= GPS_AUTO_RESUME_SPEED_MPS) {
+      if (session.autoPausedAt) {
+        session.totalPausedMs += Date.now() - session.autoPausedAt;
+      }
+      session.autoPaused = false;
+      session.autoPausedAt = null;
+      session.lowSpeedSince = null;
+      session.currentSpeed = speedMpsToKmh(mps);
+    }
+    return;
+  }
+
+  if (mps < GPS_AUTO_PAUSE_SPEED_MPS) {
+    if (!session.lowSpeedSince) {
+      session.lowSpeedSince = Date.now();
+    } else if (Date.now() - session.lowSpeedSince >= GPS_AUTO_PAUSE_MS) {
+      session.autoPaused = true;
+      session.autoPausedAt = Date.now();
+      session.currentSpeed = 0;
+      session.lowSpeedSince = null;
+    }
+  } else {
+    session.lowSpeedSince = null;
+  }
+}
+
+function isTrackingFrozen() {
+  return session?.paused || session?.autoPaused;
 }
 
 function emit() {
@@ -76,7 +145,9 @@ function emit() {
     maxSpeed: session.maxSpeed,
     avgSpeed: session.avgSpeed,
     steps: session.steps,
-    paused: session.paused,
+    paused: session.paused || session.autoPaused,
+    manualPaused: session.paused,
+    autoPaused: session.autoPaused,
     gpsReady: session.gpsReady,
     gpsError: session.gpsError,
     points: session.points,
@@ -110,7 +181,7 @@ export function persistWorkoutSession() {
 }
 
 async function flushPointsToServer() {
-  if (!session?.points.length || !navigator.onLine || session.serverStale || session.paused) return;
+  if (!session?.points.length || !navigator.onLine || session.serverStale || isTrackingFrozen()) return;
   const batch = session.points.slice(-80);
   try {
     await session.api(`/api/workouts/${session.workoutId}/points`, {
@@ -124,32 +195,40 @@ async function flushPointsToServer() {
   }
 }
 
-function addPosition(pos) {
-  if (!session || session.paused) return;
+function onGpsPosition(pos) {
+  if (!session) return;
 
-  const speed = Number(pos.speed) || 0;
-  if (speed > 0) {
-    session.currentSpeed = speed;
-    session.maxSpeed = Math.max(session.maxSpeed, speed);
+  processAutoPause(pos);
+
+  if (!isTrackingFrozen()) {
+    updateDisplaySpeed(pos);
+  } else {
+    session.currentSpeed = 0;
+  }
+
+  if (isTrackingFrozen()) {
+    emit();
+    return;
   }
 
   const last = session.points[session.points.length - 1];
-  const { record } = shouldRecordGpsPoint(last, pos, session.points);
+  const { record, segmentMeters } = shouldRecordGpsPoint(last, pos);
 
   if (!record) return;
 
   session.points = [...session.points, pos];
-  session.distance = haversineKm(session.points);
+  session.distanceMeters += segmentMeters || 0;
+  session.distance = Math.round((session.distanceMeters / 1000) * 1000) / 1000;
   session.gpsError = '';
   persistWorkoutSession();
   emit();
 }
 
 async function pollPositionOnce() {
-  if (!session || session.paused) return;
+  if (!session) return;
   try {
     const pos = await getCurrentPosition();
-    addPosition(pos);
+    onGpsPosition(pos);
   } catch {
     /* GPS временно недоступен */
   }
@@ -181,10 +260,13 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
       : (localStart ?? serverStartedAt ?? Date.now());
   const seconds = saved?.seconds || 0;
 
+  const distanceKm = haversineKm(points);
+
   session = {
     workoutId: id,
     points,
-    distance: haversineKm(points),
+    distance: distanceKm,
+    distanceMeters: distanceKm * 1000,
     seconds,
     movingSeconds: saved?.movingSeconds || seconds,
     pauseSeconds: saved?.pauseSeconds || 0,
@@ -192,6 +274,10 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
     totalPausedMs: saved?.totalPausedMs || 0,
     paused: Boolean(saved?.paused),
     pausedAt: saved?.pausedAt || null,
+    autoPaused: false,
+    autoPausedAt: null,
+    lowSpeedSince: null,
+    speedSamplesMps: [],
     currentSpeed: 0,
     maxSpeed: saved?.maxSpeed || 0,
     avgSpeed: 0,
@@ -209,7 +295,7 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
     await requestLocationPermission();
     await startWorkoutForeground();
     await startStepCounter();
-    session.stopGps = await startBackgroundTracking(addPosition);
+    session.stopGps = await startBackgroundTracking(onGpsPosition);
     session.gpsReady = true;
     await flushPointsToServer();
   } catch (err) {
@@ -220,7 +306,7 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
 
   session.timerId = setInterval(() => {
     if (!session || session.workoutId !== id) return;
-    if (!session.paused) syncElapsedSeconds();
+    if (!isTrackingFrozen()) syncElapsedSeconds();
     persistWorkoutSession();
     emit();
   }, 1000);
@@ -267,6 +353,12 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
 
 export function pauseWorkoutSession() {
   if (!session || session.paused) return;
+  if (session.autoPaused && session.autoPausedAt) {
+    session.totalPausedMs += Date.now() - session.autoPausedAt;
+    session.autoPaused = false;
+    session.autoPausedAt = null;
+  }
+  session.lowSpeedSince = null;
   session.paused = true;
   session.pausedAt = Date.now();
   session.currentSpeed = 0;
@@ -287,7 +379,7 @@ export function resumeWorkoutSessionTracking() {
 }
 
 export function toggleWorkoutPause() {
-  if (!session) return;
+  if (!session || session.autoPaused) return;
   if (session.paused) resumeWorkoutSessionTracking();
   else pauseWorkoutSession();
 }
@@ -297,7 +389,7 @@ export async function resumeWorkoutSession() {
   if (!session) return;
   syncElapsedSeconds();
   attachLiveActivityHandlers();
-  if (!session.paused) await pollPositionOnce();
+  if (!isTrackingFrozen()) await pollPositionOnce();
   await flushPointsToServer();
   emit();
 }
@@ -341,7 +433,9 @@ export function subscribeWorkoutSession(fn) {
       maxSpeed: session.maxSpeed,
       avgSpeed: session.avgSpeed,
       steps: session.steps,
-      paused: session.paused,
+      paused: session.paused || session.autoPaused,
+      manualPaused: session.paused,
+      autoPaused: session.autoPaused,
       gpsReady: session.gpsReady,
       gpsError: session.gpsError,
       points: session.points,
