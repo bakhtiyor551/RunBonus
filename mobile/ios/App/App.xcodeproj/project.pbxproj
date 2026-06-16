@@ -22,6 +22,7 @@
 		RBLA0201FED79650016851F /* WorkoutLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */; };
 		RBWT0011FED79650016851F /* WorkoutTrackingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */; };
 		RBWT0021FED79650016851F /* WorkoutTrackingPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */; };
+		RBVC0011FED79650016851F /* AppBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBVC0021FED79650016851F /* AppBridgeViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,7 @@
 		RBLA0241FED79650016851F /* WorkoutLiveActivity.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WorkoutLiveActivity.entitlements; sourceTree = "<group>"; };
 		RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackingPlugin.swift; sourceTree = "<group>"; };
 		RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WorkoutTrackingPlugin.m; sourceTree = "<group>"; };
+		RBVC0021FED79650016851F /* AppBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBridgeViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -125,6 +127,7 @@
 			children = (
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
+				RBVC0021FED79650016851F /* AppBridgeViewController.swift */,
 				RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */,
 				RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */,
 				RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */,
@@ -311,6 +314,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				RBVC0011FED79650016851F /* AppBridgeViewController.swift in Sources */,
 				RBWT0011FED79650016851F /* WorkoutTrackingPlugin.swift in Sources */,
 				RBWT0021FED79650016851F /* WorkoutTrackingPlugin.m in Sources */,
 				RBLA0021FED79650016851F /* WorkoutActivityAttributes.swift in Sources */,
