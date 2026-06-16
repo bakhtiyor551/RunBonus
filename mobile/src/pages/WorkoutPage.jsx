@@ -385,17 +385,17 @@ function MetricCard({ icon, label, value, area, accent = 'neon', hero = false, c
 
 function CelebrateBlock({ result, units }) {
   return (
-    <div className="rb-celebrate" style={{ textAlign: 'center', marginBottom: 32 }}>
+    <div className="rb-celebrate rb-celebrate--result">
       <div className="rb-celebrate__icon">
-        <Icon name="check_circle" style={{ fontSize: 48, color: 'var(--rb-on-neon)' }} />
+        <Icon name="check_circle" />
       </div>
-      <h1 className="font-display" style={{ fontSize: 32, color: 'var(--rb-neon)', textTransform: 'uppercase', margin: 0 }}>
+      <h1 className="rb-celebrate__title font-display">
         {result.title || 'Тренировка завершена!'}
       </h1>
       {result.level_up?.message && (
         <p className="rb-headline rb-celebrate__levelup">{result.level_up.message}</p>
       )}
-      <p className="rb-text-muted" style={{ marginTop: 8 }}>
+      <p className="rb-celebrate__summary">
         {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
       </p>
     </div>
@@ -403,22 +403,49 @@ function CelebrateBlock({ result, units }) {
 }
 
 function ResultCards({ result, units }) {
+  const credited = Boolean(result.bonus_credited);
+  const bonusValue = credited ? `+${Number(result.bonus_earned).toFixed(1)}` : null;
+  const bonusNote =
+    result.reject_reason || result.message || 'Бонус не начислен по правилам программы';
+
   return (
-    <div className="rb-workout-result-grid">
-      <div className="glass-card rb-workout-result-grid__wide">
-        <span className="rb-label">Дистанция</span>
-        <div className="rb-workout-result-grid__hero font-display">{formatDistance(result.distance_km, units)}</div>
+    <div className="rb-workout-result-cards">
+      <div className="rb-workout-metric glass-card rb-workout-metric--cyan rb-workout-result-card">
+        <div className="rb-workout-metric__icon" aria-hidden>
+          <Icon name="straighten" />
+        </div>
+        <div className="rb-workout-metric__body">
+          <span className="rb-workout-metric__value font-display font-tabular">
+            {formatDistance(result.distance_km, units)}
+          </span>
+          <span className="rb-workout-metric__label">Дистанция</span>
+        </div>
       </div>
-      <div className="glass-card">
-        <span className="rb-label">Бонус</span>
-        {result.bonus_credited ? (
-          <div className="rb-workout-result-grid__bonus">
-            <Icon name="stars" filled />
-            <span className="font-display">+{Number(result.bonus_earned).toFixed(1)}</span>
-          </div>
-        ) : (
-          <p className="rb-text-muted">{result.reject_reason || result.message || 'Бонус не начислен'}</p>
-        )}
+
+      <div
+        className={[
+          'rb-workout-metric',
+          'glass-card',
+          'rb-workout-metric--neon',
+          'rb-workout-result-card',
+          credited ? '' : 'rb-workout-result-card--muted',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <div className="rb-workout-metric__icon" aria-hidden>
+          <Icon name="stars" filled />
+        </div>
+        <div className="rb-workout-metric__body">
+          {bonusValue ? (
+            <span className="rb-workout-metric__value font-display font-tabular rb-workout-result-card__bonus">
+              {bonusValue}
+            </span>
+          ) : (
+            <span className="rb-workout-result-card__note">{bonusNote}</span>
+          )}
+          <span className="rb-workout-metric__label">Бонус</span>
+        </div>
       </div>
     </div>
   );

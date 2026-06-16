@@ -2760,6 +2760,62 @@ html.rb-keyboard-open .rb-main {
   gap: 16px;
 }
 
+.rb-workout-result-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rb-workout-result-card {
+  min-height: 118px;
+}
+
+.rb-workout-result-card .rb-workout-metric__value {
+  font-size: 28px;
+}
+
+.rb-workout-result-card__bonus {
+  color: var(--rb-neon);
+  text-shadow: 0 0 20px rgba(195, 244, 0, 0.2);
+}
+
+.rb-workout-result-card__note {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-workout-result-card--muted .rb-workout-metric__icon {
+  opacity: 0.55;
+}
+
+.rb-celebrate--result {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.rb-celebrate__title {
+  font-size: 28px;
+  color: var(--rb-neon);
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+}
+
+.rb-celebrate__summary {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-celebrate__icon .material-symbols-outlined {
+  font-size: 48px;
+  color: var(--rb-on-neon);
+}
+
 .rb-workout-result-grid__wide {
   grid-column: 1 / -1;
   padding: var(--rb-card-padding);
