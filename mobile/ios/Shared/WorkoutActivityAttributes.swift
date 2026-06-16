@@ -1,16 +1,34 @@
 import ActivityKit
 import Foundation
 
-struct WorkoutActivityAttributes: ActivityAttributes {
-    struct ContentState: Codable, Hashable {
-        var elapsedSeconds: Int
-        var distanceKm: Double
-        var speedKmh: Double
-        var steps: Int
-        var isPaused: Bool
+public struct WorkoutActivityAttributes: ActivityAttributes {
+    public struct ContentState: Codable, Hashable {
+        public var elapsedSeconds: Int
+        public var distanceKm: Double
+        public var speedKmh: Double
+        public var steps: Int
+        public var isPaused: Bool
+
+        public init(
+            elapsedSeconds: Int,
+            distanceKm: Double,
+            speedKmh: Double,
+            steps: Int,
+            isPaused: Bool
+        ) {
+            self.elapsedSeconds = elapsedSeconds
+            self.distanceKm = distanceKm
+            self.speedKmh = speedKmh
+            self.steps = steps
+            self.isPaused = isPaused
+        }
     }
 
-    var workoutTitle: String
+    public var workoutTitle: String
+
+    public init(workoutTitle: String) {
+        self.workoutTitle = workoutTitle
+    }
 }
 
 private func formatWorkoutClock(_ totalSeconds: Int) -> String {

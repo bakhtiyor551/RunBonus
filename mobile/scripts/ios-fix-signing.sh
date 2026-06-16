@@ -19,6 +19,7 @@ pod install --repo-update
 echo ""
 echo "Done. Next in Xcode:"
 echo "  1. Open ios/App/App.xcworkspace"
-echo "  2. Targets App + WorkoutLiveActivityExtension -> Signing: your Team"
+echo "  2. Scheme: App (NOT WorkoutLiveActivityExtension)"
+echo "  3. Targets App + WorkoutLiveActivityExtension -> Signing: your Team"
 echo "  3. Product -> Clean Build Folder"
 echo "  4. Run on iPhone via USB (not wireless first time)"
