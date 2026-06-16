@@ -3,7 +3,6 @@ import Foundation
 import UIKit
 
 @available(iOS 16.2, *)
-@MainActor
 enum WorkoutLiveActivityManager {
     private static let defaults = UserDefaults.standard
     private static let snapshotKey = "runbonus_live_activity_snapshot"
@@ -221,8 +220,9 @@ enum WorkoutLiveActivityManager {
             isPaused: isPaused
         )
         let staleDate = Date().addingTimeInterval(8)
-        Task {
-            await activity.update(ActivityContent(state: state, staleDate: staleDate))
+        let content = ActivityContent(state: state, staleDate: staleDate)
+        Task { @MainActor in
+            await activity.update(content)
         }
     }
 
@@ -231,7 +231,7 @@ enum WorkoutLiveActivityManager {
         attachExistingActivityIfNeeded()
         guard let activity = currentActivity else { return }
         currentActivity = nil
-        Task {
+        Task { @MainActor in
             await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
