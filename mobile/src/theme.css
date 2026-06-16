@@ -2440,6 +2440,193 @@ html.rb-keyboard-open .rb-main {
 .rb-workout-layout__panel {
   flex: 1;
   padding: 16px var(--rb-container-margin) calc(24px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(19, 19, 19, 0) 0%, rgba(19, 19, 19, 0.6) 100%);
+}
+
+.rb-workout-layout__panel--auto-paused {
+  background: linear-gradient(180deg, rgba(255, 159, 10, 0.04) 0%, rgba(19, 19, 19, 0.85) 40%);
+}
+
+.rb-workout-dashboard {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+  grid-template-areas:
+    'timer timer timer'
+    'dist speed steps'
+    'avg max pause';
+}
+
+.rb-workout-dashboard--no-pause {
+  grid-template-areas:
+    'timer timer timer'
+    'dist speed steps'
+    'avg max max';
+}
+
+.rb-workout-metric {
+  position: relative;
+  padding: 14px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 88px;
+  overflow: hidden;
+  border-radius: 18px;
+  text-align: left;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rb-workout-metric::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(145deg, var(--wm-accent-soft, rgba(195, 244, 0, 0.08)) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.rb-workout-metric--neon { --wm-accent: var(--rb-neon); --wm-accent-soft: rgba(195, 244, 0, 0.12); }
+.rb-workout-metric--cyan { --wm-accent: #00d4ff; --wm-accent-soft: rgba(0, 212, 255, 0.12); }
+.rb-workout-metric--violet { --wm-accent: #bf5af2; --wm-accent-soft: rgba(191, 90, 242, 0.12); }
+.rb-workout-metric--blue { --wm-accent: #64d2ff; --wm-accent-soft: rgba(100, 210, 255, 0.1); }
+.rb-workout-metric--orange { --wm-accent: #ff9f0a; --wm-accent-soft: rgba(255, 159, 10, 0.12); }
+.rb-workout-metric--amber { --wm-accent: #ffb340; --wm-accent-soft: rgba(255, 179, 64, 0.14); }
+
+.rb-workout-metric__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--wm-accent-soft);
+  color: var(--wm-accent);
+  flex-shrink: 0;
+}
+
+.rb-workout-metric__icon .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.rb-workout-metric__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rb-workout-metric__value {
+  display: block;
+  font-size: 22px;
+  line-height: 1.1;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.rb-workout-metric__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-workout-metric--hero {
+  min-height: 0;
+  padding: 18px 16px 16px;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  border-color: rgba(195, 244, 0, 0.22);
+  box-shadow: 0 8px 32px rgba(195, 244, 0, 0.08);
+}
+
+.rb-workout-metric--hero .rb-workout-metric__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+}
+
+.rb-workout-metric--hero .rb-workout-metric__icon .material-symbols-outlined {
+  font-size: 28px;
+}
+
+.rb-workout-metric--hero .rb-workout-metric__body {
+  flex: 1;
+}
+
+.rb-workout-metric--hero .rb-workout-metric__value {
+  font-size: 42px;
+  color: var(--rb-neon);
+  text-shadow: 0 0 24px rgba(195, 244, 0, 0.25);
+}
+
+.rb-workout-metric--hero .rb-workout-metric__label {
+  font-size: 11px;
+}
+
+.rb-workout-metric--compact {
+  min-height: 76px;
+  padding: 12px 10px 10px;
+}
+
+.rb-workout-metric--compact .rb-workout-metric__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.rb-workout-metric--compact .rb-workout-metric__icon .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.rb-workout-metric--compact .rb-workout-metric__value {
+  font-size: 17px;
+}
+
+.rb-workout-status {
+  margin-bottom: 12px;
+}
+
+.rb-workout-status__gps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-workout-status__gps .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--rb-neon);
+  animation: rb-pulse 1.5s ease-in-out infinite;
+}
+
+.rb-workout-hint {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-workout-hint .material-symbols-outlined {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.7;
 }
 
 .rb-workout-map {
@@ -2462,52 +2649,7 @@ html.rb-keyboard-open .rb-main {
 }
 
 .rb-workout-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.rb-workout-metrics--secondary {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.rb-workout-metric {
-  padding: 14px 12px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  text-align: center;
-}
-
-.rb-workout-metric--large {
-  grid-column: 1 / -1;
-}
-
-.rb-workout-metric--compact {
-  padding: 10px 8px;
-}
-
-.rb-workout-metric__value {
-  display: block;
-  font-size: 28px;
-  line-height: 1.1;
-  color: #fff;
-}
-
-.rb-workout-metric--large .rb-workout-metric__value {
-  font-size: 40px;
-  color: var(--rb-neon);
-}
-
-.rb-workout-metric--compact .rb-workout-metric__value {
-  font-size: 18px;
-}
-
-.rb-workout-hint {
-  text-align: center;
-  font-size: 12px;
-  margin: 8px 0 16px;
+  display: none;
 }
 
 .rb-workout-controls {
@@ -2523,6 +2665,33 @@ html.rb-keyboard-open .rb-main {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.rb-workout-controls__pause:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rb-workout-controls__pause:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.rb-workout-controls__pause--auto {
+  border-color: rgba(255, 159, 10, 0.35);
+  background: rgba(255, 159, 10, 0.1);
+  color: #ff9f0a;
+}
+
+.rb-workout-controls__pause--auto .material-symbols-outlined {
+  color: #ff9f0a;
 }
 
 .rb-hold-stop {

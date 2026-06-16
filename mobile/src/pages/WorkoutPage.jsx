@@ -263,37 +263,90 @@ export default function WorkoutPage({ user, setUser }) {
             <WorkoutMap points={live.points} interactive />
           </section>
 
-          <main className="rb-workout-layout__panel">
-            <div className="rb-workout-metrics">
-              <MetricBlock label="Время" value={formatDuration(live.seconds)} large />
-              <MetricBlock label="Дистанция" value={formatDistance(live.distance, units)} />
-              <MetricBlock label="Скорость" value={formatSpeed(live.currentSpeed, units)} />
-              <MetricBlock label="Шаги" value={String(live.steps)} />
-            </div>
-
-            <div className="rb-workout-metrics rb-workout-metrics--secondary">
-              <MetricBlock label="Средняя" value={formatSpeed(live.avgSpeed, units)} compact />
-              <MetricBlock label="Макс." value={formatSpeed(live.maxSpeed, units)} compact />
+          <main className={`rb-workout-layout__panel${live.autoPaused ? ' rb-workout-layout__panel--auto-paused' : ''}`}>
+            <div className={`rb-workout-dashboard${live.pauseSeconds > 0 ? '' : ' rb-workout-dashboard--no-pause'}`}>
+              <MetricCard
+                icon="timer"
+                label="Время"
+                value={formatDuration(live.seconds)}
+                area="timer"
+                accent="neon"
+                hero
+              />
+              <MetricCard
+                icon="straighten"
+                label="Дистанция"
+                value={formatDistance(live.distance, units)}
+                area="dist"
+                accent="cyan"
+              />
+              <MetricCard
+                icon="speed"
+                label="Скорость"
+                value={formatSpeed(live.currentSpeed, units)}
+                area="speed"
+                accent="neon"
+              />
+              <MetricCard
+                icon="directions_walk"
+                label="Шаги"
+                value={String(live.steps)}
+                area="steps"
+                accent="violet"
+              />
+              <MetricCard
+                icon="trending_flat"
+                label="Средняя"
+                value={formatSpeed(live.avgSpeed, units)}
+                area="avg"
+                accent="blue"
+                compact
+              />
+              <MetricCard
+                icon="bolt"
+                label="Макс."
+                value={formatSpeed(live.maxSpeed, units)}
+                area="max"
+                accent="orange"
+                compact
+              />
               {live.pauseSeconds > 0 && (
-                <MetricBlock label="Пауза" value={formatDuration(live.pauseSeconds)} compact />
+                <MetricCard
+                  icon="pause_circle"
+                  label="Пауза"
+                  value={formatDuration(live.pauseSeconds)}
+                  area="pause"
+                  accent="amber"
+                  compact
+                />
               )}
             </div>
 
-            {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
-            {!live.gpsReady && !live.gpsError && <p className="rb-text-muted">Подключение GPS…</p>}
+            {(live.gpsError || !live.gpsReady) && (
+              <div className="rb-workout-status">
+                {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
+                {!live.gpsReady && !live.gpsError && (
+                  <p className="rb-workout-status__gps">
+                    <Icon name="my_location" />
+                    Подключение GPS…
+                  </p>
+                )}
+              </div>
+            )}
 
-            <p className="rb-text-muted rb-workout-hint">
+            <p className="rb-workout-hint">
+              <Icon name="info" />
               «Назад» сворачивает приложение — тренировка продолжается в фоне.
             </p>
 
             <div className="rb-workout-controls">
               <button
                 type="button"
-                className="rb-btn-outline rb-workout-controls__pause"
+                className={`rb-workout-controls__pause${live.autoPaused ? ' rb-workout-controls__pause--auto' : ''}`}
                 onClick={toggleWorkoutPause}
                 disabled={finishing || live.autoPaused}
               >
-                <Icon name={live.manualPaused ? 'play_arrow' : 'pause'} filled />
+                <Icon name={live.manualPaused ? 'play_arrow' : live.autoPaused ? 'motion_sensor_active' : 'pause'} filled />
                 {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Продолжить' : 'Пауза'}
               </button>
               <HoldToStopButton onStop={finish} disabled={finishing} />
@@ -305,11 +358,27 @@ export default function WorkoutPage({ user, setUser }) {
   );
 }
 
-function MetricBlock({ label, value, large = false, compact = false }) {
+function MetricCard({ icon, label, value, area, accent = 'neon', hero = false, compact = false }) {
   return (
-    <div className={`rb-workout-metric ${large ? 'rb-workout-metric--large' : ''} ${compact ? 'rb-workout-metric--compact' : ''}`}>
-      <span className="rb-workout-metric__value font-display font-tabular">{value}</span>
-      <span className="rb-label">{label}</span>
+    <div
+      className={[
+        'rb-workout-metric',
+        'glass-card',
+        `rb-workout-metric--${accent}`,
+        hero ? 'rb-workout-metric--hero' : '',
+        compact ? 'rb-workout-metric--compact' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{ gridArea: area }}
+    >
+      <div className="rb-workout-metric__icon" aria-hidden>
+        <Icon name={icon} filled={hero} />
+      </div>
+      <div className="rb-workout-metric__body">
+        <span className="rb-workout-metric__value font-display font-tabular">{value}</span>
+        <span className="rb-workout-metric__label">{label}</span>
+      </div>
     </div>
   );
 }
