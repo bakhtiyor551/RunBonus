@@ -18,35 +18,10 @@
 		RBLA0021FED79650016851F /* WorkoutActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */; };
 		RBLA0041FED79650016851F /* WorkoutLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0031FED79650016851F /* WorkoutLiveActivityBundle.swift */; };
 		RBLA0051FED79650016851F /* WorkoutActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */; };
-		RBLA0131FED79650016851F /* WorkoutLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = RBLA0071FED79650016851F /* WorkoutLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		RBLA0201FED79650016851F /* WorkoutLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */; };
 		RBWT0011FED79650016851F /* WorkoutTrackingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */; };
 		RBWT0021FED79650016851F /* WorkoutTrackingPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		RBLA0211FED79650016851F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = RBLA0081FED79650016851F;
-			remoteInfo = WorkoutLiveActivityExtension;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		RBLA0121FED79650016851F /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				RBLA0131FED79650016851F /* WorkoutLiveActivityExtension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -175,13 +150,11 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
-				RBLA0121FED79650016851F /* Embed Foundation Extensions */,
 				DEA5777F2210FCDF771276C3 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				RBLA0141FED79650016851F /* PBXTargetDependency */,
 			);
 			name = App;
 			productName = App;
@@ -326,14 +299,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		RBLA0141FED79650016851F /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = RBLA0081FED79650016851F /* WorkoutLiveActivityExtension */;
-			targetProxy = RBLA0211FED79650016851F /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
