@@ -54,7 +54,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     }
 
     @objc func startLiveActivity(_ call: CAPPluginCall) {
-        call.keepAlive()
+        call.keepAlive
         NSLog("RunBonus: startLiveActivity called from JS")
         let payload = liveActivityPayload(from: call)
         if #available(iOS 16.2, *) {
@@ -83,7 +83,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     }
 
     @objc func updateLiveActivity(_ call: CAPPluginCall) {
-        call.keepAlive()
+        call.keepAlive
         NSLog("RunBonus: updateLiveActivity called from JS")
         let payload = liveActivityPayload(from: call)
         if #available(iOS 16.2, *) {
