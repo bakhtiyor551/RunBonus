@@ -42,7 +42,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
             return
         }
 
-        call.keepAlive()
+        call.keepAlive
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
         pedometer.queryPedometerData(from: startOfDay, to: Date()) { data, _ in
@@ -140,7 +140,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
             work()
             return
         }
-        call.keepAlive()
+        call.keepAlive
         DispatchQueue.main.async {
             work()
         }
