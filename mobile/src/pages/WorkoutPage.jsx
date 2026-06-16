@@ -263,37 +263,90 @@ export default function WorkoutPage({ user, setUser }) {
             <WorkoutMap points={live.points} interactive />
           </section>
 
-          <main className="rb-workout-layout__panel">
-            <div className="rb-workout-metrics">
-              <MetricBlock label="Время" value={formatDuration(live.seconds)} large />
-              <MetricBlock label="Дистанция" value={formatDistance(live.distance, units)} />
-              <MetricBlock label="Скорость" value={formatSpeed(live.currentSpeed, units)} />
-              <MetricBlock label="Шаги" value={String(live.steps)} />
-            </div>
-
-            <div className="rb-workout-metrics rb-workout-metrics--secondary">
-              <MetricBlock label="Средняя" value={formatSpeed(live.avgSpeed, units)} compact />
-              <MetricBlock label="Макс." value={formatSpeed(live.maxSpeed, units)} compact />
+          <main className={`rb-workout-layout__panel${live.autoPaused ? ' rb-workout-layout__panel--auto-paused' : ''}`}>
+            <div className={`rb-workout-dashboard${live.pauseSeconds > 0 ? '' : ' rb-workout-dashboard--no-pause'}`}>
+              <MetricCard
+                icon="timer"
+                label="Время"
+                value={formatDuration(live.seconds)}
+                area="timer"
+                accent="neon"
+                hero
+              />
+              <MetricCard
+                icon="straighten"
+                label="Дистанция"
+                value={formatDistance(live.distance, units)}
+                area="dist"
+                accent="cyan"
+              />
+              <MetricCard
+                icon="speed"
+                label="Скорость"
+                value={formatSpeed(live.currentSpeed, units)}
+                area="speed"
+                accent="neon"
+              />
+              <MetricCard
+                icon="directions_walk"
+                label="Шаги"
+                value={String(live.steps)}
+                area="steps"
+                accent="violet"
+              />
+              <MetricCard
+                icon="trending_flat"
+                label="Средняя"
+                value={formatSpeed(live.avgSpeed, units)}
+                area="avg"
+                accent="blue"
+                compact
+              />
+              <MetricCard
+                icon="bolt"
+                label="Макс."
+                value={formatSpeed(live.maxSpeed, units)}
+                area="max"
+                accent="orange"
+                compact
+              />
               {live.pauseSeconds > 0 && (
-                <MetricBlock label="Пауза" value={formatDuration(live.pauseSeconds)} compact />
+                <MetricCard
+                  icon="pause_circle"
+                  label="Пауза"
+                  value={formatDuration(live.pauseSeconds)}
+                  area="pause"
+                  accent="amber"
+                  compact
+                />
               )}
             </div>
 
-            {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
-            {!live.gpsReady && !live.gpsError && <p className="rb-text-muted">Подключение GPS…</p>}
+            {(live.gpsError || !live.gpsReady) && (
+              <div className="rb-workout-status">
+                {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
+                {!live.gpsReady && !live.gpsError && (
+                  <p className="rb-workout-status__gps">
+                    <Icon name="my_location" />
+                    Подключение GPS…
+                  </p>
+                )}
+              </div>
+            )}
 
-            <p className="rb-text-muted rb-workout-hint">
+            <p className="rb-workout-hint">
+              <Icon name="info" />
               «Назад» сворачивает приложение — тренировка продолжается в фоне.
             </p>
 
             <div className="rb-workout-controls">
               <button
                 type="button"
-                className="rb-btn-outline rb-workout-controls__pause"
+                className={`rb-workout-controls__pause${live.autoPaused ? ' rb-workout-controls__pause--auto' : ''}`}
                 onClick={toggleWorkoutPause}
                 disabled={finishing || live.autoPaused}
               >
-                <Icon name={live.manualPaused ? 'play_arrow' : 'pause'} filled />
+                <Icon name={live.manualPaused ? 'play_arrow' : live.autoPaused ? 'motion_sensor_active' : 'pause'} filled />
                 {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Продолжить' : 'Пауза'}
               </button>
               <HoldToStopButton onStop={finish} disabled={finishing} />
@@ -305,28 +358,44 @@ export default function WorkoutPage({ user, setUser }) {
   );
 }
 
-function MetricBlock({ label, value, large = false, compact = false }) {
+function MetricCard({ icon, label, value, area, accent = 'neon', hero = false, compact = false }) {
   return (
-    <div className={`rb-workout-metric ${large ? 'rb-workout-metric--large' : ''} ${compact ? 'rb-workout-metric--compact' : ''}`}>
-      <span className="rb-workout-metric__value font-display font-tabular">{value}</span>
-      <span className="rb-label">{label}</span>
+    <div
+      className={[
+        'rb-workout-metric',
+        'glass-card',
+        `rb-workout-metric--${accent}`,
+        hero ? 'rb-workout-metric--hero' : '',
+        compact ? 'rb-workout-metric--compact' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{ gridArea: area }}
+    >
+      <div className="rb-workout-metric__icon" aria-hidden>
+        <Icon name={icon} filled={hero} />
+      </div>
+      <div className="rb-workout-metric__body">
+        <span className="rb-workout-metric__value font-display font-tabular">{value}</span>
+        <span className="rb-workout-metric__label">{label}</span>
+      </div>
     </div>
   );
 }
 
 function CelebrateBlock({ result, units }) {
   return (
-    <div className="rb-celebrate" style={{ textAlign: 'center', marginBottom: 32 }}>
+    <div className="rb-celebrate rb-celebrate--result">
       <div className="rb-celebrate__icon">
-        <Icon name="check_circle" style={{ fontSize: 48, color: 'var(--rb-on-neon)' }} />
+        <Icon name="check_circle" />
       </div>
-      <h1 className="font-display" style={{ fontSize: 32, color: 'var(--rb-neon)', textTransform: 'uppercase', margin: 0 }}>
+      <h1 className="rb-celebrate__title font-display">
         {result.title || 'Тренировка завершена!'}
       </h1>
       {result.level_up?.message && (
         <p className="rb-headline rb-celebrate__levelup">{result.level_up.message}</p>
       )}
-      <p className="rb-text-muted" style={{ marginTop: 8 }}>
+      <p className="rb-celebrate__summary">
         {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
       </p>
     </div>
@@ -334,22 +403,49 @@ function CelebrateBlock({ result, units }) {
 }
 
 function ResultCards({ result, units }) {
+  const credited = Boolean(result.bonus_credited);
+  const bonusValue = credited ? `+${Number(result.bonus_earned).toFixed(1)}` : null;
+  const bonusNote =
+    result.reject_reason || result.message || 'Бонус не начислен по правилам программы';
+
   return (
-    <div className="rb-workout-result-grid">
-      <div className="glass-card rb-workout-result-grid__wide">
-        <span className="rb-label">Дистанция</span>
-        <div className="rb-workout-result-grid__hero font-display">{formatDistance(result.distance_km, units)}</div>
+    <div className="rb-workout-result-cards">
+      <div className="rb-workout-metric glass-card rb-workout-metric--cyan rb-workout-result-card">
+        <div className="rb-workout-metric__icon" aria-hidden>
+          <Icon name="straighten" />
+        </div>
+        <div className="rb-workout-metric__body">
+          <span className="rb-workout-metric__value font-display font-tabular">
+            {formatDistance(result.distance_km, units)}
+          </span>
+          <span className="rb-workout-metric__label">Дистанция</span>
+        </div>
       </div>
-      <div className="glass-card">
-        <span className="rb-label">Бонус</span>
-        {result.bonus_credited ? (
-          <div className="rb-workout-result-grid__bonus">
-            <Icon name="stars" filled />
-            <span className="font-display">+{Number(result.bonus_earned).toFixed(1)}</span>
-          </div>
-        ) : (
-          <p className="rb-text-muted">{result.reject_reason || result.message || 'Бонус не начислен'}</p>
-        )}
+
+      <div
+        className={[
+          'rb-workout-metric',
+          'glass-card',
+          'rb-workout-metric--neon',
+          'rb-workout-result-card',
+          credited ? '' : 'rb-workout-result-card--muted',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <div className="rb-workout-metric__icon" aria-hidden>
+          <Icon name="stars" filled />
+        </div>
+        <div className="rb-workout-metric__body">
+          {bonusValue ? (
+            <span className="rb-workout-metric__value font-display font-tabular rb-workout-result-card__bonus">
+              {bonusValue}
+            </span>
+          ) : (
+            <span className="rb-workout-result-card__note">{bonusNote}</span>
+          )}
+          <span className="rb-workout-metric__label">Бонус</span>
+        </div>
       </div>
     </div>
   );

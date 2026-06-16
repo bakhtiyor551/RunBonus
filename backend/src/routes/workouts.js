@@ -511,6 +511,7 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       finalStatus,
       bonusAmount,
       distanceKm: validation.distanceKm ?? distanceKm,
+      durationSeconds,
       balanceAfter,
       rejectReason,
       levelUp,
