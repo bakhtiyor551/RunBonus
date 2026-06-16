@@ -1,6 +1,7 @@
 import WorkoutTracking from '../plugins/workoutNative';
+import { Capacitor } from '@capacitor/core';
 
-const UPDATE_INTERVAL_MS = 5000;
+const UPDATE_INTERVAL_MS = 4000;
 let enabled = false;
 let lastPayload = '';
 
@@ -14,42 +15,52 @@ function payloadKey(data) {
   ].join('|');
 }
 
+function toNativePayload(snapshot) {
+  return {
+    title: 'RunBonus — тренировка',
+    elapsedSeconds: Math.floor(snapshot.seconds || 0),
+    distanceKm: Number(snapshot.distance) || 0,
+    speedKmh: Number(snapshot.currentSpeed) || 0,
+    steps: Math.floor(snapshot.steps || 0),
+    isPaused: Boolean(snapshot.paused),
+  };
+}
+
 export async function startWorkoutLiveActivity(snapshot) {
+  if (Capacitor.getPlatform() !== 'ios') return;
   try {
-    const result = await WorkoutTracking.startLiveActivity({
-      title: 'RunBonus — тренировка',
-      elapsedSeconds: Math.floor(snapshot.seconds || 0),
-      distanceKm: Number(snapshot.distance) || 0,
-      speedKmh: Number(snapshot.currentSpeed) || 0,
-      steps: Math.floor(snapshot.steps || 0),
-      isPaused: Boolean(snapshot.paused),
-    });
-    enabled = Boolean(result?.enabled);
+    const result = await WorkoutTracking.startLiveActivity(toNativePayload(snapshot));
+    enabled = Boolean(result?.active || result?.ok);
     lastPayload = payloadKey(snapshot);
   } catch {
     enabled = false;
   }
 }
 
+export async function ensureWorkoutLiveActivity(snapshot) {
+  if (Capacitor.getPlatform() !== 'ios') return;
+  if (enabled) {
+    await syncWorkoutLiveActivity(snapshot);
+    return;
+  }
+  await startWorkoutLiveActivity(snapshot);
+}
+
 export async function syncWorkoutLiveActivity(snapshot) {
-  if (!enabled) return;
+  if (Capacitor.getPlatform() !== 'ios') return;
   const key = payloadKey(snapshot);
-  if (key === lastPayload) return;
+  if (enabled && key === lastPayload) return;
   lastPayload = key;
   try {
-    await WorkoutTracking.updateLiveActivity({
-      elapsedSeconds: Math.floor(snapshot.seconds || 0),
-      distanceKm: Number(snapshot.distance) || 0,
-      speedKmh: Number(snapshot.currentSpeed) || 0,
-      steps: Math.floor(snapshot.steps || 0),
-      isPaused: Boolean(snapshot.paused),
-    });
+    const result = await WorkoutTracking.updateLiveActivity(toNativePayload(snapshot));
+    enabled = Boolean(result?.active || result?.ok || enabled);
   } catch {
-    /* ignore transient live activity errors */
+    enabled = false;
   }
 }
 
 export async function stopWorkoutLiveActivity() {
+  if (Capacitor.getPlatform() !== 'ios') return;
   enabled = false;
   lastPayload = '';
   try {
@@ -62,8 +73,9 @@ export async function stopWorkoutLiveActivity() {
 export function scheduleLiveActivityUpdates(getSnapshot) {
   const tick = () => {
     const snapshot = getSnapshot?.();
-    if (snapshot) syncWorkoutLiveActivity(snapshot);
+    if (snapshot) ensureWorkoutLiveActivity(snapshot);
   };
+  tick();
   const id = setInterval(tick, UPDATE_INTERVAL_MS);
   return () => clearInterval(id);
 }

@@ -13,6 +13,7 @@
 		RBWT0011FED79650016851F /* WorkoutTrackingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */; };
 		RBWT0021FED79650016851F /* WorkoutTrackingPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */; };
 		RBLA0021FED79650016851F /* WorkoutActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */; };
+		RBLA0201FED79650016851F /* WorkoutLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */; };
 		RBLA0041FED79650016851F /* WorkoutLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0031FED79650016851F /* WorkoutLiveActivityBundle.swift */; };
 		RBLA0051FED79650016851F /* WorkoutActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */; };
 		RBLA0131FED79650016851F /* WorkoutLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = RBLA0071FED79650016851F /* WorkoutLiveActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -31,6 +32,7 @@
 		RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackingPlugin.swift; sourceTree = "<group>"; };
 		RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WorkoutTrackingPlugin.m; sourceTree = "<group>"; };
 		RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutActivityAttributes.swift; sourceTree = "<group>"; };
+		RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLiveActivityManager.swift; sourceTree = "<group>"; };
 		RBLA0031FED79650016851F /* WorkoutLiveActivityBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLiveActivityBundle.swift; sourceTree = "<group>"; };
 		RBLA0061FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		RBLA0071FED79650016851F /* WorkoutLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WorkoutLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -115,6 +117,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */,
+				RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */,
 				RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -296,6 +299,7 @@
 				RBWT0011FED79650016851F /* WorkoutTrackingPlugin.swift in Sources */,
 				RBWT0021FED79650016851F /* WorkoutTrackingPlugin.m in Sources */,
 				RBLA0021FED79650016851F /* WorkoutActivityAttributes.swift in Sources */,
+				RBLA0201FED79650016851F /* WorkoutLiveActivityManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
