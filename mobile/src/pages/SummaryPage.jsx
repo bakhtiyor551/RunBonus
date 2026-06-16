@@ -1,0 +1,323 @@
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
+import { api, cacheUser } from '../api';
+import AppHeader from '../components/AppHeader';
+import BottomNav from '../components/BottomNav';
+import WorkoutDetailModal from '../components/WorkoutDetailModal';
+import Icon from '../components/Icon';
+import ActivityRings from '../components/summary/ActivityRings';
+import WeeklyChart from '../components/summary/WeeklyChart';
+import SummaryStatusBadge from '../components/summary/SummaryStatusBadge';
+import { formatBalance } from '../utils/format';
+import { resolveAvatarUrl } from '../utils/avatar';
+import { fetchUserSummary } from '../services/summary';
+import {
+  startDailyStepsPolling,
+  stopDailyStepsPolling,
+  subscribeDailySteps,
+} from '../services/dailySteps';
+
+function formatHeaderDate() {
+  const now = new Date();
+  const date = now.toLocaleDateString('ru', { day: 'numeric', month: 'long' });
+  return `Сегодня, ${date}`;
+}
+
+function TodayMetricCard({ icon, label, value, unit }) {
+  return (
+    <div className="glass-card rb-summary-metric">
+      <Icon name={icon} />
+      <span className="rb-label">{label}</span>
+      <strong className="rb-summary-metric__value font-display font-tabular">{value}</strong>
+      {unit && <span className="rb-text-muted rb-summary-metric__unit">{unit}</span>}
+    </div>
+  );
+}
+
+function GoalRow({ goal }) {
+  const pct = Math.min(100, goal.percent ?? 0);
+  return (
+    <div className="rb-summary-goal">
+      <div className="rb-summary-goal__head">
+        <span>{goal.label}</span>
+        <span className="rb-text-muted">
+          {goal.current}
+          {goal.unit === 'km' ? ' км' : goal.unit === 'min' ? ' мин' : goal.unit === 'bonus' ? ' с.' : ''}
+          {' / '}
+          {goal.target}
+          {goal.unit === 'km' ? ' км' : goal.unit === 'min' ? ' мин' : goal.unit === 'bonus' ? ' с.' : ''}
+        </span>
+      </div>
+      <div className="rb-summary-goal__bar">
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function RecordRow({ label, value }) {
+  return (
+    <div className="rb-summary-record">
+      <span className="rb-text-muted">{label}</span>
+      <strong className="font-display">{value}</strong>
+    </div>
+  );
+}
+
+function HistoryRow({ workout, onPress }) {
+  return (
+    <button type="button" className="glass-card rb-activity-card" onClick={() => onPress(workout)}>
+      <div className="rb-activity-card__icon">
+        <Icon name={workout.type === 'Бег' ? 'directions_run' : 'directions_walk'} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{workout.type}</h3>
+          <SummaryStatusBadge status={workout.status} />
+        </div>
+        <p className="rb-label" style={{ margin: '4px 0 0', textTransform: 'none', letterSpacing: 0 }}>
+          {new Date(workout.date).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+          {workout.distance > 0 ? ` · ${workout.distance.toFixed(1)} км` : ''}
+          {workout.duration ? ` · ${workout.duration}` : ''}
+        </p>
+      </div>
+      {workout.bonus > 0 && (
+        <div style={{ textAlign: 'right' }}>
+          <span className="rb-headline font-display" style={{ color: 'var(--rb-neon)', fontSize: 18 }}>
+            +{workout.bonus.toFixed(1)}
+          </span>
+        </div>
+      )}
+    </button>
+  );
+}
+
+export default function SummaryPage({ user, setUser }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedWorkout, setSelectedWorkout] = useState(null);
+  const [deviceSteps, setDeviceSteps] = useState(0);
+
+  const displayName = summary?.profile?.name || user.name || 'Пользователь';
+  const avatarUrl = resolveAvatarUrl(summary?.profile?.avatar_url || user.avatar_url);
+  const todaySteps = Math.max(deviceSteps, summary?.today?.steps ?? 0);
+
+  const loadSummary = useCallback(async () => {
+    const data = await fetchUserSummary();
+    if (deviceSteps > (data?.today?.steps ?? 0)) {
+      data.today = { ...data.today, steps: deviceSteps };
+      if (data.rings) {
+        const activeMin = data.today.active_minutes ?? 0;
+        const dist = data.today.distance ?? 0;
+        const calories = Math.round(Math.max(dist * 60, activeMin * 5, deviceSteps * 0.04));
+        data.today.calories = calories;
+        if (data.rings.move) {
+          const g = data.rings.move.goal || 600;
+          data.rings.move.current = calories;
+          data.rings.move.percent = Math.min(100, Math.round((calories / g) * 100));
+        }
+      }
+    }
+    setSummary(data);
+    return data;
+  }, [deviceSteps]);
+
+  const refreshAll = useCallback(async () => {
+    try {
+      const [profile] = await Promise.all([
+        api('/api/auth/me').catch(() => null),
+        loadSummary(),
+      ]);
+      if (profile) {
+        cacheUser(profile);
+        setUser(profile);
+      }
+    } catch {
+      /* offline */
+    }
+  }, [loadSummary, setUser]);
+
+  useEffect(() => {
+    setLoading(true);
+    refreshAll().finally(() => setLoading(false));
+    startDailyStepsPolling();
+    const unsub = subscribeDailySteps(setDeviceSteps);
+    return () => {
+      unsub();
+      stopDailyStepsPolling();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/summary') {
+      refreshAll();
+    }
+  }, [location.pathname, refreshAll]);
+
+  useEffect(() => {
+    if (!loading && deviceSteps > 0) loadSummary().catch(() => {});
+  }, [deviceSteps, loading, loadSummary]);
+
+  const last = summary?.last_workout;
+  const records = summary?.personal_records;
+
+  return (
+    <IonPage>
+      <AppHeader
+        showAvatar={false}
+        badge={(
+          <button type="button" className="rb-header__avatar" aria-label="Уведомления" onClick={() => navigate('/profile')}>
+            <Icon name="notifications" />
+          </button>
+        )}
+      />
+      <IonContent>
+        <IonRefresher
+          slot="fixed"
+          onIonRefresh={async (e) => {
+            await refreshAll();
+            e.detail.complete();
+          }}
+        >
+          <IonRefresherContent />
+        </IonRefresher>
+
+        <main className="rb-main rb-summary">
+          <section className="rb-summary-profile">
+            <div className="rb-summary-profile__user">
+              <div className="rb-summary-profile__avatar" aria-hidden={!avatarUrl}>
+                {avatarUrl ? <img src={avatarUrl} alt="" /> : <Icon name="person" />}
+              </div>
+              <div>
+                <h1 className="rb-summary-profile__name font-display">{displayName}</h1>
+                <p className="rb-text-muted">{formatHeaderDate()}</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="glass-card neon-glow rb-summary-balance">
+            <span className="rb-label">Баланс RunBonus</span>
+            <div className="rb-summary-balance__main font-display">
+              {formatBalance(summary?.balance ?? user.balance)}
+              <span>сомони</span>
+            </div>
+            <div className="rb-summary-balance__grid">
+              <div>
+                <span className="rb-label">Всего заработано</span>
+                <strong>{formatBalance(summary?.total_earned ?? 0)} с.</strong>
+              </div>
+              <div>
+                <span className="rb-label">Доступно к выводу</span>
+                <strong>{formatBalance(summary?.available_withdraw ?? user.available_balance ?? 0)} с.</strong>
+              </div>
+            </div>
+            <button type="button" className="rb-btn-pill rb-summary-balance__cta" onClick={() => navigate('/wallet/withdraw')}>
+              Вывести средства
+            </button>
+          </section>
+
+          <section className="rb-summary-section">
+            <h2 className="rb-headline font-display">Активность за сегодня</h2>
+            <div className="rb-summary-metrics">
+              <TodayMetricCard icon="straighten" label="Дистанция" value={(summary?.today?.distance ?? 0).toFixed(2)} unit="км" />
+              <TodayMetricCard icon="directions_walk" label="Шаги" value={todaySteps.toLocaleString('ru')} />
+              <TodayMetricCard icon="timer" label="Время" value={summary?.today?.active_minutes ?? 0} unit="мин" />
+              <TodayMetricCard icon="local_fire_department" label="Калории" value={summary?.today?.calories ?? 0} unit="ккал" />
+              <TodayMetricCard icon="payments" label="Заработано" value={(summary?.today?.bonus ?? 0).toFixed(2)} unit="сомони" />
+            </div>
+          </section>
+
+          <section className="glass-card rb-summary-section">
+            <h2 className="rb-headline font-display">Кольца активности</h2>
+            {loading ? <p className="rb-text-muted">Загрузка…</p> : <ActivityRings rings={summary?.rings} />}
+          </section>
+
+          <section className="glass-card rb-summary-section">
+            <h2 className="rb-headline font-display">Недельная статистика</h2>
+            {loading ? <p className="rb-text-muted">Загрузка…</p> : (
+              <WeeklyChart days={summary?.weekly} totals={summary?.weekly_totals} />
+            )}
+          </section>
+
+          {last && (
+            <section className="glass-card rb-summary-section rb-summary-last">
+              <h2 className="rb-headline font-display">Последняя тренировка</h2>
+              <div className="rb-summary-last__grid">
+                <div><span className="rb-label">Дата</span><strong>{new Date(last.date).toLocaleString('ru')}</strong></div>
+                <div><span className="rb-label">Тип</span><strong>{last.type}</strong></div>
+                <div><span className="rb-label">Дистанция</span><strong>{last.distance.toFixed(2)} км</strong></div>
+                <div><span className="rb-label">Время</span><strong>{last.duration}</strong></div>
+                <div><span className="rb-label">Скорость</span><strong>{last.avg_speed.toFixed(1)} км/ч</strong></div>
+                <div><span className="rb-label">Шаги</span><strong>{last.steps.toLocaleString('ru')}</strong></div>
+                <div><span className="rb-label">Заработано</span><strong>{last.bonus.toFixed(2)} с.</strong></div>
+                <div>
+                  <span className="rb-label">Статус</span>
+                  <SummaryStatusBadge status={last.status} />
+                </div>
+              </div>
+              {last.status === 'rejected' && last.reject_reason && (
+                <p className="rb-summary-last__reason">Причина: {last.reject_reason}</p>
+              )}
+            </section>
+          )}
+
+          <section className="glass-card rb-summary-section">
+            <h2 className="rb-headline font-display">Цели</h2>
+            <h3 className="rb-summary-goals__title">Дневная цель</h3>
+            {(summary?.goals?.daily || []).map((g) => <GoalRow key={g.key} goal={g} />)}
+            <h3 className="rb-summary-goals__title">Недельная цель</h3>
+            {(summary?.goals?.weekly || []).map((g) => <GoalRow key={g.key} goal={g} />)}
+            <h3 className="rb-summary-goals__title">Месячная цель</h3>
+            {(summary?.goals?.monthly || []).map((g) => <GoalRow key={g.key} goal={g} />)}
+          </section>
+
+          {records && (
+            <section className="glass-card rb-summary-section">
+              <h2 className="rb-headline font-display">Личные рекорды</h2>
+              <RecordRow label="Самая длинная тренировка" value={`${records.longest_workout_km.toFixed(2)} км`} />
+              <RecordRow label="Максимум шагов за день" value={records.max_steps_per_day.toLocaleString('ru')} />
+              <RecordRow label="Самый большой заработок за день" value={`${records.max_bonus_per_day.toFixed(2)} с.`} />
+              <RecordRow label="Лучшее время активности" value={`${records.best_active_minutes} мин`} />
+              <RecordRow label="Самая высокая средняя скорость" value={`${records.max_avg_speed_kmh.toFixed(1)} км/ч`} />
+            </section>
+          )}
+
+          <section className="rb-summary-section">
+            <div className="rb-summary-section__head">
+              <h2 className="rb-headline font-display">История активности</h2>
+              <button type="button" className="rb-link" onClick={() => navigate('/workouts')}>
+                Смотреть всю историю
+              </button>
+            </div>
+            <div className="rb-summary-history">
+              {(summary?.recent_workouts || []).map((w) => (
+                <HistoryRow key={w.id} workout={w} onPress={setSelectedWorkout} />
+              ))}
+              {!loading && !(summary?.recent_workouts || []).length && (
+                <p className="rb-text-muted">Пока нет тренировок</p>
+              )}
+            </div>
+          </section>
+        </main>
+      </IonContent>
+      <BottomNav />
+      <WorkoutDetailModal
+        workout={selectedWorkout ? {
+          id: selectedWorkout.id,
+          started_at: selectedWorkout.date,
+          distance_km: selectedWorkout.distance,
+          duration_seconds: selectedWorkout.duration_seconds,
+          calculated_bonus: selectedWorkout.bonus,
+          status: selectedWorkout.status === 'pending' ? 'suspicious' : selectedWorkout.status,
+          avg_speed: selectedWorkout.avg_speed,
+          steps_count: selectedWorkout.steps,
+          reject_reason: selectedWorkout.reject_reason,
+        } : null}
+        onClose={() => setSelectedWorkout(null)}
+      />
+    </IonPage>
+  );
+}

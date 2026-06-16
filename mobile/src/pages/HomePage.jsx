@@ -107,7 +107,10 @@ export default function HomePage({ user, setUser }) {
   }, []);
 
   useEffect(() => {
-    refreshActiveWorkout();
+    if (location.pathname === '/') {
+      api('/api/workouts/history').then(setWorkouts).catch(() => {});
+      refreshActiveWorkout();
+    }
   }, [location.pathname]);
 
   const totalKm = workouts.reduce((s, w) => s + (Number(w.distance_km) || 0), 0);
@@ -154,7 +157,21 @@ export default function HomePage({ user, setUser }) {
         <main className="rb-main">
           <ShoeBindBanner user={user} />
 
-          <section style={{ marginBottom: 32 }}>
+          <button type="button" className="glass-card rb-home-summary-link" onClick={() => navigate('/summary')}>
+            <div className="rb-home-summary-link__icon">
+              <Icon name="bar_chart" />
+            </div>
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <span className="rb-label">Аналитика</span>
+              <h2 className="rb-headline font-display" style={{ margin: '4px 0 0', fontSize: 20 }}>Сводка</h2>
+              <p className="rb-text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                Кольца, цели, недельная статистика и рекорды
+              </p>
+            </div>
+            <Icon name="chevron_right" />
+          </button>
+
+          <section style={{ marginBottom: 32, marginTop: 24 }}>
             <div className="glass-card" style={{ padding: 'var(--rb-card-padding)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <BoltIcon size="sm" glow />
