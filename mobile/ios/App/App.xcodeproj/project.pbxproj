@@ -18,6 +18,7 @@
 		RBLA0021FED79650016851F /* WorkoutActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */; };
 		RBLA0041FED79650016851F /* WorkoutLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0031FED79650016851F /* WorkoutLiveActivityBundle.swift */; };
 		RBLA0051FED79650016851F /* WorkoutActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */; };
+		RBLA0131FED79650016851F /* WorkoutLiveActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = RBLA0071FED79650016851F /* WorkoutLiveActivityExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		RBLA0201FED79650016851F /* WorkoutLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */; };
 		RBWT0011FED79650016851F /* WorkoutTrackingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */; };
 		RBWT0021FED79650016851F /* WorkoutTrackingPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */; };
@@ -39,6 +40,7 @@
 		RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutActivityAttributes.swift; sourceTree = "<group>"; };
 		RBLA0031FED79650016851F /* WorkoutLiveActivityBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLiveActivityBundle.swift; sourceTree = "<group>"; };
 		RBLA0061FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		RBLA0241FED79650016851F /* WorkoutLiveActivity.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WorkoutLiveActivity.entitlements; sourceTree = "<group>"; };
 		RBLA0071FED79650016851F /* WorkoutLiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WorkoutLiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLiveActivityManager.swift; sourceTree = "<group>"; };
 		RBLA0231FED79650016851F /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
@@ -77,8 +79,8 @@
 			isa = PBXGroup;
 			children = (
 				504EC3061FED79650016851F /* App */,
-				RBLA0181FED79650016851F /* ../Shared */,
-				RBLA0191FED79650016851F /* ../WorkoutLiveActivity */,
+				RBLA0181FED79650016851F /* Shared */,
+				RBLA0191FED79650016851F /* WorkoutLiveActivity */,
 				504EC3051FED79650016851F /* Products */,
 				7F8756D8B27F46E3366F6CEA /* Pods */,
 				27E2DDA53C4D2A4D1A88CE4A /* Frameworks */,
@@ -122,7 +124,7 @@
 			name = Pods;
 			sourceTree = "<group>";
 		};
-		RBLA0181FED79650016851F /* ../Shared */ = {
+		RBLA0181FED79650016851F /* Shared */ = {
 			isa = PBXGroup;
 			children = (
 				RBLA0011FED79650016851F /* WorkoutActivityAttributes.swift */,
@@ -130,11 +132,12 @@
 			path = ../Shared;
 			sourceTree = "<group>";
 		};
-		RBLA0191FED79650016851F /* ../WorkoutLiveActivity */ = {
+		RBLA0191FED79650016851F /* WorkoutLiveActivity */ = {
 			isa = PBXGroup;
 			children = (
 				RBLA0031FED79650016851F /* WorkoutLiveActivityBundle.swift */,
 				RBLA0061FED79650016851F /* Info.plist */,
+				RBLA0241FED79650016851F /* WorkoutLiveActivity.entitlements */,
 			);
 			path = ../WorkoutLiveActivity;
 			sourceTree = "<group>";
@@ -150,11 +153,13 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				RBLA0121FED79650016851F /* Embed Foundation Extensions */,
 				DEA5777F2210FCDF771276C3 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				RBLA0141FED79650016851F /* PBXTargetDependency */,
 			);
 			name = App;
 			productName = App;
@@ -238,7 +243,36 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		RBLA0121FED79650016851F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				RBLA0131FED79650016851F /* WorkoutLiveActivityExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		RBLA0211FED79650016851F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = RBLA0081FED79650016851F;
+			remoteInfo = WorkoutLiveActivityExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		RBLA0141FED79650016851F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = RBLA0081FED79650016851F /* WorkoutLiveActivityExtension */;
+			targetProxy = RBLA0211FED79650016851F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		6634F4EFEBD30273BCE97C65 /* [CP] Check Pods Manifest.lock */ = {
@@ -435,7 +469,6 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D7D288U3N8;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -459,7 +492,6 @@
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D7D288U3N8;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -481,7 +513,6 @@
 				CODE_SIGN_ENTITLEMENTS = ../WorkoutLiveActivity/WorkoutLiveActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D7D288U3N8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ../WorkoutLiveActivity/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
@@ -508,7 +539,6 @@
 				CODE_SIGN_ENTITLEMENTS = ../WorkoutLiveActivity/WorkoutLiveActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D7D288U3N8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ../WorkoutLiveActivity/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
