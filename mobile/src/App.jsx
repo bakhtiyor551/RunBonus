@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
+import SummaryPage from './pages/SummaryPage';
 import WorkoutPage from './pages/WorkoutPage';
 import WalletPage from './pages/WalletPage';
 import WithdrawPage from './pages/WithdrawPage';
@@ -166,6 +167,7 @@ function App() {
           <PushNavigationBridge />
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
+            <Route path="/summary" element={<SummaryPage user={user} setUser={setUser} />} />
             <Route path="/wallet" element={<WalletPage user={user} />} />
             <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
