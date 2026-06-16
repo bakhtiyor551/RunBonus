@@ -26,14 +26,18 @@ function toNativePayload(snapshot) {
   };
 }
 
+function logLiveActivity(level, message, extra) {
+  const line = extra !== undefined ? `${message} ${JSON.stringify(extra)}` : message;
+  if (level === 'error') console.error('[LiveActivity]', line);
+  else console.info('[LiveActivity]', line);
+}
+
 function applyResult(result, snapshot) {
   const active = Boolean(result?.active);
   const ok = Boolean(result?.ok);
   enabled = active || ok;
   if (snapshot) lastPayload = payloadKey(snapshot);
-  if (Capacitor.getPlatform() === 'ios') {
-    console.info('[LiveActivity]', result);
-  }
+  logLiveActivity('info', 'native result', result);
   return enabled;
 }
 
@@ -43,7 +47,9 @@ export async function startWorkoutLiveActivity(snapshot) {
     const result = await WorkoutTracking.startLiveActivity(toNativePayload(snapshot));
     return applyResult(result, snapshot);
   } catch (err) {
-    console.warn('[LiveActivity] start failed', err);
+    logLiveActivity('error', 'start failed — плагин WorkoutTracking не зарегистрирован?', {
+      message: err?.message || String(err),
+    });
     enabled = false;
     return false;
   }
@@ -55,7 +61,7 @@ export async function ensureWorkoutLiveActivity(snapshot) {
     const result = await WorkoutTracking.updateLiveActivity(toNativePayload(snapshot));
     if (applyResult(result, snapshot)) return true;
   } catch (err) {
-    console.warn('[LiveActivity] update failed', err);
+    logLiveActivity('error', 'update failed', { message: err?.message || String(err) });
   }
   return startWorkoutLiveActivity(snapshot);
 }
@@ -74,7 +80,7 @@ export async function stopWorkoutLiveActivity() {
   try {
     await WorkoutTracking.endLiveActivity();
   } catch (err) {
-    console.warn('[LiveActivity] end failed', err);
+    logLiveActivity('error', 'end failed', { message: err?.message || String(err) });
   }
 }
 
