@@ -42,7 +42,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
             return
         }
 
-        call.keepAlive()
+        call.keepAlive
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
         pedometer.queryPedometerData(from: startOfDay, to: Date()) { data, _ in
@@ -54,7 +54,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     }
 
     @objc func startLiveActivity(_ call: CAPPluginCall) {
-        call.keepAlive()
+        call.keepAlive
         let payload = liveActivityPayload(from: call)
         if #available(iOS 16.2, *) {
             runOnMain(call) {
@@ -82,7 +82,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     }
 
     @objc func updateLiveActivity(_ call: CAPPluginCall) {
-        call.keepAlive()
+        call.keepAlive
         let payload = liveActivityPayload(from: call)
         if #available(iOS 16.2, *) {
             runOnMain(call) {
@@ -114,7 +114,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     }
 
     @objc func endLiveActivity(_ call: CAPPluginCall) {
-        call.keepAlive()
+        call.keepAlive
         if #available(iOS 16.2, *) {
             runOnMain(call) {
                 WorkoutLiveActivityManager.end()
@@ -126,7 +126,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     }
 
     @objc func getLiveActivityStatus(_ call: CAPPluginCall) {
-        call.keepAlive()
+        call.keepAlive
         if #available(iOS 16.2, *) {
             runOnMain(call) {
                 call.resolve([
