@@ -16,14 +16,18 @@ export class WorkoutTrackingWeb {
   }
 
   async startLiveActivity() {
-    return { ok: false, enabled: false };
+    return { ok: false, enabled: false, active: false };
   }
 
   async updateLiveActivity() {
-    return { ok: false };
+    return { ok: false, active: false };
   }
 
   async endLiveActivity() {
-    return { ok: true };
+    return { ok: true, active: false };
+  }
+
+  async getLiveActivityStatus() {
+    return { enabled: false, active: false };
   }
 }

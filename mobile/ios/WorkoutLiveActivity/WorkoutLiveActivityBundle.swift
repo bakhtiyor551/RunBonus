@@ -2,56 +2,107 @@ import WidgetKit
 import SwiftUI
 import ActivityKit
 
+private let accent = Color(red: 0.76, green: 0.96, blue: 0.0)
+
+@available(iOS 16.2, *)
+private struct WorkoutElapsedText: View {
+    let elapsedSeconds: Int
+    let timerReference: Date
+    let isPaused: Bool
+
+    var body: some View {
+        if isPaused {
+            Text(WorkoutLiveActivityFormatting.elapsedText(elapsedSeconds))
+                .monospacedDigit()
+        } else {
+            Text(timerReference, style: .timer)
+                .monospacedDigit()
+        }
+    }
+}
+
 @available(iOS 16.2, *)
 struct WorkoutLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             WorkoutLiveActivityView(context: context)
                 .activityBackgroundTint(Color(red: 0.08, green: 0.08, blue: 0.08))
-                .activitySystemActionForegroundColor(Color(red: 0.76, green: 0.96, blue: 0.0))
+                .activitySystemActionForegroundColor(accent)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(context.attributes.workoutTitle)
-                            .font(.caption)
+                        Text("Время")
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Text(WorkoutLiveActivityFormatting.elapsedText(context.state.elapsedSeconds))
-                            .font(.title3.bold())
-                            .monospacedDigit()
+                        WorkoutElapsedText(
+                            elapsedSeconds: context.state.elapsedSeconds,
+                            timerReference: context.state.timerReference,
+                            isPaused: context.state.isPaused
+                        )
+                        .font(.title2.bold())
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 4) {
-                        Text(WorkoutLiveActivityFormatting.distanceText(context.state.distanceKm))
-                            .font(.headline)
-                            .monospacedDigit()
-                        Text(WorkoutLiveActivityFormatting.speedText(context.state.speedKmh))
-                            .font(.caption)
+                        Text("Дистанция")
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
+                        Text(WorkoutLiveActivityFormatting.distanceText(context.state.distanceKm))
+                            .font(.headline.bold())
+                            .monospacedDigit()
+                    }
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    VStack(spacing: 4) {
+                        Text(WorkoutLiveActivityFormatting.speedText(context.state.speedKmh))
+                            .font(.subheadline.bold())
+                            .monospacedDigit()
+                        Text(context.state.isPaused ? "Пауза" : "Активна")
+                            .font(.caption.bold())
+                            .foregroundStyle(context.state.isPaused ? .orange : accent)
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
-                        Label("\(context.state.steps)", systemImage: "figure.walk")
+                        Label("\(context.state.steps) шагов", systemImage: "figure.walk")
                         Spacer()
-                        Text(context.state.isPaused ? "Пауза" : "Активна")
-                            .font(.caption.bold())
-                            .foregroundStyle(context.state.isPaused ? .orange : Color(red: 0.76, green: 0.96, blue: 0.0))
+                        Text(context.attributes.workoutTitle)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     .font(.caption)
                 }
             } compactLeading: {
-                Image(systemName: context.state.isPaused ? "pause.circle.fill" : "figure.run")
-                    .foregroundStyle(Color(red: 0.76, green: 0.96, blue: 0.0))
+                WorkoutElapsedText(
+                    elapsedSeconds: context.state.elapsedSeconds,
+                    timerReference: context.state.timerReference,
+                    isPaused: context.state.isPaused
+                )
+                .font(.caption2.bold())
+                .foregroundStyle(accent)
+                .frame(maxWidth: 52)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             } compactTrailing: {
-                Text(WorkoutLiveActivityFormatting.elapsedText(context.state.elapsedSeconds))
-                    .font(.caption2.bold())
-                    .monospacedDigit()
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(WorkoutLiveActivityFormatting.distanceText(context.state.distanceKm))
+                        .font(.caption2.bold())
+                        .monospacedDigit()
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(context.state.isPaused ? "Пауза" : "Активна")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(context.state.isPaused ? .orange : accent.opacity(0.9))
+                        .lineLimit(1)
+                }
             } minimal: {
-                Image(systemName: "figure.run")
-                    .foregroundStyle(Color(red: 0.76, green: 0.96, blue: 0.0))
+                Image(systemName: context.state.isPaused ? "pause.circle.fill" : "figure.run")
+                    .foregroundStyle(context.state.isPaused ? .orange : accent)
             }
+            .keylineTint(accent)
         }
     }
 }
@@ -66,12 +117,15 @@ private struct WorkoutLiveActivityView: View {
                 Text(context.attributes.workoutTitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(WorkoutLiveActivityFormatting.elapsedText(context.state.elapsedSeconds))
-                    .font(.system(.title2, design: .rounded).bold())
-                    .monospacedDigit()
-                Text(context.state.isPaused ? "Пауза" : "Тренировка активна")
+                WorkoutElapsedText(
+                    elapsedSeconds: context.state.elapsedSeconds,
+                    timerReference: context.state.timerReference,
+                    isPaused: context.state.isPaused
+                )
+                .font(.system(.title2, design: .rounded).bold())
+                Text(context.state.isPaused ? "Пауза" : "Активна")
                     .font(.caption2.bold())
-                    .foregroundStyle(context.state.isPaused ? .orange : Color(red: 0.76, green: 0.96, blue: 0.0))
+                    .foregroundStyle(context.state.isPaused ? .orange : accent)
             }
 
             Spacer()

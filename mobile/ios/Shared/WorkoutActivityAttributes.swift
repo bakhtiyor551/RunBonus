@@ -1,93 +1,47 @@
 import ActivityKit
 import Foundation
 
-struct WorkoutActivityAttributes: ActivityAttributes {
-    struct ContentState: Codable, Hashable {
-        var elapsedSeconds: Int
-        var distanceKm: Double
-        var speedKmh: Double
-        var steps: Int
-        var isPaused: Bool
-    }
+public struct WorkoutActivityAttributes: ActivityAttributes {
+    public struct ContentState: Codable, Hashable {
+        public var elapsedSeconds: Int
+        public var distanceKm: Double
+        public var speedKmh: Double
+        public var steps: Int
+        public var isPaused: Bool
+        /// Точка отсчёта для Text(..., style: .timer) в Dynamic Island
+        public var timerReference: Date
 
-    var workoutTitle: String
-}
+        public init(
+            elapsedSeconds: Int,
+            distanceKm: Double,
+            speedKmh: Double,
+            steps: Int,
+            isPaused: Bool,
+            timerReference: Date? = nil
+        ) {
+            self.elapsedSeconds = elapsedSeconds
+            self.distanceKm = distanceKm
+            self.speedKmh = speedKmh
+            self.steps = steps
+            self.isPaused = isPaused
+            self.timerReference = timerReference
+                ?? Date().addingTimeInterval(-TimeInterval(max(0, elapsedSeconds)))
+        }
 
-@available(iOS 16.2, *)
-enum WorkoutLiveActivityManager {
-    private static var currentActivity: Activity<WorkoutActivityAttributes>?
-
-    static var isSupported: Bool {
-        ActivityAuthorizationInfo().areActivitiesEnabled
-    }
-
-    static func start(
-        title: String,
-        elapsedSeconds: Int,
-        distanceKm: Double,
-        speedKmh: Double,
-        steps: Int,
-        isPaused: Bool
-    ) {
-        guard isSupported else { return }
-
-        endSync()
-
-        let attributes = WorkoutActivityAttributes(workoutTitle: title)
-        let state = WorkoutActivityAttributes.ContentState(
-            elapsedSeconds: elapsedSeconds,
-            distanceKm: distanceKm,
-            speedKmh: speedKmh,
-            steps: steps,
-            isPaused: isPaused
-        )
-
-        do {
-            currentActivity = try Activity.request(
-                attributes: attributes,
-                content: ActivityContent(state: state, staleDate: nil),
-                pushType: nil
-            )
-        } catch {
-            currentActivity = nil
+        enum CodingKeys: String, CodingKey {
+            case elapsedSeconds
+            case distanceKm
+            case speedKmh
+            case steps
+            case isPaused
+            case timerReference
         }
     }
 
-    static func update(
-        elapsedSeconds: Int,
-        distanceKm: Double,
-        speedKmh: Double,
-        steps: Int,
-        isPaused: Bool
-    ) {
-        guard let activity = currentActivity else { return }
-        let state = WorkoutActivityAttributes.ContentState(
-            elapsedSeconds: elapsedSeconds,
-            distanceKm: distanceKm,
-            speedKmh: speedKmh,
-            steps: steps,
-            isPaused: isPaused
-        )
-        Task {
-            await activity.update(ActivityContent(state: state, staleDate: nil))
-        }
-    }
+    public var workoutTitle: String
 
-    static func end() {
-        guard let activity = currentActivity else { return }
-        let activityToEnd = activity
-        currentActivity = nil
-        Task {
-            await activityToEnd.end(nil, dismissalPolicy: .immediate)
-        }
-    }
-
-    private static func endSync() {
-        guard let activity = currentActivity else { return }
-        currentActivity = nil
-        Task {
-            await activity.end(nil, dismissalPolicy: .immediate)
-        }
+    public init(workoutTitle: String) {
+        self.workoutTitle = workoutTitle
     }
 }
 

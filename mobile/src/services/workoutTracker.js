@@ -18,7 +18,7 @@ import {
 } from './stepCounter';
 import { startWorkoutForeground, stopWorkoutForeground } from './workoutForeground';
 import {
-  startWorkoutLiveActivity,
+  ensureWorkoutLiveActivity,
   syncWorkoutLiveActivity,
   stopWorkoutLiveActivity,
   scheduleLiveActivityUpdates,
@@ -30,6 +30,18 @@ const BACKGROUND_POLL_SLOW_MS = 10000;
 
 let session = null;
 const listeners = new Set();
+
+function liveSnapshotFromSession() {
+  if (!session) return null;
+  syncElapsedSeconds();
+  return {
+    seconds: session.seconds,
+    distance: session.distance,
+    currentSpeed: session.currentSpeed,
+    steps: session.steps,
+    paused: session.paused,
+  };
+}
 
 function computeAvgSpeed(distanceKm, movingSeconds) {
   if (!movingSeconds || movingSeconds <= 0) return 0;
@@ -71,6 +83,13 @@ function emit() {
   };
   listeners.forEach((fn) => fn(snapshot));
   syncWorkoutLiveActivity(snapshot);
+}
+
+function attachLiveActivityHandlers() {
+  if (!session) return;
+  ensureWorkoutLiveActivity(liveSnapshotFromSession()).catch(() => {});
+  session.stopLiveActivity?.();
+  session.stopLiveActivity = scheduleLiveActivityUpdates(liveSnapshotFromSession);
 }
 
 export function persistWorkoutSession() {
@@ -145,6 +164,7 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
   const id = Number(workoutId);
   if (session?.workoutId === id) {
     syncElapsedSeconds();
+    attachLiveActivityHandlers();
     emit();
     return session;
   }
@@ -223,6 +243,7 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
         if (!session || session.workoutId !== id) return;
         pollPositionOnce();
       }, interval);
+      if (isActive) attachLiveActivityHandlers();
     };
     App.addListener('appStateChange', session.onAppState).then((handle) => {
       if (session?.workoutId === id) session.appStateHandle = handle;
@@ -239,26 +260,7 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
   };
   document.addEventListener('visibilitychange', session.onVisibility);
 
-  const liveSnapshot = {
-    seconds: session.seconds,
-    distance: session.distance,
-    currentSpeed: session.currentSpeed,
-    steps: session.steps,
-    paused: session.paused,
-  };
-  startWorkoutLiveActivity(liveSnapshot).catch(() => {});
-  session.stopLiveActivity = scheduleLiveActivityUpdates(() => {
-    if (!session) return null;
-    syncElapsedSeconds();
-    return {
-      seconds: session.seconds,
-      distance: session.distance,
-      currentSpeed: session.currentSpeed,
-      steps: session.steps,
-      paused: session.paused,
-    };
-  });
-
+  attachLiveActivityHandlers();
   emit();
   return session;
 }
@@ -294,6 +296,7 @@ export function toggleWorkoutPause() {
 export async function resumeWorkoutSession() {
   if (!session) return;
   syncElapsedSeconds();
+  attachLiveActivityHandlers();
   if (!session.paused) await pollPositionOnce();
   await flushPointsToServer();
   emit();

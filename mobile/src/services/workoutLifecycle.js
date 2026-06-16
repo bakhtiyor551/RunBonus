@@ -2,8 +2,21 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { getActiveWorkoutId } from './geolocation';
 import { getWorkoutSession, resumeWorkoutSession, persistWorkoutSession } from './workoutTracker';
+import { ensureWorkoutLiveActivity } from './liveActivity';
 
 let initialized = false;
+
+function workoutLiveSnapshot() {
+  const session = getWorkoutSession();
+  if (!session) return null;
+  return {
+    seconds: session.seconds,
+    distance: session.distance,
+    currentSpeed: session.currentSpeed,
+    steps: session.steps,
+    paused: session.paused,
+  };
+}
 
 /**
  * Системная «Назад» при активной тренировке — только свернуть приложение.
@@ -18,6 +31,8 @@ export function initWorkoutLifecycle() {
     const session = getWorkoutSession();
     if (activeId && session?.workoutId === activeId) {
       persistWorkoutSession();
+      const snapshot = workoutLiveSnapshot();
+      if (snapshot) ensureWorkoutLiveActivity(snapshot).catch(() => {});
       App.minimizeApp();
       return;
     }
@@ -35,6 +50,8 @@ export function initWorkoutLifecycle() {
       resumeWorkoutSession().catch(() => {});
     } else {
       persistWorkoutSession();
+      const snapshot = workoutLiveSnapshot();
+      if (snapshot) ensureWorkoutLiveActivity(snapshot).catch(() => {});
     }
   });
 }
