@@ -2420,3 +2420,281 @@ html.rb-keyboard-open .rb-main {
   text-align: center;
 }
 
+.rb-workout-screen ion-content {
+  --padding-top: 0;
+}
+
+.rb-workout-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.rb-workout-layout__map {
+  height: 42vh;
+  min-height: 220px;
+  max-height: 360px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rb-workout-layout__panel {
+  flex: 1;
+  padding: 16px var(--rb-container-margin) calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+.rb-workout-map {
+  position: relative;
+  height: 100%;
+  background: #1b1b1b;
+}
+
+.rb-workout-map__placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--rb-on-surface-variant);
+  font-size: 13px;
+  background: rgba(19, 19, 19, 0.55);
+  z-index: 500;
+}
+
+.rb-workout-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.rb-workout-metrics--secondary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rb-workout-metric {
+  padding: 14px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.rb-workout-metric--large {
+  grid-column: 1 / -1;
+}
+
+.rb-workout-metric--compact {
+  padding: 10px 8px;
+}
+
+.rb-workout-metric__value {
+  display: block;
+  font-size: 28px;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.rb-workout-metric--large .rb-workout-metric__value {
+  font-size: 40px;
+  color: var(--rb-neon);
+}
+
+.rb-workout-metric--compact .rb-workout-metric__value {
+  font-size: 18px;
+}
+
+.rb-workout-hint {
+  text-align: center;
+  font-size: 12px;
+  margin: 8px 0 16px;
+}
+
+.rb-workout-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rb-workout-controls__pause {
+  width: 100%;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rb-hold-stop {
+  position: relative;
+  width: 100%;
+  min-height: 56px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  padding: 3px;
+  cursor: pointer;
+}
+
+.rb-hold-stop:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rb-hold-stop__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.rb-hold-stop__inner {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 50px;
+  border-radius: 999px;
+  background: rgba(255, 69, 58, 0.15);
+  border: 1px solid rgba(255, 69, 58, 0.45);
+  color: #ff453a;
+  font-weight: 700;
+}
+
+.rb-hold-stop--active .rb-hold-stop__inner {
+  background: rgba(255, 69, 58, 0.28);
+}
+
+.rb-badge-live--paused {
+  background: rgba(255, 159, 10, 0.15);
+  color: #ff9f0a;
+}
+
+.rb-badge-live--paused .rb-badge-live__dot {
+  background: #ff9f0a;
+}
+
+.rb-workout-detail-map {
+  height: 180px;
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 16px 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rb-workout-result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.rb-workout-result-grid__wide {
+  grid-column: 1 / -1;
+  padding: var(--rb-card-padding);
+  text-align: center;
+}
+
+.rb-workout-result-grid__hero {
+  font-size: 40px;
+  margin-top: 8px;
+}
+
+.rb-workout-result-grid__bonus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 40px;
+  color: var(--rb-neon);
+}
+
+.rb-celebrate__icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--rb-neon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  box-shadow: 0 0 20px rgba(195, 244, 0, 0.3);
+}
+
+.rb-celebrate__levelup {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+}
+
+.rb-units-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 8px;
+}
+
+.rb-units-toggle button {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--rb-on-surface-variant);
+  padding: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rb-units-toggle button.active {
+  border-color: var(--rb-neon);
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+}
+
+.leaflet-container {
+  background: #1b1b1b;
+  font-family: inherit;
+}
+
+.leaflet-control-attribution {
+  font-size: 10px;
+  background: rgba(19, 19, 19, 0.75) !important;
+  color: var(--rb-on-surface-variant) !important;
+}
+
+.rb-daily-steps {
+  padding: var(--rb-card-padding);
+}
+
+.rb-daily-steps__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.rb-daily-steps__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rb-daily-steps__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.rb-daily-steps__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(195, 244, 0, 0.65), var(--rb-neon));
+  transition: width 0.3s ease;
+}
+

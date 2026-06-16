@@ -12,6 +12,7 @@ import WalletPage from './pages/WalletPage';
 import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
+import WorkoutHistoryPage from './pages/WorkoutHistoryPage';
 import LevelPage from './pages/LevelPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
@@ -183,6 +184,7 @@ function App() {
               }
             />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/workouts" element={<WorkoutHistoryPage />} />
             <Route path="/level" element={<LevelPage />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
             <Route path="/shop/:id" element={<ProductDetailPage />} />

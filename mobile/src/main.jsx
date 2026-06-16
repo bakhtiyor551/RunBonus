@@ -12,6 +12,7 @@ import { initKeyboardInset } from './utils/keyboard.js';
 import { loadAdConfig } from './services/adConfig.js';
 import { initAdMob } from './services/admob.js';
 import './theme.css';
+import 'leaflet/dist/leaflet.css';
 
 setupIonicReact({
   hardwareBackButton: false,

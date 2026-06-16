@@ -5,41 +5,47 @@ import { App } from '@capacitor/app';
 import { IonPage, IonContent } from '@ionic/react';
 import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
+import WorkoutMap from '../components/WorkoutMap';
+import HoldToStopButton from '../components/HoldToStopButton';
 import { api } from '../api';
 import {
-  formatDuration,
   clearWorkoutLocal,
   setActiveWorkoutId,
   getActiveWorkoutId,
   filterTrackPoints,
   getCurrentPosition,
+  formatDuration,
 } from '../services/geolocation';
 import {
   startWorkoutSession,
   stopWorkoutSession,
   getWorkoutPoints,
   subscribeWorkoutSession,
+  toggleWorkoutPause,
 } from '../services/workoutTracker';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
+import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
 import { PageAdSlots } from '../components/MobileAdSlot';
-
-/** 0–5 км зелёный, 5–10 оранжевый, 10+ красный */
-function workoutDistanceTier(km) {
-  if (km >= 10) return 'red';
-  if (km >= 5) return 'orange';
-  return 'green';
-}
 
 export default function WorkoutPage({ user, setUser }) {
   const { state } = useLocation();
   const navigate = useNavigate();
   const [workoutId, setWorkoutId] = useState(null);
   const [syncing, setSyncing] = useState(true);
+  const [units] = useState(() => getDistanceUnits());
   const [live, setLive] = useState({
     distance: 0,
     seconds: 0,
+    movingSeconds: 0,
+    pauseSeconds: 0,
+    currentSpeed: 0,
+    maxSpeed: 0,
+    avgSpeed: 0,
+    steps: 0,
+    paused: false,
     gpsReady: false,
     gpsError: '',
+    points: [],
   });
   const [result, setResult] = useState(null);
   const [finishing, setFinishing] = useState(false);
@@ -116,6 +122,11 @@ export default function WorkoutPage({ user, setUser }) {
 
     const snapDistance = live.distance;
     const snapSeconds = live.seconds;
+    const snapMoving = live.movingSeconds;
+    const snapPause = live.pauseSeconds;
+    const snapSteps = live.steps;
+    const snapMaxSpeed = live.maxSpeed;
+    const snapAvgSpeed = live.avgSpeed;
 
     let points = filterTrackPoints(getWorkoutPoints());
     if (points.length < 2) {
@@ -135,6 +146,11 @@ export default function WorkoutPage({ user, setUser }) {
           points,
           distance_km: snapDistance,
           duration_seconds: snapSeconds,
+          moving_seconds: snapMoving,
+          pause_seconds: snapPause,
+          steps_count: snapSteps,
+          max_speed: snapMaxSpeed,
+          avg_speed: snapAvgSpeed,
         }),
       });
       stopWorkoutSession();
@@ -198,9 +214,9 @@ export default function WorkoutPage({ user, setUser }) {
       <IonPage>
         <AppHeader showAvatar={false} />
         <IonContent>
-          <main className="rb-main" style={{ paddingTop: 48 }}>
-            <CelebrateBlock result={result} />
-            <ResultCards result={result} />
+          <main className="rb-main rb-workout-result">
+            <CelebrateBlock result={result} units={units} />
+            <ResultCards result={result} units={units} />
             <PageAdSlots
               key={`workout-ads-${result.workout_id ?? result.id ?? 'done'}`}
               page="workout"
@@ -220,178 +236,109 @@ export default function WorkoutPage({ user, setUser }) {
   }
 
   const liveBadge = (
-    <div className="rb-badge-live">
+    <div className={`rb-badge-live ${live.paused ? 'rb-badge-live--paused' : ''}`}>
       <span className="rb-badge-live__dot" />
-      <span>Активна</span>
+      <span>{live.paused ? 'Пауза' : 'Активна'}</span>
     </div>
   );
 
-  const distanceTier = workoutDistanceTier(live.distance);
-  const heroClass =
-    distanceTier === 'red'
-      ? 'rb-workout-hero rb-workout-hero--red'
-      : distanceTier === 'orange'
-        ? 'rb-workout-hero rb-workout-hero--orange'
-        : 'rb-workout-hero';
-
   return (
-    <IonPage>
+    <IonPage className="rb-workout-screen">
       <AppHeader showAvatar={false} badge={liveBadge} onBack={minimizeOrHome} />
-      <IonContent>
-        <div className="rb-atmosphere">
-          <div className="rb-atmosphere__blob" style={{ top: '20%', left: '10%', width: 300, height: 300 }} />
-          <div className="rb-atmosphere__blob" style={{ bottom: '20%', right: '10%', width: 300, height: 300 }} />
-        </div>
-        <main
-          className="rb-main"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '70vh',
-            paddingBottom: 40,
-          }}
-        >
-          <div className={heroClass}>
-            <div className="workout-pulse-ring" />
-            <div className="workout-pulse-ring workout-pulse-ring--inner" />
-            <div className="rb-workout-runner-core">
-              <Icon name="directions_run" filled className="rb-workout-runner-icon" />
-            </div>
-          </div>
+      <IonContent fullscreen>
+        <div className="rb-workout-layout">
+          <section className="rb-workout-layout__map">
+            <WorkoutMap points={live.points} interactive />
+          </section>
 
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div className="rb-display font-display font-tabular" style={{ fontSize: 48, color: '#fff' }}>
-              {formatDuration(live.seconds)}
+          <main className="rb-workout-layout__panel">
+            <div className="rb-workout-metrics">
+              <MetricBlock label="Время" value={formatDuration(live.seconds)} large />
+              <MetricBlock label="Дистанция" value={formatDistance(live.distance, units)} />
+              <MetricBlock label="Скорость" value={formatSpeed(live.currentSpeed, units)} />
+              <MetricBlock label="Шаги" value={String(live.steps)} />
             </div>
-            <p className="rb-label" style={{ marginTop: 8 }}>
-              Время
+
+            <div className="rb-workout-metrics rb-workout-metrics--secondary">
+              <MetricBlock label="Средняя" value={formatSpeed(live.avgSpeed, units)} compact />
+              <MetricBlock label="Макс." value={formatSpeed(live.maxSpeed, units)} compact />
+              {live.pauseSeconds > 0 && (
+                <MetricBlock label="Пауза" value={formatDuration(live.pauseSeconds)} compact />
+              )}
+            </div>
+
+            {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
+            {!live.gpsReady && !live.gpsError && <p className="rb-text-muted">Подключение GPS…</p>}
+
+            <p className="rb-text-muted rb-workout-hint">
+              «Назад» сворачивает приложение — тренировка продолжается в фоне.
             </p>
-          </div>
 
-          <div
-            className="glass-panel"
-            style={{ width: '100%', padding: 'var(--rb-card-padding)', textAlign: 'center', marginBottom: 24 }}
-          >
-            <DistanceBlock distance={live.distance} tier={distanceTier} />
-          </div>
-
-          {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
-          {!live.gpsReady && !live.gpsError && <p className="rb-text-muted">Подключение GPS…</p>}
-          <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 8, fontSize: 12 }}>
-            Дистанция считается только при реальном движении (дрейф GPS на месте отфильтрован).
-          </p>
-          <p className="rb-text-muted" style={{ textAlign: 'center', marginBottom: 24, fontSize: 12 }}>
-            «Назад» сворачивает приложение — тренировка продолжается. Остановка — «Завершить тренировку».
-          </p>
-
-          <button type="button" className="rb-btn-pill" style={{ width: '100%' }} disabled={finishing} onClick={finish}>
-            <Icon name="stop_circle" filled />
-            {finishing ? 'Завершение…' : 'Завершить тренировку'}
-          </button>
-        </main>
+            <div className="rb-workout-controls">
+              <button
+                type="button"
+                className="rb-btn-outline rb-workout-controls__pause"
+                onClick={toggleWorkoutPause}
+                disabled={finishing}
+              >
+                <Icon name={live.paused ? 'play_arrow' : 'pause'} filled />
+                {live.paused ? 'Продолжить' : 'Пауза'}
+              </button>
+              <HoldToStopButton onStop={finish} disabled={finishing} />
+            </div>
+          </main>
+        </div>
       </IonContent>
     </IonPage>
   );
 }
 
-function CelebrateBlock({ result }) {
+function MetricBlock({ label, value, large = false, compact = false }) {
+  return (
+    <div className={`rb-workout-metric ${large ? 'rb-workout-metric--large' : ''} ${compact ? 'rb-workout-metric--compact' : ''}`}>
+      <span className="rb-workout-metric__value font-display font-tabular">{value}</span>
+      <span className="rb-label">{label}</span>
+    </div>
+  );
+}
+
+function CelebrateBlock({ result, units }) {
   return (
     <div className="rb-celebrate" style={{ textAlign: 'center', marginBottom: 32 }}>
-      <div
-        style={{
-          width: 96,
-          height: 96,
-          borderRadius: '50%',
-          background: 'var(--rb-neon)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 24px',
-          boxShadow: '0 0 20px rgba(195,244,0,0.3)',
-        }}
-      >
+      <div className="rb-celebrate__icon">
         <Icon name="check_circle" style={{ fontSize: 48, color: 'var(--rb-on-neon)' }} />
       </div>
       <h1 className="font-display" style={{ fontSize: 32, color: 'var(--rb-neon)', textTransform: 'uppercase', margin: 0 }}>
         {result.title || 'Тренировка завершена!'}
       </h1>
       {result.level_up?.message && (
-        <p
-          className="rb-headline"
-          style={{
-            marginTop: 16,
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: 'rgba(195,244,0,0.12)',
-            color: 'var(--rb-neon)',
-          }}
-        >
-          {result.level_up.message}
-        </p>
+        <p className="rb-headline rb-celebrate__levelup">{result.level_up.message}</p>
       )}
       <p className="rb-text-muted" style={{ marginTop: 8 }}>
-        Отличный результат
+        {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
       </p>
     </div>
   );
 }
 
-function ResultCards({ result }) {
+function ResultCards({ result, units }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-      <div className="glass-card" style={{ gridColumn: '1 / -1', padding: 'var(--rb-card-padding)', textAlign: 'center' }}>
+    <div className="rb-workout-result-grid">
+      <div className="glass-card rb-workout-result-grid__wide">
         <span className="rb-label">Дистанция</span>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
-          <span className="rb-display font-display" style={{ fontSize: 40 }}>
-            {Number(result.distance_km).toFixed(1)}
-          </span>
-          <span className="rb-headline">км</span>
-        </div>
+        <div className="rb-workout-result-grid__hero font-display">{formatDistance(result.distance_km, units)}</div>
       </div>
-      <div
-        className="glass-card"
-        style={{
-          gridColumn: '1 / -1',
-          padding: 'var(--rb-card-padding)',
-          textAlign: 'center',
-          borderColor: 'rgba(195,244,0,0.3)',
-        }}
-      >
+      <div className="glass-card">
         <span className="rb-label">Бонус</span>
         {result.bonus_credited ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 8 }}>
-            <Icon name="stars" filled style={{ fontSize: 36, color: 'var(--rb-neon)' }} />
-            <span className="rb-display font-display" style={{ fontSize: 40 }}>
-              +{Number(result.bonus_earned).toFixed(1)}
-            </span>
+          <div className="rb-workout-result-grid__bonus">
+            <Icon name="stars" filled />
+            <span className="font-display">+{Number(result.bonus_earned).toFixed(1)}</span>
           </div>
         ) : (
-          <p className="rb-text-muted" style={{ marginTop: 8 }}>
-            {result.reject_reason || result.message || 'Бонус не начислен'}
-          </p>
+          <p className="rb-text-muted">{result.reject_reason || result.message || 'Бонус не начислен'}</p>
         )}
       </div>
-    </div>
-  );
-}
-
-function DistanceBlock({ distance, tier = 'green' }) {
-  const tierClass = tier === 'red' ? 'rb-workout-distance--red' : tier === 'orange' ? 'rb-workout-distance--orange' : '';
-  return (
-    <div className={tierClass}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
-        <span className="rb-display font-display" style={{ fontSize: 40, color: tier === 'green' ? 'var(--rb-neon)' : undefined }}>
-          {distance.toFixed(2)}
-        </span>
-        <span className="rb-headline" style={{ color: 'var(--rb-on-surface-variant)' }}>
-          км
-        </span>
-      </div>
-      <p className="rb-label" style={{ marginTop: 8 }}>
-        Текущая дистанция
-      </p>
     </div>
   );
 }
