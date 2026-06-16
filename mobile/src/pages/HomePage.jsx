@@ -15,7 +15,35 @@ import { formatBalance, formatWorkoutDate } from '../utils/format';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
+import {
+  startDailyStepsPolling,
+  stopDailyStepsPolling,
+  subscribeDailySteps,
+  getDailyStepGoal,
+} from '../services/dailySteps';
 import { PageAdSlots } from '../components/MobileAdSlot';
+
+function DailyStepsCard({ steps, goal, progress }) {
+  return (
+    <div className="glass-card rb-daily-steps">
+      <div className="rb-daily-steps__head">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="directions_walk" />
+          <span className="rb-label">Шаги сегодня</span>
+        </div>
+        <span className="rb-text-muted" style={{ fontSize: 12 }}>
+          цель {goal.toLocaleString('ru')}
+        </span>
+      </div>
+      <div className="rb-daily-steps__body">
+        <span className="rb-display font-display font-tabular">{steps.toLocaleString('ru')}</span>
+        <div className="rb-daily-steps__bar" aria-hidden="true">
+          <span style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ActivityRow({ workout, onPress }) {
   const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
@@ -49,6 +77,9 @@ export default function HomePage({ user, setUser }) {
   const [statsModal, setStatsModal] = useState(null);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
+  const [dailySteps, setDailySteps] = useState(0);
+  const dailyGoal = getDailyStepGoal();
+  const dailyProgress = Math.min(100, (dailySteps / dailyGoal) * 100);
 
   const refreshActiveWorkout = () => {
     syncActiveWorkoutWithServer()
@@ -67,6 +98,12 @@ export default function HomePage({ user, setUser }) {
   useEffect(() => {
     api('/api/workouts/history').then(setWorkouts).catch(() => {});
     refreshActiveWorkout();
+    startDailyStepsPolling();
+    const unsub = subscribeDailySteps(setDailySteps);
+    return () => {
+      unsub();
+      stopDailyStepsPolling();
+    };
   }, []);
 
   useEffect(() => {
@@ -133,6 +170,10 @@ export default function HomePage({ user, setUser }) {
             </div>
           </section>
 
+          <section style={{ marginBottom: 24 }}>
+            <DailyStepsCard steps={dailySteps} goal={dailyGoal} progress={dailyProgress} />
+          </section>
+
           <PageAdSlots
             page="home"
             user={user}
@@ -184,7 +225,7 @@ export default function HomePage({ user, setUser }) {
           <section>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
               <h2 className="rb-headline font-display">Недавние</h2>
-              <button type="button" className="rb-link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }} onClick={() => navigate('/wallet')}>
+              <button type="button" className="rb-link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }} onClick={() => navigate('/workouts')}>
                 Все
               </button>
             </div>

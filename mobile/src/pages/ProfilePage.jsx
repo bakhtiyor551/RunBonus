@@ -10,6 +10,7 @@ import CityPicker from '../components/CityPicker';
 import { formatBalance } from '../utils/format';
 import { formatPhoneDisplay } from '../utils/phone';
 import { compressImageFile, resolveAvatarUrl } from '../utils/avatar';
+import { getDistanceUnits, setDistanceUnits } from '../services/units';
 
 function profileCity(raw) {
   const s = String(raw || '').trim();
@@ -31,6 +32,7 @@ export default function ProfilePage({ user, setUser, onLogout }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [avatarCacheKey, setAvatarCacheKey] = useState(0);
+  const [distanceUnits, setDistanceUnitsState] = useState(() => getDistanceUnits());
 
   const displayAvatar =
     avatarPreview || resolveAvatarUrl(user.avatar_url, avatarCacheKey || undefined);
@@ -216,6 +218,32 @@ export default function ProfilePage({ user, setUser, onLogout }) {
           {!editing && (
             <>
               <section style={{ marginBottom: 24 }}>
+                <p className="rb-label" style={{ marginBottom: 12 }}>Единицы измерения</p>
+                <div className="glass-panel rb-units-toggle">
+                  <button
+                    type="button"
+                    className={distanceUnits === 'metric' ? 'active' : undefined}
+                    onClick={() => {
+                      setDistanceUnits('metric');
+                      setDistanceUnitsState('metric');
+                    }}
+                  >
+                    км / км·ч
+                  </button>
+                  <button
+                    type="button"
+                    className={distanceUnits === 'imperial' ? 'active' : undefined}
+                    onClick={() => {
+                      setDistanceUnits('imperial');
+                      setDistanceUnitsState('imperial');
+                    }}
+                  >
+                    мили / mph
+                  </button>
+                </div>
+              </section>
+
+              <section style={{ marginBottom: 24 }}>
                 <p className="rb-label" style={{ marginBottom: 12 }}>Подключённая обувь</p>
                 <div className="glass-panel" style={{ padding: 'var(--rb-card-padding)' }}>
                   {shoe ? (
@@ -246,6 +274,14 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                 </div>
               </section>
 
+              <button
+                type="button"
+                className="rb-btn-outline"
+                style={{ width: '100%', marginBottom: 12 }}
+                onClick={() => navigate('/workouts')}
+              >
+                <Icon name="history" /> История тренировок
+              </button>
               {user.qrActivationAllowed === false ? (
                 <p className="rb-text-muted" style={{ marginBottom: 12, fontSize: 13, textAlign: 'center' }}>
                   Активация QR доступна только на основном устройстве.

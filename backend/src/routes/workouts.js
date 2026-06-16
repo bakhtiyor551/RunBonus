@@ -282,6 +282,16 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     const clientDuration = Number(clientMeta.duration_seconds);
     const durationSeconds =
       clientDuration > 0 ? Math.floor(clientDuration) : serverDuration;
+    const stepsCount =
+      clientMeta.steps_count != null ? Math.max(0, Math.floor(Number(clientMeta.steps_count))) : null;
+    const movingSeconds =
+      clientMeta.moving_seconds != null
+        ? Math.max(0, Math.floor(Number(clientMeta.moving_seconds)))
+        : null;
+    const pauseSeconds =
+      clientMeta.pause_seconds != null
+        ? Math.max(0, Math.floor(Number(clientMeta.pause_seconds)))
+        : null;
 
     const settings = await getActiveBonusSettings(conn);
     let validation = validateWorkout(dbPoints, durationSeconds, settings);
@@ -424,6 +434,7 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     await conn.query(
       `UPDATE workouts SET
         distance_km = ?, duration_seconds = ?, avg_speed = ?, max_speed = ?,
+        steps_count = ?, moving_seconds = ?, pause_seconds = ?,
         finished_at = ?, status = ?, reject_reason = ?,
         price_per_km = ?, calculated_bonus = ?,
         level_snapshot = ?, bonus_breakdown = ?
@@ -433,6 +444,9 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         durationSeconds,
         validation.avgSpeed ?? null,
         validation.maxSpeed ?? null,
+        stepsCount,
+        movingSeconds,
+        pauseSeconds,
         finishedAt,
         finalStatus,
         rejectReason,
@@ -536,6 +550,7 @@ router.get('/history', authUser, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, distance_km, duration_seconds, avg_speed, max_speed,
+              steps_count, moving_seconds, pause_seconds,
               started_at, finished_at, status, calculated_bonus, reject_reason
        FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT 50`,
       [req.userId]
@@ -544,6 +559,28 @@ router.get('/history', authUser, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка загрузки истории' });
+  }
+});
+
+router.get('/:id/points', authUser, async (req, res) => {
+  try {
+    const workoutId = Number(req.params.id);
+    const [workouts] = await pool.query(
+      'SELECT id FROM workouts WHERE id = ? AND user_id = ?',
+      [workoutId, req.userId]
+    );
+    if (!workouts.length) {
+      return res.status(404).json({ error: 'Тренировка не найдена' });
+    }
+    const [rows] = await pool.query(
+      `SELECT latitude, longitude, speed, accuracy, recorded_at
+       FROM workout_points WHERE workout_id = ? ORDER BY recorded_at`,
+      [workoutId]
+    );
+    res.json({ points: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки маршрута' });
   }
 });
 

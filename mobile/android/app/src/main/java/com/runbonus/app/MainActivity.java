@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(WorkoutTrackingPlugin.class);
         super.onCreate(savedInstanceState);
         disableWebViewSounds();
         logSmsAppHashes();

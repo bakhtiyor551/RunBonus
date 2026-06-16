@@ -45,6 +45,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSMotionUsageDescription</key>
+	<string>RunBonus считает шаги во время тренировки.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>RunBonus записывает маршрут тренировки и начисляет бонусы за бег.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

@@ -1,7 +1,11 @@
+import { useEffect, useState } from 'react';
 import Icon from './Icon';
 import DetailSheet, { StatRow } from './DetailSheet';
+import WorkoutMap from './WorkoutMap';
+import { api } from '../api';
 import { formatDuration } from '../utils/format';
 import { formatWorkoutStatus } from '../utils/workoutStats';
+import { formatDistance, formatSpeed, getDistanceUnits } from '../services/units';
 
 function formatDateTime(iso) {
   if (!iso) return '—';
@@ -21,6 +25,31 @@ function statusClass(status) {
 }
 
 export default function WorkoutDetailModal({ workout, onClose }) {
+  const [points, setPoints] = useState([]);
+  const [loadingRoute, setLoadingRoute] = useState(false);
+  const units = getDistanceUnits();
+
+  useEffect(() => {
+    if (!workout?.id) {
+      setPoints([]);
+      return;
+    }
+    setLoadingRoute(true);
+    api(`/api/workouts/${workout.id}/points`)
+      .then((data) => {
+        const list = (data?.points || []).map((p) => ({
+          latitude: Number(p.latitude),
+          longitude: Number(p.longitude),
+          speed: p.speed != null ? Number(p.speed) : null,
+          accuracy: p.accuracy != null ? Number(p.accuracy) : null,
+          recorded_at: p.recorded_at,
+        }));
+        setPoints(list);
+      })
+      .catch(() => setPoints([]))
+      .finally(() => setLoadingRoute(false));
+  }, [workout?.id]);
+
   if (!workout) return null;
 
   const km = workout.distance_km != null ? Number(workout.distance_km) : null;
@@ -28,6 +57,7 @@ export default function WorkoutDetailModal({ workout, onClose }) {
   const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
   const avgSpeed = workout.avg_speed != null ? Number(workout.avg_speed) : null;
   const maxSpeed = workout.max_speed != null ? Number(workout.max_speed) : null;
+  const steps = workout.steps_count != null ? Number(workout.steps_count) : null;
   const rejected = workout.status === 'rejected' || workout.status === 'rejected_no_fund';
 
   return (
@@ -44,9 +74,19 @@ export default function WorkoutDetailModal({ workout, onClose }) {
         </div>
       </div>
 
+      <div className="rb-workout-detail-map">
+        {loadingRoute ? (
+          <div className="rb-workout-map__placeholder">Загрузка маршрута…</div>
+        ) : (
+          <WorkoutMap points={points} interactive={false} />
+        )}
+      </div>
+
       <div className="rb-detail-sheet__hero">
-        <span className="rb-detail-sheet__hero-value font-display">{km != null ? km.toFixed(1) : '—'}</span>
-        <span className="rb-detail-sheet__hero-label">километров</span>
+        <span className="rb-detail-sheet__hero-value font-display">
+          {km != null ? formatDistance(km, units) : '—'}
+        </span>
+        <span className="rb-detail-sheet__hero-label">дистанция</span>
       </div>
 
       <div className="rb-detail-sheet__grid">
@@ -54,11 +94,12 @@ export default function WorkoutDetailModal({ workout, onClose }) {
         <StatRow label="Начало" value={formatDateTime(workout.started_at)} />
         <StatRow label="Завершение" value={formatDateTime(workout.finished_at)} />
         {avgSpeed != null && avgSpeed > 0 && (
-          <StatRow label="Средняя скорость" value={`${avgSpeed.toFixed(1)} км/ч`} />
+          <StatRow label="Средняя скорость" value={formatSpeed(avgSpeed, units)} />
         )}
         {maxSpeed != null && maxSpeed > 0 && (
-          <StatRow label="Макс. скорость" value={`${maxSpeed.toFixed(1)} км/ч`} />
+          <StatRow label="Макс. скорость" value={formatSpeed(maxSpeed, units)} />
         )}
+        {steps != null && steps > 0 && <StatRow label="Шаги" value={String(steps)} />}
         <StatRow
           label="Бонус"
           value={
