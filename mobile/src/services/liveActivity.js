@@ -1,7 +1,7 @@
 import WorkoutTracking from '../plugins/workoutNative';
 import { Capacitor } from '@capacitor/core';
 
-const UPDATE_INTERVAL_MS = 3000;
+const UPDATE_INTERVAL_MS = 1000;
 let enabled = false;
 let lastPayload = '';
 

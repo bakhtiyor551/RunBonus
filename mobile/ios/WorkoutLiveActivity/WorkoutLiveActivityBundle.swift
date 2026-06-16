@@ -5,6 +5,23 @@ import ActivityKit
 private let accent = Color(red: 0.76, green: 0.96, blue: 0.0)
 
 @available(iOS 16.2, *)
+private struct WorkoutElapsedText: View {
+    let elapsedSeconds: Int
+    let timerReference: Date
+    let isPaused: Bool
+
+    var body: some View {
+        if isPaused {
+            Text(WorkoutLiveActivityFormatting.elapsedText(elapsedSeconds))
+                .monospacedDigit()
+        } else {
+            Text(timerReference, style: .timer)
+                .monospacedDigit()
+        }
+    }
+}
+
+@available(iOS 16.2, *)
 struct WorkoutLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
@@ -18,9 +35,12 @@ struct WorkoutLiveActivityWidget: Widget {
                         Text("Время")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Text(WorkoutLiveActivityFormatting.elapsedText(context.state.elapsedSeconds))
-                            .font(.title2.bold())
-                            .monospacedDigit()
+                        WorkoutElapsedText(
+                            elapsedSeconds: context.state.elapsedSeconds,
+                            timerReference: context.state.timerReference,
+                            isPaused: context.state.isPaused
+                        )
+                        .font(.title2.bold())
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
@@ -55,18 +75,32 @@ struct WorkoutLiveActivityWidget: Widget {
                     .font(.caption)
                 }
             } compactLeading: {
+                WorkoutElapsedText(
+                    elapsedSeconds: context.state.elapsedSeconds,
+                    timerReference: context.state.timerReference,
+                    isPaused: context.state.isPaused
+                )
+                .font(.caption2.bold())
+                .foregroundStyle(accent)
+                .frame(maxWidth: 52)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            } compactTrailing: {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(WorkoutLiveActivityFormatting.distanceText(context.state.distanceKm))
+                        .font(.caption2.bold())
+                        .monospacedDigit()
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(context.state.isPaused ? "Пауза" : "Активна")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(context.state.isPaused ? .orange : accent.opacity(0.9))
+                        .lineLimit(1)
+                }
+            } minimal: {
                 Image(systemName: context.state.isPaused ? "pause.circle.fill" : "figure.run")
                     .foregroundStyle(context.state.isPaused ? .orange : accent)
-            } compactTrailing: {
-                Text(WorkoutLiveActivityFormatting.distanceText(context.state.distanceKm))
-                    .font(.caption2.bold())
-                    .monospacedDigit()
-                    .foregroundStyle(accent)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            } minimal: {
-                Image(systemName: "figure.run")
-                    .foregroundStyle(accent)
             }
             .keylineTint(accent)
         }
@@ -83,9 +117,12 @@ private struct WorkoutLiveActivityView: View {
                 Text(context.attributes.workoutTitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(WorkoutLiveActivityFormatting.elapsedText(context.state.elapsedSeconds))
-                    .font(.system(.title2, design: .rounded).bold())
-                    .monospacedDigit()
+                WorkoutElapsedText(
+                    elapsedSeconds: context.state.elapsedSeconds,
+                    timerReference: context.state.timerReference,
+                    isPaused: context.state.isPaused
+                )
+                .font(.system(.title2, design: .rounded).bold())
                 Text(context.state.isPaused ? "Пауза" : "Активна")
                     .font(.caption2.bold())
                     .foregroundStyle(context.state.isPaused ? .orange : accent)

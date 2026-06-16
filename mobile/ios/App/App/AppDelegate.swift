@@ -27,9 +27,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
+        if #available(iOS 16.2, *) {
+            let resumed = WorkoutLiveActivityManager.resumeFromSnapshotIfNeeded()
+            NSLog("RunBonus LiveActivity willEnterForeground resumed=\(resumed) active=\(WorkoutLiveActivityManager.hasActiveActivity)")
+        }
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        if #available(iOS 16.2, *) {
+            let resumed = WorkoutLiveActivityManager.resumeFromSnapshotIfNeeded()
+            NSLog("RunBonus LiveActivity didBecomeActive resumed=\(resumed) active=\(WorkoutLiveActivityManager.hasActiveActivity)")
+        }
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

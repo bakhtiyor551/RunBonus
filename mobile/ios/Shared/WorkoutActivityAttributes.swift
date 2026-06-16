@@ -8,19 +8,33 @@ public struct WorkoutActivityAttributes: ActivityAttributes {
         public var speedKmh: Double
         public var steps: Int
         public var isPaused: Bool
+        /// Точка отсчёта для Text(..., style: .timer) в Dynamic Island
+        public var timerReference: Date
 
         public init(
             elapsedSeconds: Int,
             distanceKm: Double,
             speedKmh: Double,
             steps: Int,
-            isPaused: Bool
+            isPaused: Bool,
+            timerReference: Date? = nil
         ) {
             self.elapsedSeconds = elapsedSeconds
             self.distanceKm = distanceKm
             self.speedKmh = speedKmh
             self.steps = steps
             self.isPaused = isPaused
+            self.timerReference = timerReference
+                ?? Date().addingTimeInterval(-TimeInterval(max(0, elapsedSeconds)))
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case elapsedSeconds
+            case distanceKm
+            case speedKmh
+            case steps
+            case isPaused
+            case timerReference
         }
     }
 
