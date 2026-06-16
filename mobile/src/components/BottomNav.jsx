@@ -4,7 +4,6 @@ import Icon from './Icon';
 const tabs = [
   { to: '/', label: 'Главная', icon: 'home', end: true },
   { to: '/summary', label: 'Сводка', icon: 'bar_chart' },
-  { to: '/level', label: 'Уровень', icon: 'military_tech' },
   { to: '/wallet', label: 'Кошелёк', icon: 'account_balance_wallet' },
   { to: '/shop', label: 'Магазин', icon: 'storefront' },
   { to: '/profile', label: 'Профиль', icon: 'person' },
@@ -12,7 +11,7 @@ const tabs = [
 
 export default function BottomNav() {
   return (
-    <nav className="rb-bottom-nav rb-bottom-nav--6" aria-label="Навигация">
+    <nav className="rb-bottom-nav rb-bottom-nav--5" aria-label="Навигация">
       {tabs.map((tab) => (
         <NavLink
           key={tab.to}

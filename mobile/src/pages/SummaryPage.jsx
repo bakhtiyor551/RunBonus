@@ -9,6 +9,7 @@ import Icon from '../components/Icon';
 import ActivityRings from '../components/summary/ActivityRings';
 import WeeklyChart from '../components/summary/WeeklyChart';
 import SummaryStatusBadge from '../components/summary/SummaryStatusBadge';
+import LevelSection from '../components/level/LevelSection';
 import { formatBalance } from '../utils/format';
 import { resolveAvatarUrl } from '../utils/avatar';
 import { fetchUserSummary } from '../services/summary';
@@ -98,6 +99,9 @@ export default function SummaryPage({ user, setUser }) {
   const location = useLocation();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [levelData, setLevelData] = useState(null);
+  const [levelHistory, setLevelHistory] = useState([]);
+  const [levelLoading, setLevelLoading] = useState(true);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [deviceSteps, setDeviceSteps] = useState(0);
 
@@ -125,11 +129,29 @@ export default function SummaryPage({ user, setUser }) {
     return data;
   }, [deviceSteps]);
 
+  const loadLevel = useCallback(async () => {
+    setLevelLoading(true);
+    try {
+      const [level, hist] = await Promise.all([
+        api('/api/me/level'),
+        api('/api/me/level-history'),
+      ]);
+      setLevelData(level);
+      setLevelHistory(hist);
+    } catch {
+      setLevelData(null);
+      setLevelHistory([]);
+    } finally {
+      setLevelLoading(false);
+    }
+  }, []);
+
   const refreshAll = useCallback(async () => {
     try {
       const [profile] = await Promise.all([
         api('/api/auth/me').catch(() => null),
         loadSummary(),
+        loadLevel(),
       ]);
       if (profile) {
         cacheUser(profile);
@@ -138,7 +160,7 @@ export default function SummaryPage({ user, setUser }) {
     } catch {
       /* offline */
     }
-  }, [loadSummary, setUser]);
+  }, [loadSummary, loadLevel, setUser]);
 
   useEffect(() => {
     setLoading(true);
@@ -234,6 +256,8 @@ export default function SummaryPage({ user, setUser }) {
             <h2 className="rb-headline font-display">Кольца активности</h2>
             {loading ? <p className="rb-text-muted">Загрузка…</p> : <ActivityRings rings={summary?.rings} />}
           </section>
+
+          <LevelSection data={levelData} history={levelHistory} loading={levelLoading} />
 
           <section className="glass-card rb-summary-section">
             <h2 className="rb-headline font-display">Недельная статистика</h2>
