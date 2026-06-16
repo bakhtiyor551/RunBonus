@@ -29,11 +29,6 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     @objc func stopSession(_ call: CAPPluginCall) {
         pedometer.stopUpdates()
         sessionSteps = 0
-        if #available(iOS 16.2, *) {
-            DispatchQueue.main.async {
-                WorkoutLiveActivityManager.end()
-            }
-        }
         call.resolve(["ok": true])
     }
 
@@ -47,19 +42,23 @@ public class WorkoutTrackingPlugin: CAPPlugin {
             return
         }
 
+        call.keepAlive()
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
         pedometer.queryPedometerData(from: startOfDay, to: Date()) { data, _ in
-            let steps = data?.numberOfSteps.intValue ?? 0
-            call.resolve(["steps": steps])
+            DispatchQueue.main.async {
+                let steps = data?.numberOfSteps.intValue ?? 0
+                call.resolve(["steps": steps])
+            }
         }
     }
 
     @objc func startLiveActivity(_ call: CAPPluginCall) {
         let payload = liveActivityPayload(from: call)
         if #available(iOS 16.2, *) {
-            DispatchQueue.main.async {
+            runOnMain(call) {
                 let supported = WorkoutLiveActivityManager.isSupported
+                NSLog("RunBonus LiveActivity start: supported=\(supported) elapsed=\(payload.elapsed) dist=\(payload.distance)")
                 let started = WorkoutLiveActivityManager.start(
                     title: payload.title,
                     elapsedSeconds: payload.elapsed,
@@ -68,10 +67,12 @@ public class WorkoutTrackingPlugin: CAPPlugin {
                     steps: payload.steps,
                     isPaused: payload.paused
                 )
+                let active = WorkoutLiveActivityManager.hasActiveActivity
+                NSLog("RunBonus LiveActivity start result: started=\(started) active=\(active)")
                 call.resolve([
                     "ok": started,
                     "enabled": supported,
-                    "active": WorkoutLiveActivityManager.hasActiveActivity,
+                    "active": active,
                 ])
             }
             return
@@ -82,7 +83,7 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     @objc func updateLiveActivity(_ call: CAPPluginCall) {
         let payload = liveActivityPayload(from: call)
         if #available(iOS 16.2, *) {
-            DispatchQueue.main.async {
+            runOnMain(call) {
                 var updated = WorkoutLiveActivityManager.update(
                     elapsedSeconds: payload.elapsed,
                     distanceKm: payload.distance,
@@ -112,13 +113,37 @@ public class WorkoutTrackingPlugin: CAPPlugin {
 
     @objc func endLiveActivity(_ call: CAPPluginCall) {
         if #available(iOS 16.2, *) {
-            DispatchQueue.main.async {
+            runOnMain(call) {
                 WorkoutLiveActivityManager.end()
-                call.resolve(["ok": true])
+                call.resolve(["ok": true, "active": false])
             }
             return
         }
-        call.resolve(["ok": true])
+        call.resolve(["ok": true, "active": false])
+    }
+
+    @objc func getLiveActivityStatus(_ call: CAPPluginCall) {
+        if #available(iOS 16.2, *) {
+            runOnMain(call) {
+                call.resolve([
+                    "enabled": WorkoutLiveActivityManager.isSupported,
+                    "active": WorkoutLiveActivityManager.hasActiveActivity,
+                ])
+            }
+            return
+        }
+        call.resolve(["enabled": false, "active": false])
+    }
+
+    private func runOnMain(_ call: CAPPluginCall, _ work: @escaping () -> Void) {
+        if Thread.isMainThread {
+            work()
+            return
+        }
+        call.keepAlive()
+        DispatchQueue.main.async {
+            work()
+        }
     }
 
     private func liveActivityPayload(from call: CAPPluginCall) -> (
@@ -131,11 +156,25 @@ public class WorkoutTrackingPlugin: CAPPlugin {
     ) {
         (
             title: call.getString("title") ?? "RunBonus — тренировка",
-            elapsed: call.getInt("elapsedSeconds") ?? 0,
-            distance: call.getDouble("distanceKm") ?? 0,
-            speed: call.getDouble("speedKmh") ?? 0,
-            steps: call.getInt("steps") ?? 0,
+            elapsed: callInt(call, key: "elapsedSeconds"),
+            distance: callDouble(call, key: "distanceKm"),
+            speed: callDouble(call, key: "speedKmh"),
+            steps: callInt(call, key: "steps"),
             paused: call.getBool("isPaused") ?? false
         )
+    }
+
+    private func callInt(_ call: CAPPluginCall, key: String) -> Int {
+        if let value = call.options[key] as? Int { return value }
+        if let value = call.options[key] as? Double { return Int(value) }
+        if let value = call.options[key] as? NSNumber { return value.intValue }
+        return call.getInt(key) ?? 0
+    }
+
+    private func callDouble(_ call: CAPPluginCall, key: String) -> Double {
+        if let value = call.options[key] as? Double { return value }
+        if let value = call.options[key] as? Int { return Double(value) }
+        if let value = call.options[key] as? NSNumber { return value.doubleValue }
+        return call.getDouble(key) ?? 0
     }
 }

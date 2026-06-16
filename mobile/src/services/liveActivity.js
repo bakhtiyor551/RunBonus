@@ -1,7 +1,7 @@
 import WorkoutTracking from '../plugins/workoutNative';
 import { Capacitor } from '@capacitor/core';
 
-const UPDATE_INTERVAL_MS = 4000;
+const UPDATE_INTERVAL_MS = 3000;
 let enabled = false;
 let lastPayload = '';
 
@@ -26,37 +26,45 @@ function toNativePayload(snapshot) {
   };
 }
 
+function applyResult(result, snapshot) {
+  const active = Boolean(result?.active);
+  const ok = Boolean(result?.ok);
+  enabled = active || ok;
+  if (snapshot) lastPayload = payloadKey(snapshot);
+  if (Capacitor.getPlatform() === 'ios') {
+    console.info('[LiveActivity]', result);
+  }
+  return enabled;
+}
+
 export async function startWorkoutLiveActivity(snapshot) {
-  if (Capacitor.getPlatform() !== 'ios') return;
+  if (Capacitor.getPlatform() !== 'ios') return false;
   try {
     const result = await WorkoutTracking.startLiveActivity(toNativePayload(snapshot));
-    enabled = Boolean(result?.active || result?.ok);
-    lastPayload = payloadKey(snapshot);
-  } catch {
+    return applyResult(result, snapshot);
+  } catch (err) {
+    console.warn('[LiveActivity] start failed', err);
     enabled = false;
+    return false;
   }
 }
 
 export async function ensureWorkoutLiveActivity(snapshot) {
-  if (Capacitor.getPlatform() !== 'ios') return;
-  if (enabled) {
-    await syncWorkoutLiveActivity(snapshot);
-    return;
+  if (Capacitor.getPlatform() !== 'ios' || !snapshot) return false;
+  try {
+    const result = await WorkoutTracking.updateLiveActivity(toNativePayload(snapshot));
+    if (applyResult(result, snapshot)) return true;
+  } catch (err) {
+    console.warn('[LiveActivity] update failed', err);
   }
-  await startWorkoutLiveActivity(snapshot);
+  return startWorkoutLiveActivity(snapshot);
 }
 
 export async function syncWorkoutLiveActivity(snapshot) {
-  if (Capacitor.getPlatform() !== 'ios') return;
+  if (Capacitor.getPlatform() !== 'ios' || !snapshot) return;
   const key = payloadKey(snapshot);
   if (enabled && key === lastPayload) return;
-  lastPayload = key;
-  try {
-    const result = await WorkoutTracking.updateLiveActivity(toNativePayload(snapshot));
-    enabled = Boolean(result?.active || result?.ok || enabled);
-  } catch {
-    enabled = false;
-  }
+  await ensureWorkoutLiveActivity(snapshot);
 }
 
 export async function stopWorkoutLiveActivity() {
@@ -65,8 +73,8 @@ export async function stopWorkoutLiveActivity() {
   lastPayload = '';
   try {
     await WorkoutTracking.endLiveActivity();
-  } catch {
-    /* optional */
+  } catch (err) {
+    console.warn('[LiveActivity] end failed', err);
   }
 }
 
@@ -78,4 +86,15 @@ export function scheduleLiveActivityUpdates(getSnapshot) {
   tick();
   const id = setInterval(tick, UPDATE_INTERVAL_MS);
   return () => clearInterval(id);
+}
+
+export async function getLiveActivityStatus() {
+  if (Capacitor.getPlatform() !== 'ios') {
+    return { enabled: false, active: false };
+  }
+  try {
+    return await WorkoutTracking.getLiveActivityStatus();
+  } catch {
+    return { enabled: false, active: false };
+  }
 }

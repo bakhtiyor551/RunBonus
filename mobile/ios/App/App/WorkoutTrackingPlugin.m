@@ -8,4 +8,5 @@ CAP_PLUGIN(WorkoutTrackingPlugin, "WorkoutTracking",
   CAP_PLUGIN_METHOD(startLiveActivity, CAPPluginReturnPromise);
   CAP_PLUGIN_METHOD(updateLiveActivity, CAPPluginReturnPromise);
   CAP_PLUGIN_METHOD(endLiveActivity, CAPPluginReturnPromise);
+  CAP_PLUGIN_METHOD(getLiveActivityStatus, CAPPluginReturnPromise);
 )

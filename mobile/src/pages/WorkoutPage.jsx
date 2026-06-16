@@ -24,6 +24,7 @@ import {
   toggleWorkoutPause,
 } from '../services/workoutTracker';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
+import { ensureWorkoutLiveActivity } from '../services/liveActivity';
 import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
 import { PageAdSlots } from '../components/MobileAdSlot';
 
@@ -102,8 +103,15 @@ export default function WorkoutPage({ user, setUser }) {
     return subscribeWorkoutSession(setLive);
   }, [syncing, workoutId]);
 
-  const minimizeOrHome = () => {
+  const minimizeOrHome = async () => {
     if (Capacitor.isNativePlatform()) {
+      await ensureWorkoutLiveActivity({
+        seconds: live.seconds,
+        distance: live.distance,
+        currentSpeed: live.currentSpeed,
+        steps: live.steps,
+        paused: live.paused,
+      }).catch(() => {});
       App.minimizeApp();
     } else {
       navigate('/');
