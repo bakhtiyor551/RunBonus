@@ -14,13 +14,27 @@ function formatDuration(seconds) {
 
 export default function WorkoutDetail({ workoutId, onClose }) {
   const [data, setData] = useState(null);
-  const { live: liveSnapshot } = useLiveTracking();
+  const [liveRest, setLiveRest] = useState(null);
+  const { live: liveSnapshot, status: wsStatus } = useLiveTracking();
   const [error, setError] = useState('');
 
-  const live = useMemo(
-    () => liveSnapshot.workouts?.find((w) => w.workout_id === Number(workoutId)) ?? null,
-    [liveSnapshot.workouts, workoutId]
-  );
+  const live = useMemo(() => {
+    const fromWs = liveSnapshot.workouts?.find((w) => w.workout_id === Number(workoutId));
+    if (fromWs) return fromWs;
+    if (liveRest?.workout_id === Number(workoutId)) return liveRest;
+    return null;
+  }, [liveSnapshot.workouts, liveRest, workoutId]);
+
+  const loadLiveRest = useCallback(async () => {
+    if (!workoutId) return;
+    try {
+      const payload = await adminApi('/api/admin/workouts/live');
+      const row = payload.workouts?.find((w) => w.workout_id === Number(workoutId));
+      setLiveRest(row ?? null);
+    } catch {
+      /* ignore */
+    }
+  }, [workoutId]);
 
   const loadDetail = useCallback(async () => {
     if (!workoutId) return;
@@ -41,6 +55,13 @@ export default function WorkoutDetail({ workoutId, onClose }) {
   }, [workoutId, loadDetail]);
 
   const isLive = data?.workout?.status === 'in_progress';
+
+  useEffect(() => {
+    if (!workoutId || !isLive || wsStatus === 'connected') return undefined;
+    loadLiveRest();
+    const timer = window.setInterval(loadLiveRest, 4000);
+    return () => window.clearInterval(timer);
+  }, [workoutId, isLive, wsStatus, loadLiveRest]);
 
   useEffect(() => {
     if (!workoutId || !isLive) return undefined;
@@ -168,6 +189,12 @@ export default function WorkoutDetail({ workoutId, onClose }) {
       <p className="hint">
         Дневной лимит: {lim.daily_earned} / {lim.daily_limit} · По паре:{' '}
         {lim.shoe_total_earned} / {lim.shoe_limit}
+        {isLive && (
+          <>
+            {' '}
+            · Live: {wsStatus === 'connected' ? 'WebSocket' : wsStatus === 'reconnecting' ? 'переподключение…' : 'REST'}
+          </>
+        )}
       </p>
 
       <h4>GPS-точки</h4>

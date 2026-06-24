@@ -29,6 +29,7 @@ import {
 import {
   buildWorkoutLiveRow,
   calcWorkoutDistanceKm,
+  closeAbandonedInProgressWorkouts,
   isPointTimestampValid,
 } from '../services/liveTrackingService.js';
 import {
@@ -84,6 +85,7 @@ router.get('/active', authUser, async (req, res) => {
     const conn = await pool.getConnection();
     try {
       await closeStaleWorkouts(conn, req.userId);
+      await closeAbandonedInProgressWorkouts(conn);
       const [rows] = await conn.query(
         `SELECT id, started_at, status FROM workouts
          WHERE user_id = ? AND status = 'in_progress'
@@ -122,6 +124,7 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
 
     await conn.beginTransaction();
     await closeStaleWorkouts(conn, req.userId);
+    await closeAbandonedInProgressWorkouts(conn);
 
     const existing = await getInProgressWorkout(conn, req.userId);
     if (existing) {
