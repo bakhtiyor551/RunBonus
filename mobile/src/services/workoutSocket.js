@@ -25,6 +25,7 @@ function buildWsUrl(workoutId) {
 let ws = null;
 let workoutId = null;
 let reconnectTimer = null;
+let pingTimer = null;
 let intentionalClose = false;
 let onCommand = null;
 let onStatusChange = null;
@@ -34,6 +35,22 @@ let ackSeq = 0;
 
 function setStatus(status) {
   onStatusChange?.(status);
+}
+
+function clearPing() {
+  if (pingTimer) {
+    clearInterval(pingTimer);
+    pingTimer = null;
+  }
+}
+
+function startPing() {
+  clearPing();
+  pingTimer = setInterval(() => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'ping' }));
+    }
+  }, 25000);
 }
 
 function rejectAllPending(err) {
@@ -122,6 +139,7 @@ export function connectWorkoutSocket(id, handlers = {}) {
     socket.onopen = () => {
       clearTimeout(connectTimeout);
       setStatus('connected');
+      startPing();
       resolve();
     };
 
@@ -134,6 +152,7 @@ export function connectWorkoutSocket(id, handlers = {}) {
 
     socket.onclose = () => {
       clearTimeout(connectTimeout);
+      clearPing();
       if (ws === socket) ws = null;
       rejectAllPending(new Error('WebSocket closed'));
       if (!intentionalClose) scheduleReconnect();
@@ -204,6 +223,7 @@ export function sendWorkoutFinishAck() {
 export async function disconnectWorkoutSocket() {
   intentionalClose = true;
   clearTimeout(reconnectTimer);
+  clearPing();
   rejectAllPending(new Error('disconnect'));
 
   if (ws?.readyState === WebSocket.OPEN) {
@@ -229,4 +249,8 @@ export function getWorkoutSocketStatus() {
   if (ws.readyState === WebSocket.OPEN) return 'connected';
   if (ws.readyState === WebSocket.CONNECTING) return 'connecting';
   return 'closed';
+}
+
+export function isWorkoutSocketConnecting() {
+  return ws?.readyState === WebSocket.CONNECTING;
 }

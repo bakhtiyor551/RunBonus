@@ -39,11 +39,12 @@ import {
   deleteBufferedPoints,
   getPendingPoints,
 } from './gpsBuffer';
-import { subscribeConnectivity } from './connectivity';
+import { setConnectivityWorkoutMode, subscribeNetworkReconnect } from './connectivity';
 import {
   connectWorkoutSocket,
   disconnectWorkoutSocket,
   isWorkoutSocketOpen,
+  isWorkoutSocketConnecting,
   sendWorkoutPoints,
 } from './workoutSocket';
 
@@ -261,6 +262,8 @@ async function flushPointsToServer() {
     try {
       if (isWorkoutSocketOpen()) {
         await sendWorkoutPoints(batch, session.steps);
+      } else if (isWorkoutSocketConnecting()) {
+        return;
       } else {
         await connectWorkoutSocket(session.workoutId, {
           onCommand: handleServerCommand,
@@ -423,6 +426,8 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
   syncElapsedSeconds();
   await migrateLocalPointsToBuffer(id, points);
 
+  setConnectivityWorkoutMode(true);
+
   try {
     await connectWorkoutSocket(id, { onCommand: handleServerCommand });
   } catch {
@@ -510,8 +515,8 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
   };
   document.addEventListener('visibilitychange', session.onVisibility);
 
-  session.unsubConnectivity = subscribeConnectivity((online) => {
-    if (online && session?.workoutId === id) {
+  session.unsubConnectivity = subscribeNetworkReconnect(() => {
+    if (session?.workoutId === id) {
       connectWorkoutSocket(id, { onCommand: handleServerCommand })
         .then(() => flushAllPendingPoints())
         .catch(() => {});
@@ -619,6 +624,7 @@ export function stopWorkoutSession() {
   stopWorkoutLiveActivity().catch(() => {});
   stopStepCounter();
   stopWorkoutForeground().catch(() => {});
+  setConnectivityWorkoutMode(false);
   disconnectWorkoutSocket().catch(() => {});
   session = null;
 }

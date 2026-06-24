@@ -68,13 +68,13 @@ export default function HoldToStopButton({ onStop, disabled, label = 'Удерж
 
     const onTouchStart = (e) => {
       if (disabledRef.current) return;
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       startHold();
     };
 
     const onTouchEnd = (e) => {
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       cancelHold();
     };
