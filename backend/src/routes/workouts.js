@@ -22,21 +22,22 @@ import {
 import {
   calcDistanceFromPoints,
   isSameCoordinates,
-  isValidTrackPoint,
   normalizeGpsPoint,
-  shouldSaveGpsPoint,
 } from '../utils/geo.js';
 import {
   buildWorkoutLiveRow,
+<<<<<<< HEAD
   calcWorkoutDistanceKm,
   closeAbandonedInProgressWorkouts,
   isPointTimestampValid,
+=======
+>>>>>>> 2e680b1302f324280cff510b5b49b4fdb91ed46e
 } from '../services/liveTrackingService.js';
 import {
-  emitPointReceived,
   emitWorkoutClosed,
   emitWorkoutStarted,
 } from '../services/liveTrackingWs.js';
+import { saveWorkoutPoints } from '../services/workoutPointsService.js';
 
 const router = Router();
 
@@ -177,6 +178,24 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
   }
 });
 
+async function savePoints(workoutId, userId, points, meta = {}) {
+  const result = await saveWorkoutPoints(workoutId, userId, points, meta);
+  if (!result) return null;
+  if (result.fraud?.fraud) {
+    await forceStopWorkoutFromService(workoutId, userId, result.fraud.reason);
+    emitWorkoutClosed(workoutId, 'rejected', { reason: result.fraud.reason });
+    return null;
+  }
+  return result.workout;
+}
+
+async function forceStopWorkoutFromService(workoutId, userId, reason) {
+  const { forceStopWorkout } = await import('../services/workoutPointsService.js');
+  const { sendWorkoutCommand } = await import('../services/workoutWs.js');
+  await forceStopWorkout(workoutId, userId, reason);
+  sendWorkoutCommand(userId, 'workout_force_stop', { message: reason, reason: 'speed_fraud' });
+}
+
 async function getLastWorkoutPoint(workoutId, conn = pool) {
   const [rows] = await conn.query(
     `SELECT latitude, longitude, speed, accuracy, recorded_at
@@ -203,57 +222,6 @@ async function insertGpsPoint(conn, workoutId, rawPoint) {
     ]
   );
   return true;
-}
-
-async function savePoints(workoutId, userId, points) {
-  const workout = await assertWorkoutOwner(workoutId, userId);
-  if (!workout) return null;
-
-  const list = Array.isArray(points) ? points : [points];
-  let last = await getLastWorkoutPoint(workoutId);
-  const savedPoints = [];
-
-  if (!last) {
-    for (const raw of list) {
-      const p = normalizeGpsPoint(raw);
-      if (!p || !isValidTrackPoint(p, { acquire: true })) continue;
-      if (!isPointTimestampValid(workout, p.recorded_at)) continue;
-      await insertGpsPoint(pool, workoutId, p);
-      savedPoints.push({
-        lat: p.latitude,
-        lng: p.longitude,
-        speed: p.speed,
-        accuracy: p.accuracy,
-        recorded_at: p.recorded_at,
-      });
-      last = p;
-      break;
-    }
-  }
-
-  for (const raw of list) {
-    if (!shouldSaveGpsPoint(last, raw)) continue;
-    const p = normalizeGpsPoint(raw);
-    if (!p) continue;
-    if (!isPointTimestampValid(workout, p.recorded_at)) continue;
-    if (last && isSameCoordinates(last, p)) continue;
-    await insertGpsPoint(pool, workoutId, p);
-    savedPoints.push({
-      lat: p.latitude,
-      lng: p.longitude,
-      speed: p.speed,
-      accuracy: p.accuracy,
-      recorded_at: p.recorded_at,
-    });
-    last = p;
-  }
-
-  if (savedPoints.length) {
-    const distanceKm = await calcWorkoutDistanceKm(workoutId);
-    emitPointReceived(workoutId, savedPoints, distanceKm);
-  }
-
-  return workout;
 }
 
 router.post('/point', authUser, async (req, res) => {

@@ -4,7 +4,7 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { initLiveTrackingWs } from './services/liveTrackingWs.js';
+import { initWebSockets } from './services/wsRouter.js';
 import { UPLOADS_ROOT } from './utils/userProfile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -92,7 +92,7 @@ app.use((err, _req, res, _next) => {
 });
 
 const httpServer = http.createServer(app);
-initLiveTrackingWs(httpServer);
+initWebSockets(httpServer);
 
 httpServer.listen(config.port, '0.0.0.0', () => {
   console.log(`API: http://localhost:${config.port} (доступен в сети по IP ПК:${config.port})`);

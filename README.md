@@ -22,23 +22,9 @@ MVP платформы лояльности: мобильное приложен
 ## Быстрый старт
 
 ```bash
-# 1. MySQL — создайте БД runbonus (см. docs/GETTING_STARTED.md)
 
-# 2. Backend
-cd backend && copy .env.example .env && npm install && npm run db:init && npm run dev
 
-# 3. Mobile
-cd mobile && npm install && npm run dev
 
-# 4. Admin
-cd admin && npm install && npm run dev
-```
-
-| Сервис | URL (dev) | Логин |
-|--------|-----------|-------|
-| API | http://localhost:3001 | — |
-| Mobile | http://localhost:5173 | SMS OTP |
-| Admin | http://localhost:5174 | admin / admin123 |
 
 ## Структура проекта
 
@@ -79,6 +65,3 @@ RunBonus/
 
 ## Тестовые данные (после seed)
 
-- Админка: `admin` / `admin123`
-- QR кроссовок: `SHOE-DEMO-001`
-- Бонусный фонд: 10 000 сомони

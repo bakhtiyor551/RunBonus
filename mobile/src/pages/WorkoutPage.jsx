@@ -24,7 +24,11 @@ import {
   toggleWorkoutPause,
   flushAllPendingPoints,
   clearWorkoutGpsBuffer,
+  freezeWorkoutForFinish,
+  getWorkoutFinishSnapshot,
+  subscribeWorkoutCommands,
 } from '../services/workoutTracker';
+import { disconnectWorkoutSocket } from '../services/workoutSocket';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
 import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
@@ -108,6 +112,23 @@ export default function WorkoutPage({ user, setUser }) {
     return subscribeWorkoutSession(setLive);
   }, [syncing, workoutId]);
 
+  useEffect(() => {
+    if (syncing || !workoutId) return undefined;
+    return subscribeWorkoutCommands((cmd) => {
+      if (cmd.type === 'fund_exhausted') {
+        alert(cmd.message || 'Бонусный фонд пуст, начисление временно приостановлено');
+      }
+      if (cmd.type === 'workout_force_stop') {
+        alert(cmd.message || 'Пробежка аннулирована');
+        stopWorkoutSession();
+        clearWorkoutLocal(workoutId);
+        clearWorkoutGpsBuffer(workoutId).catch(() => {});
+        setActiveWorkoutId(null);
+        navigate('/', { replace: true });
+      }
+    });
+  }, [syncing, workoutId, navigate]);
+
   const minimizeOrHome = async () => {
     if (Capacitor.isNativePlatform()) {
       await ensureWorkoutLiveActivity({
@@ -132,14 +153,16 @@ export default function WorkoutPage({ user, setUser }) {
   const finish = async () => {
     if (finishing || !workoutId) return;
     setFinishing(true);
+    freezeWorkoutForFinish();
+    const snap = getWorkoutFinishSnapshot();
 
-    const snapDistance = live.distance;
-    const snapSeconds = live.seconds;
-    const snapMoving = live.movingSeconds;
-    const snapPause = live.pauseSeconds;
-    const snapSteps = live.steps;
-    const snapMaxSpeed = live.maxSpeed;
-    const snapAvgSpeed = live.avgSpeed;
+    const snapDistance = snap?.distance ?? live.distance;
+    const snapSeconds = snap?.seconds ?? live.seconds;
+    const snapMoving = snap?.movingSeconds ?? live.movingSeconds;
+    const snapPause = snap?.pauseSeconds ?? live.pauseSeconds;
+    const snapSteps = snap?.steps ?? live.steps;
+    const snapMaxSpeed = snap?.maxSpeed ?? live.maxSpeed;
+    const snapAvgSpeed = snap?.avgSpeed ?? live.avgSpeed;
 
     let points = filterTrackPoints(getWorkoutPoints());
     if (points.length < 2) {
@@ -154,6 +177,7 @@ export default function WorkoutPage({ user, setUser }) {
 
     try {
       await flushAllPendingPoints();
+      await disconnectWorkoutSocket();
       const data = await api(`/api/workouts/${workoutId}/finish`, {
         method: 'POST',
         body: JSON.stringify({
@@ -355,7 +379,11 @@ export default function WorkoutPage({ user, setUser }) {
                 <Icon name={live.manualPaused ? 'play_arrow' : live.autoPaused ? 'motion_sensor_active' : 'pause'} filled />
                 {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Продолжить' : 'Пауза'}
               </button>
-              <HoldToStopButton onStop={finish} disabled={finishing} />
+              <HoldToStopButton
+                onStop={finish}
+                disabled={finishing}
+                label={finishing ? 'Завершение…' : 'Удерживайте для остановки'}
+              />
             </div>
           </main>
         </div>

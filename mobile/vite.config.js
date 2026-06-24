@@ -22,6 +22,11 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        '/app/workout': {
+          target: apiTarget,
+          ws: true,
+          changeOrigin: true,
+        },
       },
     },
   };
