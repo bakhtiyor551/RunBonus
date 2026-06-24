@@ -2703,6 +2703,9 @@ html.rb-keyboard-open .rb-main {
   background: transparent;
   padding: 3px;
   cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .rb-hold-stop:disabled {
@@ -2715,6 +2718,7 @@ html.rb-keyboard-open .rb-main {
   inset: 0;
   border-radius: 999px;
   padding: 3px;
+  pointer-events: none;
 }
 
 .rb-hold-stop__inner {

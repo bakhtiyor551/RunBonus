@@ -3018,6 +3018,148 @@ code {
   margin-bottom: 12px;
 }
 
+.workouts-live {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.workouts-live__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workouts-live__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.workouts-live__sub {
+  margin: 4px 0 0;
+}
+
+.workout-live-map {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1b1b1b;
+  z-index: 0;
+}
+
+.workouts-live__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workouts-live__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.workouts-live__item:hover {
+  border-color: rgba(195, 244, 0, 0.25);
+  background: rgba(195, 244, 0, 0.05);
+}
+
+.workouts-live__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.workouts-live__item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.workouts-live__item-main strong {
+  font-size: 0.95rem;
+}
+
+.workouts-live__item-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.82rem;
+  text-align: right;
+  color: var(--on-surface-variant);
+}
+
+.workouts-live__waiting {
+  color: #ff9f0a;
+}
+
+.workout-detail__head h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.workout-detail__live-badge {
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
+.workout-detail__map-wrap {
+  position: relative;
+  margin: 16px 0;
+}
+
+.workout-detail__map-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(19, 19, 19, 0.55);
+  border-radius: 16px;
+  pointer-events: none;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.workout-detail__map-overlay .material-symbols-outlined {
+  font-size: 28px;
+  color: var(--primary, #c3f400);
+}
+
+.workout-detail__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.workout-detail__metrics strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-top: 4px;
+}
+
 /* Withdrawals admin */
 .withdrawals-toolbar {
   display: flex;

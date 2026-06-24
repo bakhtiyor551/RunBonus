@@ -33,9 +33,11 @@ import {
   scheduleLiveActivityUpdates,
 } from './liveActivity';
 
-const SYNC_INTERVAL_MS = 8000;
+const SYNC_INTERVAL_MS = 4000;
 const BACKGROUND_POLL_MS = 5000;
 const BACKGROUND_POLL_SLOW_MS = 10000;
+const GPS_ACQUIRE_POLL_MS = 2000;
+const AUTO_PAUSE_GRACE_MS = 45000;
 
 let session = null;
 const listeners = new Set();
@@ -97,7 +99,11 @@ function updateDisplaySpeed(pos) {
 }
 
 function processAutoPause(pos) {
-  if (!session || session.paused) return;
+  if (!session || session.paused || !session.gpsReady) return;
+
+  const waitingForTrack = !session.points.length;
+  const inGracePeriod = Date.now() - session.startedAt < AUTO_PAUSE_GRACE_MS;
+  if (waitingForTrack && inGracePeriod) return;
 
   const mps = Number(pos.speedMps) || 0;
 
@@ -151,6 +157,7 @@ function emit() {
     gpsReady: session.gpsReady,
     gpsError: session.gpsError,
     points: session.points,
+    livePosition: session.livePosition,
   };
   listeners.forEach((fn) => fn(snapshot));
   syncWorkoutLiveActivity(snapshot);
@@ -181,7 +188,7 @@ export function persistWorkoutSession() {
 }
 
 async function flushPointsToServer() {
-  if (!session?.points.length || !navigator.onLine || session.serverStale || isTrackingFrozen()) return;
+  if (!session?.points.length || !navigator.onLine || session.serverStale) return;
   const batch = session.points.slice(-80);
   try {
     await session.api(`/api/workouts/${session.workoutId}/points`, {
@@ -195,9 +202,17 @@ async function flushPointsToServer() {
   }
 }
 
-function onGpsPosition(pos) {
-  if (!session) return;
+function markGpsSignal() {
+  if (!session || session.gpsReady) return;
+  session.gpsReady = true;
+  session.gpsError = '';
+}
 
+function onGpsPosition(pos) {
+  if (!session || !pos) return;
+
+  session.livePosition = pos;
+  markGpsSignal();
   processAutoPause(pos);
 
   if (!isTrackingFrozen()) {
@@ -214,7 +229,10 @@ function onGpsPosition(pos) {
   const last = session.points[session.points.length - 1];
   const { record, segmentMeters } = shouldRecordGpsPoint(last, pos);
 
-  if (!record) return;
+  if (!record) {
+    emit();
+    return;
+  }
 
   session.points = [...session.points, pos];
   session.distanceMeters += segmentMeters || 0;
@@ -282,8 +300,9 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
     maxSpeed: saved?.maxSpeed || 0,
     avgSpeed: 0,
     steps: saved?.steps || 0,
-    gpsReady: false,
+    gpsReady: points.length > 0,
     gpsError: '',
+    livePosition: points.length ? points[points.length - 1] : null,
     api,
     serverStale: false,
   };
@@ -293,16 +312,40 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
 
   try {
     await requestLocationPermission();
-    await startWorkoutForeground();
-    await startStepCounter();
-    session.stopGps = await startBackgroundTracking(onGpsPosition);
-    session.gpsReady = true;
-    await flushPointsToServer();
   } catch (err) {
     if (session?.workoutId === id) {
       session.gpsError = err.message;
     }
   }
+
+  try {
+    await startWorkoutForeground();
+    await startStepCounter();
+  } catch {
+    /* foreground / шаги опциональны */
+  }
+
+  if (!session.gpsError) {
+    try {
+      session.stopGps = await startBackgroundTracking(onGpsPosition);
+      pollPositionOnce().catch(() => {});
+      await flushPointsToServer();
+    } catch (err) {
+      if (session?.workoutId === id) {
+        session.gpsError = err.message || 'Не удалось запустить GPS';
+      }
+    }
+  }
+
+  session.gpsAcquirePollId = setInterval(() => {
+    if (!session || session.workoutId !== id) return;
+    if (session.gpsReady && session.livePosition) {
+      clearInterval(session.gpsAcquirePollId);
+      session.gpsAcquirePollId = null;
+      return;
+    }
+    pollPositionOnce();
+  }, GPS_ACQUIRE_POLL_MS);
 
   session.timerId = setInterval(() => {
     if (!session || session.workoutId !== id) return;
@@ -399,6 +442,7 @@ export function stopWorkoutSession() {
   clearInterval(session.timerId);
   clearInterval(session.syncId);
   clearInterval(session.backgroundPollId);
+  clearInterval(session.gpsAcquirePollId);
   session.stopGps?.();
   session.appStateHandle?.remove?.();
   if (session.onVisibility) {
@@ -439,6 +483,7 @@ export function subscribeWorkoutSession(fn) {
       gpsReady: session.gpsReady,
       gpsError: session.gpsError,
       points: session.points,
+      livePosition: session.livePosition,
     });
   }
   return () => listeners.delete(fn);
