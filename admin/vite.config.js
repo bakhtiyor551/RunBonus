@@ -14,6 +14,11 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        '/admin/live-tracking': {
+          target: apiTarget,
+          ws: true,
+          changeOrigin: true,
+        },
       },
     },
     preview: {
@@ -21,6 +26,11 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           target: apiTarget,
+          changeOrigin: true,
+        },
+        '/admin/live-tracking': {
+          target: apiTarget,
+          ws: true,
           changeOrigin: true,
         },
       },

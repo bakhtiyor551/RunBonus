@@ -16,6 +16,10 @@ function formatPopup(track) {
   return `<strong>${track.client_name || 'Клиент'}</strong><br/>${track.phone || ''}<br/>${dist} км · ${pts} точек${waiting}`;
 }
 
+function pointKey(p) {
+  return `${p.lat},${p.lng},${p.recorded_at ?? ''}`;
+}
+
 export default function WorkoutLiveMap({
   tracks = [],
   height = 420,
@@ -24,7 +28,7 @@ export default function WorkoutLiveMap({
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const layersRef = useRef([]);
+  const trackLayersRef = useRef(new Map());
 
   useEffect(() => {
     if (!mapRef.current) return undefined;
@@ -38,35 +42,63 @@ export default function WorkoutLiveMap({
     }
 
     const map = mapInstanceRef.current;
-    for (const layer of layersRef.current) {
-      map.removeLayer(layer);
+    const activeIds = new Set(tracks.map((t) => t.workout_id));
+
+    for (const [id, layers] of trackLayersRef.current.entries()) {
+      if (!activeIds.has(id)) {
+        layers.line?.remove();
+        layers.marker?.remove();
+        trackLayersRef.current.delete(id);
+      }
     }
-    layersRef.current = [];
 
     const allLatLngs = [];
+
     tracks.forEach((track, index) => {
       const color = track.color || trackColor(index);
       const points = track.points ?? [];
       if (!points.length) return;
 
       const latlngs = points.map((p) => [p.lat, p.lng]);
-      if (latlngs.length >= 2) {
-        const line = L.polyline(latlngs, { color, weight: 4, opacity: 0.9 });
-        line.addTo(map);
-        layersRef.current.push(line);
+      allLatLngs.push(...latlngs);
+
+      let layers = trackLayersRef.current.get(track.workout_id);
+      if (!layers) {
+        const line = L.polyline([], { color, weight: 4, opacity: 0.9 }).addTo(map);
+        const marker = L.circleMarker(latlngs[0], {
+          radius: 9,
+          color: '#131313',
+          weight: 2,
+          fillColor: color,
+          fillOpacity: 1,
+        })
+          .bindPopup(formatPopup(track))
+          .addTo(map);
+        layers = { line, marker, lastCount: 0, seen: new Set() };
+        trackLayersRef.current.set(track.workout_id, layers);
+      }
+
+      layers.marker.setPopupContent(formatPopup(track));
+
+      if (points.length < layers.lastCount) {
+        layers.line.setLatLngs(latlngs);
+        layers.seen = new Set(points.map(pointKey));
+        layers.lastCount = points.length;
+      } else if (points.length > layers.lastCount) {
+        const newPoints = points.slice(layers.lastCount);
+        for (const p of newPoints) {
+          const key = pointKey(p);
+          if (layers.seen.has(key)) continue;
+          layers.seen.add(key);
+          const ll = [p.lat, p.lng];
+          const current = layers.line.getLatLngs();
+          layers.line.setLatLngs([...current, ll]);
+        }
+        layers.lastCount = points.length;
       }
 
       const last = latlngs[latlngs.length - 1];
-      const marker = L.circleMarker(last, {
-        radius: 9,
-        color: '#131313',
-        weight: 2,
-        fillColor: color,
-        fillOpacity: 1,
-      }).bindPopup(formatPopup(track));
-      marker.addTo(map);
-      layersRef.current.push(marker);
-      allLatLngs.push(...latlngs);
+      layers.marker.setLatLng(last);
     });
 
     window.setTimeout(() => map.invalidateSize(), 0);
@@ -86,7 +118,11 @@ export default function WorkoutLiveMap({
       }
     }
 
-    map.fitBounds(L.latLngBounds(allLatLngs), { padding: [48, 48], maxZoom: 16 });
+    if (tracks.length === 1 && allLatLngs.length <= 3) {
+      const last = allLatLngs[allLatLngs.length - 1];
+      map.setView(last, 15);
+    }
+
     return undefined;
   }, [tracks, focusWorkoutId]);
 
@@ -96,7 +132,7 @@ export default function WorkoutLiveMap({
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
-      layersRef.current = [];
+      trackLayersRef.current.clear();
     },
     []
   );

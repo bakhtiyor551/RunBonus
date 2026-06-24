@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { adminApi } from '../api';
 import Icon from './Icon';
 import WorkoutLiveMap, { trackColor } from './WorkoutLiveMap';
-
-const LIVE_POLL_MS = 4000;
+import { useLiveTracking } from '../context/LiveTrackingContext';
 
 function formatDuration(seconds) {
   const s = Math.max(0, Number(seconds) || 0);
@@ -14,37 +13,35 @@ function formatDuration(seconds) {
 }
 
 export default function WorkoutsLivePanel({ onOpenWorkout, focusWorkoutId = null }) {
-  const [live, setLive] = useState({ workouts: [], updated_at: null });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const loadLive = useCallback(async () => {
-    try {
-      const data = await adminApi('/api/admin/workouts/live');
-      setLive(data);
-      setError('');
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { live, status, error, reconnect } = useLiveTracking();
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    loadLive();
-    const timer = setInterval(loadLive, LIVE_POLL_MS);
-    return () => clearInterval(timer);
-  }, [loadLive]);
+    if (live.updated_at) setInitialLoading(false);
+  }, [live.updated_at]);
+
+  const manualRefresh = useCallback(async () => {
+    try {
+      const data = await adminApi('/api/admin/workouts/live');
+      reconnect();
+      return data;
+    } catch (e) {
+      /* fallback already attempted via reconnect */
+      throw e;
+    }
+  }, [reconnect]);
 
   const tracks = live.workouts.map((w, index) => ({
     ...w,
     color: trackColor(index),
   }));
 
-  if (loading) {
+  if (initialLoading && status !== 'connected') {
     return (
       <section className="glass-card card workouts-live">
-        <p className="hint">Загрузка live GPS…</p>
+        <p className="hint">
+          {status === 'reconnecting' ? 'Переподключение…' : 'Подключение к Live GPS…'}
+        </p>
       </section>
     );
   }
@@ -64,12 +61,13 @@ export default function WorkoutsLivePanel({ onOpenWorkout, focusWorkoutId = null
           <p className="hint workouts-live__sub">
             {live.workouts.length} активн{live.workouts.length === 1 ? 'ая' : 'ых'} тренировк
             {live.workouts.length === 1 ? 'а' : live.workouts.length < 5 ? 'и' : ''}
-            {live.updated_at && (
+            {status === 'reconnecting' && <> · Переподключение…</>}
+            {status === 'connected' && live.updated_at && (
               <> · обновлено {new Date(live.updated_at).toLocaleTimeString('ru')}</>
             )}
           </p>
         </div>
-        <button type="button" className="btn btn--outline btn--sm" onClick={loadLive}>
+        <button type="button" className="btn btn--outline btn--sm" onClick={() => manualRefresh().catch(() => {})}>
           <Icon name="refresh" />
           Обновить
         </button>

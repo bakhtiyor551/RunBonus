@@ -22,6 +22,8 @@ import {
   getWorkoutPoints,
   subscribeWorkoutSession,
   toggleWorkoutPause,
+  flushAllPendingPoints,
+  clearWorkoutGpsBuffer,
 } from '../services/workoutTracker';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
@@ -151,6 +153,7 @@ export default function WorkoutPage({ user, setUser }) {
     points = samplePoints(points);
 
     try {
+      await flushAllPendingPoints();
       const data = await api(`/api/workouts/${workoutId}/finish`, {
         method: 'POST',
         body: JSON.stringify({
@@ -166,6 +169,7 @@ export default function WorkoutPage({ user, setUser }) {
       });
       stopWorkoutSession();
       clearWorkoutLocal(workoutId);
+      await clearWorkoutGpsBuffer(workoutId);
       setActiveWorkoutId(null);
       setResult(data);
       if (setUser && data.balance_after != null) {
@@ -187,6 +191,7 @@ export default function WorkoutPage({ user, setUser }) {
       ) {
         stopWorkoutSession();
         clearWorkoutLocal(workoutId);
+        await clearWorkoutGpsBuffer(workoutId);
         setActiveWorkoutId(null);
         const sync = await syncActiveWorkoutWithServer();
         alert(
