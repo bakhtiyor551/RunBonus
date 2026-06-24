@@ -287,7 +287,7 @@ export default function WorkoutsTab() {
 
   const active = workouts.filter((w) => w.status === 'in_progress').length;
   const hasFilters = filterStatus || searchQuery.trim();
-  const liveTrackingEnabled = !selectedClient || Boolean(workoutDetailId);
+  const liveTrackingEnabled = true;
 
   const load = async () => {
     setError('');

@@ -26,6 +26,8 @@ function resolveWsBase() {
 }
 
 function httpBaseToWs(base) {
+  if (/^wss:\/\//i.test(base)) return base;
+  if (/^ws:\/\//i.test(base)) return base;
   if (/^https:\/\//i.test(base)) return base.replace(/^https/i, 'wss');
   return base.replace(/^http/i, 'ws');
 }
