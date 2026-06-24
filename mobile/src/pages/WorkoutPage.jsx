@@ -26,7 +26,9 @@ import {
   clearWorkoutGpsBuffer,
   freezeWorkoutForFinish,
   getWorkoutFinishSnapshot,
+  subscribeWorkoutCommands,
 } from '../services/workoutTracker';
+import { disconnectWorkoutSocket } from '../services/workoutSocket';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
 import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
@@ -110,6 +112,23 @@ export default function WorkoutPage({ user, setUser }) {
     return subscribeWorkoutSession(setLive);
   }, [syncing, workoutId]);
 
+  useEffect(() => {
+    if (syncing || !workoutId) return undefined;
+    return subscribeWorkoutCommands((cmd) => {
+      if (cmd.type === 'fund_exhausted') {
+        alert(cmd.message || 'Бонусный фонд пуст, начисление временно приостановлено');
+      }
+      if (cmd.type === 'workout_force_stop') {
+        alert(cmd.message || 'Пробежка аннулирована');
+        stopWorkoutSession();
+        clearWorkoutLocal(workoutId);
+        clearWorkoutGpsBuffer(workoutId).catch(() => {});
+        setActiveWorkoutId(null);
+        navigate('/', { replace: true });
+      }
+    });
+  }, [syncing, workoutId, navigate]);
+
   const minimizeOrHome = async () => {
     if (Capacitor.isNativePlatform()) {
       await ensureWorkoutLiveActivity({
@@ -158,6 +177,7 @@ export default function WorkoutPage({ user, setUser }) {
 
     try {
       await flushAllPendingPoints();
+      await disconnectWorkoutSocket();
       const data = await api(`/api/workouts/${workoutId}/finish`, {
         method: 'POST',
         body: JSON.stringify({
