@@ -1,155 +1,67 @@
 # RunBonus — «Бегай и получай бонусы»
 
-MVP: мобильное приложение + API + админ-панель. **Docker не используется** — только локальный MySQL.
+MVP платформы лояльности: мобильное приложение, REST API и админ-панель.  
+**Docker не используется** — локальный MySQL.
+
+## Документация
+
+Полная документация в папке **[docs/](docs/README.md)**:
+
+| Раздел | Ссылка |
+|--------|--------|
+| Быстрый старт | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) |
+| Архитектура | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| REST API | [docs/API.md](docs/API.md) |
+| Мобильное приложение | [docs/MOBILE.md](docs/MOBILE.md) |
+| Админ-панель | [docs/ADMIN.md](docs/ADMIN.md) |
+| Тренировки и GPS | [docs/WORKOUTS.md](docs/WORKOUTS.md) |
+| База данных | [docs/DATABASE.md](docs/DATABASE.md) |
+| Деплой | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+| iOS-сборка | [deploy/IOS.md](deploy/IOS.md) |
+
+## Быстрый старт
+
+```bash
+
+
+
+
+## Структура проекта
+
+```
+RunBonus/
+├── backend/       Node.js + Express + MySQL
+├── mobile/        Ionic React + Capacitor (Android / iOS)
+├── admin/         React админ-панель (Vite)
+├── database/      schema.sql + migrations/
+├── deploy/        iOS, DNS
+└── docs/          Документация
+```
+
+## Основные возможности
+
+- **Тренировки** — GPS-трекинг, шаги, автопауза, Live Activity (iOS)
+- **Бонусы** — начисление за километраж, лимиты, бонусный фонд
+- **Магазин** — товары за бонусы, заказы, склад
+- **Админка** — клиенты, Live GPS, отчёты, реклама
+- **Сводка** — кольца активности, цели, недельная статистика
+
+## Правила бонусов (по умолчанию)
+
+| Правило | Значение |
+|---------|----------|
+| За 1 км | 3 сомони |
+| Дневной лимит | 10 сомони |
+| Лимит на пару | 200 сомони |
+| Мин. дистанция | 500 м |
+| Мин. время | 5 минут |
 
 ## Требования
 
 - [Node.js](https://nodejs.org/) 18+
-- [MySQL](https://dev.mysql.com/downloads/) 8 (локально на Windows)
+- [MySQL](https://dev.mysql.com/downloads/) 8
+- Android Studio + JDK 17 (для APK)
+- Mac + Xcode (для iOS)
 
-## 1. База данных (локальный MySQL)
+## Тестовые данные (после seed)
 
-1. Установите MySQL Server и запомните логин/пароль (часто `root`).
-2. Создайте пользователя и БД (в MySQL Workbench или `mysql -u root -p`):
-
-```sql
-CREATE DATABASE IF NOT EXISTS runbonus CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'runbonus'@'localhost' IDENTIFIED BY 'runbonus';
-GRANT ALL PRIVILEGES ON runbonus.* TO 'runbonus'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-3. Создайте таблицы **одним из способов**:
-
-**Способ A (проще)** — из папки `backend` после `npm install`:
-
-```bash
-npm run db:setup
-```
-
-**Способ B** — через MySQL:
-
-```bash
-mysql -u runbonus -p runbonus < database/schema.sql
-```
-
-Или откройте `database/schema.sql` в MySQL Workbench и выполните скрипт.
-
-## 2. Backend
-
-```bash
-cd backend
-copy .env.example .env
-npm install
-npm run db:setup
-npm run seed
-npm run dev
-```
-
-Или одной командой: `npm run db:init` (создаёт таблицы + тестовые данные).
-
-API: `http://localhost:3001`
-
-В `.env` укажите свои данные MySQL, если они отличаются:
-
-```
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=runbonus
-DB_PASSWORD=runbonus
-DB_NAME=runbonus
-```
-
-**Тестовые данные после seed:**
-- Админка: `admin` / `admin123`
-- Код кроссовок: `SHOE-DEMO-001`
-
-## 3. Мобильное приложение
-
-```bash
-cd mobile
-npm install
-npm run dev
-```
-
-Откройте в браузере (для GPS на телефоне — сборка через Capacitor).
-
-В `mobile/.env` при необходимости:
-
-```
-VITE_API_URL=http://localhost:3001
-```
-
-Для Android (нужны [Android Studio](https://developer.android.com/studio) и JDK 17):
-
-```bash
-cd mobile
-npm install
-copy .env.example .env
-# В .env укажите IP вашего ПК: VITE_API_URL=http://192.168.x.x:3001
-npm run build:release
-npx cap open android
-```
-
-Для **iOS** (сборка только на **Mac** с Xcode — см. [deploy/IOS.md](deploy/IOS.md)):
-
-```bash
-cd mobile
-npm install
-npm run build:ios
-# на Mac:
-cd ios/App && pod install && cd ../..
-npm run cap:open:ios
-```
-
-В Xcode: Signing → Run на iPhone или Archive для App Store.
-
-## 4. Админ-панель
-
-```bash
-cd admin
-npm install
-npm run dev
-```
-
-Откройте `http://localhost:5174`, войдите: `admin` / `admin123`.
-
-## Бонусные счета (фонд компании)
-
-Бонусы клиентам списываются с **бонусного фонда** компании (таблицы `accounts`, `account_transactions`).
-
-1. В админке: раздел **«Бонусные счета»** — открыть счёт типа `bonus_fund`, пополнить остаток.
-2. После тренировки: компания **−N** сомони, клиент **+N** на кошелёк (`user_bonus_wallets`).
-3. Если на фонде недостаточно средств — бонус не начисляется, статус тренировки `rejected_no_fund`.
-
-После обновления схемы выполните:
-
-```bash
-cd backend
-npm run db:setup
-npm run seed
-```
-
-Тестовый фонд после seed: **«Бонусный фонд RunBonus»**, 10 000 сомони.
-
-## Правила бонусов
-
-| Правило | Значение |
-|--------|----------|
-| За 1 км | 3 сомони бонусами |
-| Дневной лимит | 10 сомони |
-| Лимит на одну пару | 200 сомони |
-| Мин. дистанция | 500 м |
-| Мин. время | 5 минут |
-
-Текст в приложении: **бонусы и скидка**, не «реальные деньги».
-
-## Структура
-
-```
-runbonus/
-  backend/     — Node.js + Express + MySQL
-  mobile/      — Ionic React + Capacitor
-  admin/       — React (Vite)
-  database/    — schema.sql
-```

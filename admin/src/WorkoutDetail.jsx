@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminApi } from './api';
 import WorkoutLiveMap, { trackColor } from './components/WorkoutLiveMap';
 import Icon from './components/Icon';
-
-const LIVE_POLL_MS = 4000;
+import { useLiveTracking } from './context/LiveTrackingContext';
 
 function formatDuration(seconds) {
   const s = Math.max(0, Number(seconds) || 0);
@@ -15,8 +14,13 @@ function formatDuration(seconds) {
 
 export default function WorkoutDetail({ workoutId, onClose }) {
   const [data, setData] = useState(null);
-  const [live, setLive] = useState(null);
+  const { live: liveSnapshot } = useLiveTracking();
   const [error, setError] = useState('');
+
+  const live = useMemo(
+    () => liveSnapshot.workouts?.find((w) => w.workout_id === Number(workoutId)) ?? null,
+    [liveSnapshot.workouts, workoutId]
+  );
 
   const loadDetail = useCallback(async () => {
     if (!workoutId) return;
@@ -29,36 +33,20 @@ export default function WorkoutDetail({ workoutId, onClose }) {
     }
   }, [workoutId]);
 
-  const loadLive = useCallback(async () => {
-    if (!workoutId) return;
-    try {
-      const payload = await adminApi('/api/admin/workouts/live');
-      const row = payload.workouts?.find((w) => w.workout_id === Number(workoutId));
-      setLive(row ?? null);
-    } catch {
-      /* ignore live poll errors */
-    }
-  }, [workoutId]);
-
   useEffect(() => {
     if (!workoutId) return undefined;
     setError('');
     setData(null);
-    setLive(null);
     loadDetail();
-    loadLive();
-  }, [workoutId, loadDetail, loadLive]);
+  }, [workoutId, loadDetail]);
 
   const isLive = data?.workout?.status === 'in_progress';
 
   useEffect(() => {
     if (!workoutId || !isLive) return undefined;
-    const timer = window.setInterval(() => {
-      loadLive();
-      loadDetail();
-    }, LIVE_POLL_MS);
+    const timer = window.setInterval(loadDetail, 30000);
     return () => window.clearInterval(timer);
-  }, [workoutId, isLive, loadDetail, loadLive]);
+  }, [workoutId, isLive, loadDetail]);
 
   const mapTrack = useMemo(() => {
     const rawPoints = live?.points?.length

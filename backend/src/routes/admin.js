@@ -14,7 +14,7 @@ import adminPaymentMethodsRoutes from './adminPaymentMethods.js';
 import adminDeliveryMethodsRoutes from './adminDeliveryMethods.js';
 import adminMobileWalletsRoutes from './adminMobileWallets.js';
 import { getAdminClientLevelInfo } from '../services/customerLevelService.js';
-import { calcDistanceFromPoints } from '../utils/geo.js';
+import { buildLiveSnapshot } from '../services/liveTrackingService.js';
 
 const router = Router();
 const genId = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 8);
@@ -178,77 +178,8 @@ router.get('/workouts', authAdmin, async (_req, res) => {
 
 router.get('/workouts/live', authAdmin, async (_req, res) => {
   try {
-    const [workouts] = await pool.query(
-      `SELECT w.id, w.user_id, u.name AS client_name, u.phone, w.started_at, w.status,
-              w.steps_count, w.pause_seconds, w.moving_seconds, w.duration_seconds,
-              w.avg_speed, w.max_speed, w.distance_km
-       FROM workouts w
-       JOIN users u ON u.id = w.user_id
-       WHERE w.status = 'in_progress'
-       ORDER BY w.started_at DESC`
-    );
-
-    if (!workouts.length) {
-      return res.json({ workouts: [], updated_at: new Date().toISOString() });
-    }
-
-    const ids = workouts.map((w) => w.id);
-    const [pointRows] = await pool.query(
-      `SELECT workout_id, latitude AS lat, longitude AS lng, speed, accuracy, recorded_at
-       FROM workout_points
-       WHERE workout_id IN (?)
-       ORDER BY workout_id, recorded_at`,
-      [ids]
-    );
-
-    const pointsByWorkout = new Map();
-    for (const row of pointRows) {
-      const list = pointsByWorkout.get(row.workout_id) ?? [];
-      list.push({
-        lat: Number(row.lat),
-        lng: Number(row.lng),
-        speed: row.speed != null ? Number(row.speed) : null,
-        accuracy: row.accuracy != null ? Number(row.accuracy) : null,
-        recorded_at: row.recorded_at,
-      });
-      pointsByWorkout.set(row.workout_id, list);
-    }
-
-    const payload = workouts.map((w) => {
-      const points = pointsByWorkout.get(w.id) ?? [];
-      const trackInput = points.map((p) => ({
-        latitude: p.lat,
-        longitude: p.lng,
-        speed: p.speed,
-        accuracy: p.accuracy,
-        recorded_at: p.recorded_at,
-      }));
-      const distanceKm = trackInput.length >= 2 ? calcDistanceFromPoints(trackInput) : 0;
-      const last = points[points.length - 1] ?? null;
-      const startedMs = new Date(w.started_at).getTime();
-      const elapsedSeconds = Number.isFinite(startedMs)
-        ? Math.max(0, Math.floor((Date.now() - startedMs) / 1000))
-        : 0;
-
-      return {
-        workout_id: w.id,
-        user_id: w.user_id,
-        client_name: w.client_name,
-        phone: w.phone,
-        started_at: w.started_at,
-        status: w.status,
-        steps_count: w.steps_count != null ? Number(w.steps_count) : 0,
-        pause_seconds: w.pause_seconds != null ? Number(w.pause_seconds) : 0,
-        distance_km: distanceKm,
-        elapsed_seconds: elapsedSeconds,
-        points_count: points.length,
-        last_point_at: last?.recorded_at ?? null,
-        last_position: last ? { lat: last.lat, lng: last.lng } : null,
-        points,
-      };
-    });
-
-    res.json({ workouts: payload, updated_at: new Date().toISOString() });
+    const payload = await buildLiveSnapshot();
+    res.json(payload);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка загрузки live GPS' });

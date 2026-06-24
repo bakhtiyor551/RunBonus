@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
+import { initLiveTrackingWs } from './services/liveTrackingWs.js';
 import { UPLOADS_ROOT } from './utils/userProfile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -89,6 +91,9 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 });
 
-app.listen(config.port, '0.0.0.0', () => {
+const httpServer = http.createServer(app);
+initLiveTrackingWs(httpServer);
+
+httpServer.listen(config.port, '0.0.0.0', () => {
   console.log(`API: http://localhost:${config.port} (доступен в сети по IP ПК:${config.port})`);
 });

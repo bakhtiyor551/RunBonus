@@ -4,6 +4,7 @@ import WorkoutDetail from './WorkoutDetail';
 import WorkoutsLivePanel from './components/WorkoutsLivePanel';
 import Icon from './components/Icon';
 import { formatMoney, timeAgo } from './utils/format';
+import { LiveTrackingProvider } from './context/LiveTrackingContext';
 
 const STATUS = {
   in_progress: { label: 'В процессе', className: 'workout-card__status--live' },
@@ -328,6 +329,7 @@ export default function WorkoutsTab() {
   };
 
   return (
+    <LiveTrackingProvider enabled={!selectedClient}>
     <div className="workouts-page">
       <div className="workouts-page__header glass-card">
         <div>
@@ -448,5 +450,6 @@ export default function WorkoutsTab() {
         </div>
       )}
     </div>
+    </LiveTrackingProvider>
   );
 }
