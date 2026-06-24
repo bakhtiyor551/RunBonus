@@ -37,7 +37,7 @@ export async function adminApi(path, options = {}) {
 
   let res;
   try {
-    res = await fetch(`${API}${path}`, { ...options, headers });
+    res = await fetch(`${API}${path}`, { ...options, headers, cache: 'no-store' });
   } catch {
     throw new Error('Нет связи с сервером. Запустите backend или проверьте VITE_API_URL.');
   }

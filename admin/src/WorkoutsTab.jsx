@@ -286,8 +286,8 @@ export default function WorkoutsTab() {
   }, [clients, selectedClient]);
 
   const active = workouts.filter((w) => w.status === 'in_progress').length;
-  const hasLiveWorkouts = active > 0;
   const hasFilters = filterStatus || searchQuery.trim();
+  const liveTrackingEnabled = true;
 
   const load = async () => {
     setError('');
@@ -310,14 +310,6 @@ export default function WorkoutsTab() {
     load();
   }, []);
 
-  useEffect(() => {
-    if (!hasLiveWorkouts || workoutDetailId) return;
-    const timer = window.setInterval(() => {
-      load();
-    }, 8000);
-    return () => window.clearInterval(timer);
-  }, [hasLiveWorkouts, workoutDetailId]);
-
   const openClientDetails = (client) => {
     setWorkoutDetailId(null);
     setSelectedClient(client);
@@ -329,7 +321,7 @@ export default function WorkoutsTab() {
   };
 
   return (
-    <LiveTrackingProvider enabled={!selectedClient}>
+    <LiveTrackingProvider enabled={liveTrackingEnabled}>
     <div className="workouts-page">
       <div className="workouts-page__header glass-card">
         <div>

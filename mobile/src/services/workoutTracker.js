@@ -238,6 +238,7 @@ export function persistWorkoutSession() {
   });
 }
 
+<<<<<<< HEAD
 async function uploadPointBatch(batch) {
   if (!session || !batch.length) return;
 
@@ -266,6 +267,16 @@ async function uploadPointBatch(batch) {
     method: 'POST',
     body: JSON.stringify({ points: batch, steps_count: session.steps }),
   });
+=======
+function clampPointRecordedAt(point) {
+  if (!session?.startedAt || !point) return point;
+  const startedMs = session.startedAt;
+  const t = new Date(point.recorded_at ?? Date.now()).getTime();
+  if (!Number.isFinite(t) || t < startedMs) {
+    return { ...point, recorded_at: new Date(startedMs).toISOString() };
+  }
+  return point;
+>>>>>>> dd2345473e6f07f5f6ca72e7de68cfddcc7a2a31
 }
 
 async function flushPointsToServer() {
@@ -278,7 +289,14 @@ async function flushPointsToServer() {
     if (!pending.length) {
       if (!sentAny && session.livePosition && !session.points.length) {
         try {
+<<<<<<< HEAD
           await uploadPointBatch([session.livePosition]);
+=======
+          await sendWorkoutPoints(
+            [clampPointRecordedAt(session.livePosition)],
+            session.steps
+          );
+>>>>>>> dd2345473e6f07f5f6ca72e7de68cfddcc7a2a31
         } catch {
           /* оффлайн */
         }
@@ -287,7 +305,7 @@ async function flushPointsToServer() {
     }
 
     const ids = pending.map((r) => r.id);
-    const batch = pending.map(bufferedToApiPoint);
+    const batch = pending.map((r) => clampPointRecordedAt(bufferedToApiPoint(r)));
 
     try {
       await uploadPointBatch(batch);
@@ -320,7 +338,10 @@ export async function flushAllPendingPoints() {
 async function migrateLocalPointsToBuffer(workoutId, points) {
   const pending = await getPendingPoints(workoutId, 1);
   if (pending.length) return;
+  const startedAt = session?.startedAt ?? Date.now();
   for (const p of points) {
+    const t = new Date(p.recorded_at ?? 0).getTime();
+    if (!Number.isFinite(t) || t < startedAt) continue;
     await bufferGpsPoint(workoutId, p).catch(() => {});
   }
 }
@@ -445,6 +466,7 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
 
   restoreSessionSteps(saved?.steps || 0);
   syncElapsedSeconds();
+  await clearWorkoutBuffer(id);
   await migrateLocalPointsToBuffer(id, points);
 
   setConnectivityWorkoutMode(true);

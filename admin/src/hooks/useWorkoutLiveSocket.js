@@ -8,6 +8,9 @@ function resolveWsBase() {
   if (fromEnv) return fromEnv.replace(/\/$/, '');
 
   if (import.meta.env.PROD) {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
     return 'https://runbonus.online';
   }
 
@@ -22,9 +25,16 @@ function resolveWsBase() {
   return 'https://runbonus.online';
 }
 
+function httpBaseToWs(base) {
+  if (/^wss:\/\//i.test(base)) return base;
+  if (/^ws:\/\//i.test(base)) return base;
+  if (/^https:\/\//i.test(base)) return base.replace(/^https/i, 'wss');
+  return base.replace(/^http/i, 'ws');
+}
+
 function buildWsUrl(token) {
   const base = resolveWsBase();
-  const wsBase = base.replace(/^http/i, 'ws');
+  const wsBase = httpBaseToWs(base);
   return `${wsBase}${WS_PATH}?token=${encodeURIComponent(token)}`;
 }
 
