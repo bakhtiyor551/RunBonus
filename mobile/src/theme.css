@@ -2656,6 +2656,7 @@ html.rb-keyboard-open .rb-main {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  touch-action: none;
 }
 
 .rb-workout-controls__pause {
@@ -2706,6 +2707,13 @@ html.rb-keyboard-open .rb-main {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rb-hold-stop--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .rb-hold-stop:disabled {
@@ -2735,6 +2743,7 @@ html.rb-keyboard-open .rb-main {
   border: 1px solid rgba(255, 69, 58, 0.45);
   color: #ff453a;
   font-weight: 700;
+  pointer-events: none;
 }
 
 .rb-hold-stop--active .rb-hold-stop__inner {

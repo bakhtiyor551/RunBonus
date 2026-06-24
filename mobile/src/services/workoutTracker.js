@@ -278,7 +278,7 @@ function markGpsSignal() {
 }
 
 function onGpsPosition(pos) {
-  if (!session || !pos) return;
+  if (!session || !pos || session.finishing) return;
 
   session.livePosition = pos;
   markGpsSignal();
@@ -505,9 +505,41 @@ export function toggleWorkoutPause() {
   else pauseWorkoutSession();
 }
 
+/** Остановить таймер и GPS при завершении (сессия остаётся для flush/finish). */
+export function freezeWorkoutForFinish() {
+  if (!session || session.finishing) return;
+  session.finishing = true;
+  syncElapsedSeconds();
+  clearInterval(session.timerId);
+  session.timerId = null;
+  clearInterval(session.syncId);
+  session.syncId = null;
+  clearInterval(session.backgroundPollId);
+  session.backgroundPollId = null;
+  clearInterval(session.gpsAcquirePollId);
+  session.gpsAcquirePollId = null;
+  session.stopGps?.();
+  session.stopGps = null;
+  session.currentSpeed = 0;
+  emit();
+}
+
+export function getWorkoutFinishSnapshot() {
+  if (!session) return null;
+  return {
+    distance: session.distance,
+    seconds: session.seconds,
+    movingSeconds: session.movingSeconds,
+    pauseSeconds: session.pauseSeconds,
+    steps: session.steps,
+    maxSpeed: session.maxSpeed,
+    avgSpeed: session.avgSpeed,
+  };
+}
+
 /** После возврата из фона — обновить время и GPS. */
 export async function resumeWorkoutSession() {
-  if (!session) return;
+  if (!session || session.finishing) return;
   syncElapsedSeconds();
   attachLiveActivityHandlers();
   if (!isTrackingFrozen()) await pollPositionOnce();
