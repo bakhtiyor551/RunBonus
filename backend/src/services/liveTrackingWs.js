@@ -1,10 +1,9 @@
-import { WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { buildLiveSnapshot } from './liveTrackingService.js';
 
-const WS_PATH = '/admin/live-tracking';
-const RECONNECT_HINT_MS = 5000;
+export const WS_PATH = '/admin/live-tracking';
+export const RECONNECT_HINT_MS = 5000;
 
 let wss = null;
 
@@ -35,33 +34,8 @@ function verifyAdminToken(token) {
   }
 }
 
-/**
- * @param {import('http').Server} httpServer
- */
-export function initLiveTrackingWs(httpServer) {
-  wss = new WebSocketServer({ noServer: true });
-
-  httpServer.on('upgrade', (req, socket, head) => {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    if (url.pathname !== WS_PATH) {
-      socket.destroy();
-      return;
-    }
-
-    const token = url.searchParams.get('token');
-    const admin = verifyAdminToken(token);
-    if (!admin) {
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-      socket.destroy();
-      return;
-    }
-
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      ws.isAdmin = true;
-      ws.adminId = admin.adminId;
-      wss.emit('connection', ws, req);
-    });
-  });
+export function attachAdminWss(server) {
+  wss = server;
 
   wss.on('connection', async (ws) => {
     try {
@@ -74,7 +48,24 @@ export function initLiveTrackingWs(httpServer) {
   });
 
   console.log(`WebSocket live tracking: ws://0.0.0.0:${config.port}${WS_PATH}`);
-  return wss;
+}
+
+export function handleAdminUpgrade(req, socket, head, server) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+
+  const token = url.searchParams.get('token');
+  const admin = verifyAdminToken(token);
+  if (!admin) {
+    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
+  server.handleUpgrade(req, socket, head, (ws) => {
+    ws.isAdmin = true;
+    ws.adminId = admin.adminId;
+    server.emit('connection', ws, req);
+  });
 }
 
 export function emitLiveSnapshot() {
@@ -100,5 +91,3 @@ export function emitWorkoutStarted(workout) {
 export function emitWorkoutClosed(workoutId, status, extra = {}) {
   broadcast('workout_closed', { workout_id: workoutId, status, ...extra });
 }
-
-export { WS_PATH, RECONNECT_HINT_MS };
