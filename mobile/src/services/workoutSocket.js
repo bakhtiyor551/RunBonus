@@ -9,11 +9,18 @@ function getToken() {
   return localStorage.getItem('token');
 }
 
+function httpBaseToWs(base) {
+  if (/^wss:\/\//i.test(base)) return base;
+  if (/^ws:\/\//i.test(base)) return base;
+  if (/^https:\/\//i.test(base)) return base.replace(/^https/i, 'wss');
+  return base.replace(/^http/i, 'ws');
+}
+
 function buildWsUrl(workoutId) {
   const token = getToken();
   const deviceId = getDeviceId();
   const base = (API_URL || window.location.origin).replace(/\/$/, '');
-  const wsBase = base.replace(/^http/i, (m) => (m.toLowerCase() === 'https' ? 'wss' : 'ws'));
+  const wsBase = httpBaseToWs(base);
   const params = new URLSearchParams({
     token: token || '',
     device_id: deviceId || '',

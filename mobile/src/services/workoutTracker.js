@@ -237,6 +237,16 @@ export function persistWorkoutSession() {
   });
 }
 
+function clampPointRecordedAt(point) {
+  if (!session?.startedAt || !point) return point;
+  const startedMs = session.startedAt;
+  const t = new Date(point.recorded_at ?? Date.now()).getTime();
+  if (!Number.isFinite(t) || t < startedMs) {
+    return { ...point, recorded_at: new Date(startedMs).toISOString() };
+  }
+  return point;
+}
+
 async function flushPointsToServer() {
   if (!session || session.serverStale) return;
 
@@ -247,7 +257,10 @@ async function flushPointsToServer() {
     if (!pending.length) {
       if (!sentAny && session.livePosition && !session.points.length && isWorkoutSocketOpen()) {
         try {
-          await sendWorkoutPoints([session.livePosition], session.steps);
+          await sendWorkoutPoints(
+            [clampPointRecordedAt(session.livePosition)],
+            session.steps
+          );
         } catch {
           /* оффлайн — точка останется в буфере при следующей записи */
         }
@@ -256,7 +269,7 @@ async function flushPointsToServer() {
     }
 
     const ids = pending.map((r) => r.id);
-    const batch = pending.map(bufferedToApiPoint);
+    const batch = pending.map((r) => clampPointRecordedAt(bufferedToApiPoint(r)));
 
     try {
       if (isWorkoutSocketOpen()) {
@@ -296,7 +309,10 @@ export async function flushAllPendingPoints() {
 async function migrateLocalPointsToBuffer(workoutId, points) {
   const pending = await getPendingPoints(workoutId, 1);
   if (pending.length) return;
+  const startedAt = session?.startedAt ?? Date.now();
   for (const p of points) {
+    const t = new Date(p.recorded_at ?? 0).getTime();
+    if (!Number.isFinite(t) || t < startedAt) continue;
     await bufferGpsPoint(workoutId, p).catch(() => {});
   }
 }
@@ -421,6 +437,7 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
 
   restoreSessionSteps(saved?.steps || 0);
   syncElapsedSeconds();
+  await clearWorkoutBuffer(id);
   await migrateLocalPointsToBuffer(id, points);
 
   try {

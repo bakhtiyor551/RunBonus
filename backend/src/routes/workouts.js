@@ -26,12 +26,9 @@ import {
 } from '../utils/geo.js';
 import {
   buildWorkoutLiveRow,
-<<<<<<< HEAD
   calcWorkoutDistanceKm,
   closeAbandonedInProgressWorkouts,
   isPointTimestampValid,
-=======
->>>>>>> 2e680b1302f324280cff510b5b49b4fdb91ed46e
 } from '../services/liveTrackingService.js';
 import {
   emitWorkoutClosed,
@@ -130,6 +127,24 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
     const existing = await getInProgressWorkout(conn, req.userId);
     if (existing) {
       await conn.commit();
+
+      const [resumeRows] = await pool.query(
+        `SELECT w.id, w.user_id, u.name AS client_name, u.phone, w.started_at, w.status,
+                w.steps_count, w.pause_seconds
+         FROM workouts w
+         JOIN users u ON u.id = w.user_id
+         WHERE w.id = ?`,
+        [existing.id]
+      );
+      const [resumePoints] = await pool.query(
+        `SELECT latitude AS lat, longitude AS lng, speed, accuracy, recorded_at
+         FROM workout_points WHERE workout_id = ? ORDER BY recorded_at`,
+        [existing.id]
+      );
+      if (resumeRows[0]) {
+        emitWorkoutStarted(buildWorkoutLiveRow(resumeRows[0], resumePoints));
+      }
+
       return res.status(200).json({
         workoutId: existing.id,
         id: existing.id,

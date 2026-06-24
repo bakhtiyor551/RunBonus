@@ -1,5 +1,5 @@
 import { pool } from '../db.js';
-import { calcDistanceFromPoints } from '../utils/geo.js';
+import { calcDistanceFromPoints, normalizeGpsPoint } from '../utils/geo.js';
 
 /** Максимальная длительность сессии (совпадает с closeStaleWorkouts). */
 export const MAX_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -17,10 +17,37 @@ export function isPointTimestampValid(workout, recordedAt) {
   const pointMs = new Date(recordedAt).getTime();
   if (!Number.isFinite(startedMs) || !Number.isFinite(pointMs)) return true;
   const now = Date.now();
-  if (pointMs < startedMs) return false;
   if (pointMs > startedMs + MAX_SESSION_DURATION_MS) return false;
   if (pointMs > now + FUTURE_TOLERANCE_MS) return false;
   return true;
+}
+
+/** Не отбрасывать точки до started_at — привязать к старту (якорь / буфер с телефона). */
+export function clampPointToWorkoutStart(workout, raw) {
+  const p = normalizeGpsPoint(raw);
+  if (!p || !workout?.started_at) return p;
+  const startedMs = new Date(workout.started_at).getTime();
+  const pointMs = new Date(p.recorded_at).getTime();
+  if (!Number.isFinite(pointMs) || pointMs < startedMs) {
+    const startedIso = new Date(startedMs).toISOString();
+    return { ...p, recorded_at: startedIso };
+  }
+  return p;
+}
+
+/** Точки для live-карты: только после старта тренировки. */
+export function pointsForLiveDisplay(workout, points) {
+  if (!workout?.started_at) return points;
+  const startedMs = new Date(workout.started_at).getTime();
+  return points
+    .map((p) => {
+      const t = new Date(p.recorded_at).getTime();
+      if (Number.isFinite(t) && t < startedMs) {
+        return { ...p, recorded_at: new Date(startedMs).toISOString() };
+      }
+      return p;
+    })
+    .filter((p) => isPointTimestampValid(workout, p.recorded_at));
 }
 
 function mapPointRow(row) {
@@ -132,7 +159,9 @@ export async function buildLiveSnapshot(conn = pool) {
     pointsByWorkout.set(row.workout_id, list);
   }
 
-  const payload = workouts.map((w) => buildWorkoutLiveRow(w, pointsByWorkout.get(w.id) ?? []));
+  const payload = workouts.map((w) =>
+    buildWorkoutLiveRow(w, pointsForLiveDisplay(w, pointsByWorkout.get(w.id) ?? []))
+  );
 
   return { workouts: payload, updated_at: new Date().toISOString() };
 }
