@@ -33,7 +33,7 @@ import {
   scheduleLiveActivityUpdates,
 } from './liveActivity';
 
-const SYNC_INTERVAL_MS = 8000;
+const SYNC_INTERVAL_MS = 4000;
 const BACKGROUND_POLL_MS = 5000;
 const BACKGROUND_POLL_SLOW_MS = 10000;
 const GPS_ACQUIRE_POLL_MS = 2000;
@@ -188,7 +188,7 @@ export function persistWorkoutSession() {
 }
 
 async function flushPointsToServer() {
-  if (!session?.points.length || !navigator.onLine || session.serverStale || isTrackingFrozen()) return;
+  if (!session?.points.length || !navigator.onLine || session.serverStale) return;
   const batch = session.points.slice(-80);
   try {
     await session.api(`/api/workouts/${session.workoutId}/points`, {

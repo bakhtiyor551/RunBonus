@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { adminApi } from './api';
 import WorkoutDetail from './WorkoutDetail';
+import WorkoutsLivePanel from './components/WorkoutsLivePanel';
 import Icon from './components/Icon';
 import { formatMoney, timeAgo } from './utils/format';
 
@@ -373,6 +374,10 @@ export default function WorkoutsTab() {
       )}
 
       {error && <p className="error-text">{error}</p>}
+
+      {!workoutDetailId && !selectedClient && (
+        <WorkoutsLivePanel onOpenWorkout={setWorkoutDetailId} />
+      )}
 
       {workoutDetailId ? (
         <div className="glass-card card">
