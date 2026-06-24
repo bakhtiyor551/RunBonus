@@ -1,9 +1,11 @@
 import { API_URL } from '../api';
 import { getDeviceId } from './deviceId';
+import { Capacitor } from '@capacitor/core';
 
 const WS_PATH = '/app/workout';
 const RECONNECT_MS = 4000;
 const ACK_TIMEOUT_MS = 15000;
+const CONNECT_TIMEOUT_MS = Capacitor.getPlatform() === 'android' ? 5000 : ACK_TIMEOUT_MS;
 
 function getToken() {
   return localStorage.getItem('token');
@@ -13,7 +15,14 @@ function buildWsUrl(workoutId) {
   const token = getToken();
   const deviceId = getDeviceId();
   const base = (API_URL || window.location.origin).replace(/\/$/, '');
-  const wsBase = base.replace(/^http/i, (m) => (m.toLowerCase() === 'https' ? 'wss' : 'ws'));
+  let wsBase;
+  if (/^https:\/\//i.test(base)) {
+    wsBase = base.replace(/^https/i, 'wss');
+  } else if (/^http:\/\//i.test(base)) {
+    wsBase = base.replace(/^http/i, 'ws');
+  } else {
+    wsBase = `wss://${base.replace(/^\/\//, '')}`;
+  }
   const params = new URLSearchParams({
     token: token || '',
     device_id: deviceId || '',
@@ -134,7 +143,7 @@ export function connectWorkoutSocket(id, handlers = {}) {
         socket.close();
         reject(new Error('WebSocket timeout'));
       }
-    }, ACK_TIMEOUT_MS);
+    }, CONNECT_TIMEOUT_MS);
 
     socket.onopen = () => {
       clearTimeout(connectTimeout);

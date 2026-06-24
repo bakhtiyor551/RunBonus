@@ -238,6 +238,36 @@ export function persistWorkoutSession() {
   });
 }
 
+async function uploadPointBatch(batch) {
+  if (!session || !batch.length) return;
+
+  if (isWorkoutSocketOpen()) {
+    try {
+      await sendWorkoutPoints(batch, session.steps);
+      return;
+    } catch {
+      /* WS send failed — fallback ниже */
+    }
+  }
+
+  if (!isWorkoutSocketConnecting()) {
+    try {
+      await connectWorkoutSocket(session.workoutId, { onCommand: handleServerCommand });
+      if (isWorkoutSocketOpen()) {
+        await sendWorkoutPoints(batch, session.steps);
+        return;
+      }
+    } catch {
+      /* Android WebView часто не поднимает WS — шлём по HTTP */
+    }
+  }
+
+  await session.api(`/api/workouts/${session.workoutId}/points`, {
+    method: 'POST',
+    body: JSON.stringify({ points: batch, steps_count: session.steps }),
+  });
+}
+
 async function flushPointsToServer() {
   if (!session || session.serverStale) return;
 
@@ -246,11 +276,11 @@ async function flushPointsToServer() {
   while (session && !session.serverStale) {
     const pending = await getPendingPoints(session.workoutId, BATCH_SIZE);
     if (!pending.length) {
-      if (!sentAny && session.livePosition && !session.points.length && isWorkoutSocketOpen()) {
+      if (!sentAny && session.livePosition && !session.points.length) {
         try {
-          await sendWorkoutPoints([session.livePosition], session.steps);
+          await uploadPointBatch([session.livePosition]);
         } catch {
-          /* оффлайн — точка останется в буфере при следующей записи */
+          /* оффлайн */
         }
       }
       return;
@@ -260,21 +290,12 @@ async function flushPointsToServer() {
     const batch = pending.map(bufferedToApiPoint);
 
     try {
-      if (isWorkoutSocketOpen()) {
-        await sendWorkoutPoints(batch, session.steps);
-      } else if (isWorkoutSocketConnecting()) {
-        return;
-      } else {
-        await connectWorkoutSocket(session.workoutId, {
-          onCommand: handleServerCommand,
-        });
-        await sendWorkoutPoints(batch, session.steps);
-      }
+      await uploadPointBatch(batch);
       await deleteBufferedPoints(ids);
       sentAny = true;
       if (pending.length < BATCH_SIZE) return;
     } catch (err) {
-      if (err.message?.includes('workout_not_active') || err.message?.includes('не найдена')) {
+      if (err.status === 404 || err.message?.includes('не найдена') || err.message?.includes('workout_not_active')) {
         session.serverStale = true;
       }
       return;
