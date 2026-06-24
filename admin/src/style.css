@@ -1106,8 +1106,104 @@ code {
   overflow: auto;
 }
 
+.workout-detail__map {
+  height: 360px;
+  min-height: 280px;
+  margin-bottom: 16px;
+}
+
+.workout-detail__map .workout-route-map {
+  height: 100%;
+}
+
+.workout-route-map {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+}
+
+.workout-route-map--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.workout-route-map .leaflet-container {
+  height: 100% !important;
+  width: 100%;
+  z-index: 0;
+  background: var(--surface-container-low);
+  font-family: var(--font-body);
+}
+
+.workout-route-map__legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(19, 19, 19, 0.88);
+  border: 1px solid var(--outline-variant);
+  font-size: 12px;
+}
+
+.workout-route-map__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--on-surface-variant);
+}
+
+.workout-route-map__legend-item::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #131313;
+}
+
+.workout-route-map__legend-item--start::before {
+  background: #22c55e;
+}
+
+.workout-route-map__legend-item--end::before {
+  background: #c3f400;
+}
+
 .workout-detail h4 {
   margin-top: 16px;
+}
+
+.workout-detail__live {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+.workout-detail__live-hint {
+  color: var(--on-surface-variant);
+  font-size: 13px;
+}
+
+.workout-route-map__live-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(19, 19, 19, 0.88);
+  border: 1px solid var(--outline-variant);
+  font-size: 12px;
+  color: var(--on-surface);
 }
 
 /* Shared entity cards (clients, shoes, accounts, withdrawals) */

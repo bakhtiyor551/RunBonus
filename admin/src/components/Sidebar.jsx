@@ -41,7 +41,7 @@ export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout })
         ))}
       </nav>
       <div className="sidebar__footer">
-        <div className="sidebar__profile">
+        {/* <div className="sidebar__profile">
           <div className="sidebar__avatar">
             <Icon name="admin_panel_settings" />
           </div>
@@ -50,7 +50,7 @@ export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout })
             <p className="sidebar__profile-role">Pro Tier Admin</p>
           </div>
           <Icon name="bolt" className="sidebar__bolt" />
-        </div>
+        </div> */}
         <button type="button" className="btn btn--ghost btn--sm sidebar__logout" onClick={onLogout}>
           Выйти
         </button>

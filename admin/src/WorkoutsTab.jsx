@@ -128,6 +128,12 @@ function WorkoutHistoryCard({ workout, onOpen }) {
         <Icon name="schedule" />
         {new Date(workout.started_at).toLocaleString('ru')}
       </p>
+      {isLive && (
+        <p className="entity-card__meta">
+          <Icon name="location_on" />
+          GPS: {workout.points_count ?? 0} точек
+        </p>
+      )}
       <p className="entity-card__meta entity-card__meta--muted">{timeAgo(workout.started_at)}</p>
 
       {workout.reject_reason && (
@@ -278,6 +284,7 @@ export default function WorkoutsTab() {
   }, [clients, selectedClient]);
 
   const active = workouts.filter((w) => w.status === 'in_progress').length;
+  const hasLiveWorkouts = active > 0;
   const hasFilters = filterStatus || searchQuery.trim();
 
   const load = async () => {
@@ -300,6 +307,14 @@ export default function WorkoutsTab() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (!hasLiveWorkouts || workoutDetailId) return;
+    const timer = window.setInterval(() => {
+      load();
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [hasLiveWorkouts, workoutDetailId]);
 
   const openClientDetails = (client) => {
     setWorkoutDetailId(null);

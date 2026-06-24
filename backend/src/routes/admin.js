@@ -150,6 +150,7 @@ router.get('/workouts', authAdmin, async (_req, res) => {
       `SELECT w.id, w.user_id, u.name AS client_name, u.phone, w.distance_km, w.duration_seconds,
               w.avg_speed, w.max_speed, w.started_at, w.finished_at, w.status, w.reject_reason,
               w.background_tracking,
+              (SELECT COUNT(*) FROM workout_points wp WHERE wp.workout_id = w.id) AS points_count,
               COALESCE(
                 (SELECT amount FROM user_bonus_transactions WHERE workout_id = w.id AND type = 'earn' LIMIT 1),
                 (SELECT amount FROM bonuses WHERE workout_id = w.id AND type = 'earn' LIMIT 1),
@@ -165,6 +166,7 @@ router.get('/workouts', authAdmin, async (_req, res) => {
         ...r,
         distance_km: Number(r.distance_km),
         bonus: r.bonus != null ? Number(r.bonus) : 0,
+        points_count: Number(r.points_count) || 0,
       }))
     );
   } catch (err) {
