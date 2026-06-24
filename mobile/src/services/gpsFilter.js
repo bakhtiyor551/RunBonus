@@ -1,6 +1,9 @@
 /** Макс. погрешность GPS (м) — точки хуже отбрасываются. */
 export const GPS_MAX_ACCURACY_M = 15;
 
+/** Для первой точки маршрута допускаем более слабый сигнал (Android / помещение). */
+export const GPS_ACQUIRE_ACCURACY_M = 80;
+
 /** Мин. смещение между сохранёнными точками (м). */
 export const GPS_MIN_SEGMENT_M = 2.5;
 
@@ -82,19 +85,24 @@ function isGpsJump(last, pos, distM) {
   return distM > MAX_JUMP_METERS;
 }
 
-export function isValidTrackPoint(pos) {
+function passesAccuracy(pos, maxAccuracyM) {
   if (!pos) return false;
   const acc = pos.accuracy;
-  if (acc != null && Number(acc) > GPS_MAX_ACCURACY_M) return false;
+  if (acc != null && Number(acc) > maxAccuracyM) return false;
   if (pos.speed != null && Number(pos.speed) > MAX_SPEED_KMH) return false;
   return true;
+}
+
+export function isValidTrackPoint(pos) {
+  return passesAccuracy(pos, GPS_MAX_ACCURACY_M);
 }
 
 /**
  * Фильтры точности, времени и минимального смещения перед записью в маршрут.
  */
 export function shouldRecordGpsPoint(last, pos) {
-  if (!isValidTrackPoint(pos)) {
+  const maxAcc = last ? GPS_MAX_ACCURACY_M : GPS_ACQUIRE_ACCURACY_M;
+  if (!passesAccuracy(pos, maxAcc)) {
     return { record: false, reason: 'accuracy_or_speed' };
   }
 

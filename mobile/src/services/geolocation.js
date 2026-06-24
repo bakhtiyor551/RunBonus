@@ -28,41 +28,42 @@ function isNative() {
   return Capacitor.isNativePlatform();
 }
 
-function permissionOk(status) {
-  return status.location === 'granted' || status.location === 'prompt';
+function isAndroid() {
+  return Capacitor.getPlatform() === 'android';
 }
 
-async function requestAndroidBackgroundLocation() {
-  if (Capacitor.getPlatform() !== 'android') return;
+async function ensureLocationEnabled() {
   try {
-    let status = await Geolocation.checkPermissions();
-    if (status.location !== 'granted') {
-      status = await Geolocation.requestPermissions();
+    const status = await Geolocation.checkPermissions();
+    if (status.location === 'denied') {
+      throw new Error('Включите геолокацию для начала тренировки');
     }
-    if (status.location !== 'granted') return;
-    await Geolocation.requestPermissions({ permissions: ['location'] });
-  } catch {
-    /* опционально */
+  } catch (err) {
+    if (err.message?.includes('геолокацию') || err.message?.includes('Location services')) {
+      throw new Error(
+        err.message.includes('геолокацию')
+          ? err.message
+          : 'Включите GPS в настройках телефона'
+      );
+    }
+    throw err;
   }
 }
 
 export async function requestLocationPermission() {
   if (isNative()) {
-    try {
-      let status = await Geolocation.checkPermissions();
-      if (!permissionOk(status)) {
-        status = await Geolocation.requestPermissions();
-      }
-      if (!permissionOk(status)) {
-        throw new Error('Включите геолокацию для начала тренировки');
-      }
-      await requestAndroidBackgroundLocation();
-      await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000 });
-      return true;
-    } catch (err) {
-      if (err.message?.includes('геолокацию')) throw err;
+    await ensureLocationEnabled();
+
+    let status = await Geolocation.checkPermissions();
+    if (status.location !== 'granted') {
+      status = await Geolocation.requestPermissions();
+    }
+    if (status.location !== 'granted') {
       throw new Error('Включите геолокацию для начала тренировки');
     }
+
+    await warmUpGpsFix();
+    return true;
   }
 
   if (!navigator.geolocation) {
@@ -78,12 +79,25 @@ export async function requestLocationPermission() {
   });
 }
 
+async function warmUpGpsFix() {
+  try {
+    await getCurrentPosition();
+  } catch {
+    /* Первый фикс может прийти позже через watchPosition */
+  }
+}
+
 function normalizePosition(pos) {
   const c = pos.coords || pos;
+  const lat = Number(c.latitude);
+  const lng = Number(c.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
   const speedMps = normalizeSpeedMps(c.speed);
   return {
-    latitude: c.latitude,
-    longitude: c.longitude,
+    latitude: lat,
+    longitude: lng,
     speedMps,
     speed: speedMpsToKmh(speedMps),
     accuracy: c.accuracy,
@@ -93,16 +107,34 @@ function normalizePosition(pos) {
 
 export async function getCurrentPosition() {
   if (isNative()) {
-    const pos = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: 15000,
-    });
-    return normalizePosition(pos);
+    const attempts = isAndroid()
+      ? [
+          { enableHighAccuracy: true, timeout: 25000, maximumAge: 5000 },
+          { enableHighAccuracy: true, timeout: 25000, maximumAge: 30000 },
+          { enableHighAccuracy: false, timeout: 20000, maximumAge: 120000 },
+        ]
+      : [{ enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }];
+
+    let lastErr;
+    for (const options of attempts) {
+      try {
+        const pos = await Geolocation.getCurrentPosition(options);
+        const normalized = normalizePosition(pos);
+        if (normalized) return normalized;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error('GPS сигнал недоступен');
   }
 
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve(normalizePosition(p)),
+      (p) => {
+        const normalized = normalizePosition(p);
+        if (normalized) resolve(normalized);
+        else reject(new Error('GPS сигнал недоступен'));
+      },
       () => reject(new Error('Включите геолокацию для начала тренировки')),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
@@ -117,20 +149,31 @@ export async function startBackgroundTracking(onPosition) {
     const watchId = await Geolocation.watchPosition(
       {
         enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 2000,
+        timeout: 30000,
+        maximumAge: isAndroid() ? 5000 : 2000,
+        minimumUpdateInterval: 1000,
       },
       (pos, err) => {
-        if (err || !pos) return;
-        onPosition(normalizePosition(pos));
+        if (err) return;
+        if (!pos) return;
+        const normalized = normalizePosition(pos);
+        if (normalized) onPosition(normalized);
       }
     );
+
+    getCurrentPosition()
+      .then((pos) => onPosition(pos))
+      .catch(() => {});
+
     return () => Geolocation.clearWatch({ id: watchId });
   }
 
   if (navigator.geolocation) {
     const watchId = navigator.geolocation.watchPosition(
-      (p) => onPosition(normalizePosition(p)),
+      (p) => {
+        const normalized = normalizePosition(p);
+        if (normalized) onPosition(normalized);
+      },
       () => {},
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 }
     );

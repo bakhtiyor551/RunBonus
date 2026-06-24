@@ -19,11 +19,17 @@ function FitRoute({ points, interactive }) {
   return null;
 }
 
-export default function WorkoutMap({ points = [], interactive = true, className = '' }) {
+export default function WorkoutMap({ points = [], livePosition = null, interactive = true, className = '' }) {
   const track = points.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
-  const positions = track.map((p) => [p.latitude, p.longitude]);
-  const center = track.length
-    ? [track[track.length - 1].latitude, track[track.length - 1].longitude]
+  const hasLive =
+    livePosition &&
+    Number.isFinite(livePosition.latitude) &&
+    Number.isFinite(livePosition.longitude);
+  const displayTrack =
+    track.length > 0 ? track : hasLive ? [livePosition] : [];
+  const positions = displayTrack.map((p) => [p.latitude, p.longitude]);
+  const center = displayTrack.length
+    ? [displayTrack[displayTrack.length - 1].latitude, displayTrack[displayTrack.length - 1].longitude]
     : [38.5598, 68.787];
 
   return (
@@ -52,9 +58,16 @@ export default function WorkoutMap({ points = [], interactive = true, className 
             pathOptions={{ color: '#131313', weight: 2, fillColor: '#c3f400', fillOpacity: 1 }}
           />
         )}
-        <FitRoute points={track} interactive={interactive} />
+        {track.length === 0 && hasLive && (
+          <CircleMarker
+            center={[livePosition.latitude, livePosition.longitude]}
+            radius={8}
+            pathOptions={{ color: '#131313', weight: 2, fillColor: '#00d4ff', fillOpacity: 0.9 }}
+          />
+        )}
+        <FitRoute points={displayTrack} interactive={interactive} />
       </MapContainer>
-      {!track.length && (
+      {!displayTrack.length && (
         <div className="rb-workout-map__placeholder">
           <span>GPS ожидает сигнал…</span>
         </div>

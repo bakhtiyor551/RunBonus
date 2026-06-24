@@ -49,6 +49,7 @@ export default function WorkoutPage({ user, setUser }) {
     gpsReady: false,
     gpsError: '',
     points: [],
+    livePosition: null,
   });
   const [result, setResult] = useState(null);
   const [finishing, setFinishing] = useState(false);
@@ -260,7 +261,7 @@ export default function WorkoutPage({ user, setUser }) {
       <IonContent fullscreen>
         <div className="rb-workout-layout">
           <section className="rb-workout-layout__map">
-            <WorkoutMap points={live.points} interactive />
+            <WorkoutMap points={live.points} livePosition={live.livePosition} interactive />
           </section>
 
           <main className={`rb-workout-layout__panel${live.autoPaused ? ' rb-workout-layout__panel--auto-paused' : ''}`}>
@@ -328,7 +329,7 @@ export default function WorkoutPage({ user, setUser }) {
                 {!live.gpsReady && !live.gpsError && (
                   <p className="rb-workout-status__gps">
                     <Icon name="my_location" />
-                    Подключение GPS…
+                    Ожидание сигнала GPS…
                   </p>
                 )}
               </div>
