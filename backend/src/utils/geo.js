@@ -4,6 +4,8 @@ const EARTH_RADIUS_KM = 6371;
 const COORD_EPS = 1e-6;
 
 export const MAX_GPS_ACCURACY_M = 15;
+/** Для первой точки — как в мобильном приложении (слабый GPS в помещении). */
+export const GPS_ACQUIRE_ACCURACY_M = 120;
 export const MIN_GPS_SEGMENT_M = 2.5;
 /** Ниже — считаем, что пользователь стоит (м/с). */
 export const GPS_STATIONARY_SPEED_MPS = 0.2;
@@ -45,9 +47,10 @@ export function isSameCoordinates(a, b) {
 }
 
 /** Точка не участвует в маршруте (плохой GPS или слишком быстро). */
-export function isValidTrackPoint(p) {
+export function isValidTrackPoint(p, { acquire = false } = {}) {
   if (!p) return false;
-  if (p.accuracy != null && Number(p.accuracy) > MAX_GPS_ACCURACY_M) return false;
+  const maxAcc = acquire ? GPS_ACQUIRE_ACCURACY_M : MAX_GPS_ACCURACY_M;
+  if (p.accuracy != null && Number(p.accuracy) > maxAcc) return false;
   if (p.speed != null && Number(p.speed) > MAX_GPS_SPEED_KMH) return false;
   return true;
 }
@@ -100,7 +103,7 @@ export function calcDistanceFromPoints(points) {
 /** Нужно ли сохранять точку в БД (не дубль, мин. смещение). */
 export function shouldSaveGpsPoint(last, point) {
   const p = normalizeGpsPoint(point);
-  if (!p || !isValidTrackPoint(p)) return false;
+  if (!p || !isValidTrackPoint(p, { acquire: !last })) return false;
   if (last && isSameCoordinates(last, p)) return false;
   if (last) {
     const distM =

@@ -3052,6 +3052,13 @@ code {
   z-index: 0;
 }
 
+.workout-live-map.leaflet-container,
+.workout-live-map .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #1b1b1b;
+}
+
 .workouts-live__list {
   display: flex;
   flex-direction: column;

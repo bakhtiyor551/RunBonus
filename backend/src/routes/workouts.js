@@ -22,6 +22,7 @@ import {
 import {
   calcDistanceFromPoints,
   isSameCoordinates,
+  isValidTrackPoint,
   normalizeGpsPoint,
   shouldSaveGpsPoint,
 } from '../utils/geo.js';
@@ -178,9 +179,21 @@ async function savePoints(workoutId, userId, points) {
   const list = Array.isArray(points) ? points : [points];
   let last = await getLastWorkoutPoint(workoutId);
 
+  if (!last) {
+    for (const raw of list) {
+      const p = normalizeGpsPoint(raw);
+      if (!p || !isValidTrackPoint(p, { acquire: true })) continue;
+      await insertGpsPoint(pool, workoutId, p);
+      last = p;
+      break;
+    }
+  }
+
   for (const raw of list) {
     if (!shouldSaveGpsPoint(last, raw)) continue;
     const p = normalizeGpsPoint(raw);
+    if (!p) continue;
+    if (last && isSameCoordinates(last, p)) continue;
     await insertGpsPoint(pool, workoutId, p);
     last = p;
   }

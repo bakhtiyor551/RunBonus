@@ -188,8 +188,14 @@ export function persistWorkoutSession() {
 }
 
 async function flushPointsToServer() {
-  if (!session?.points.length || !navigator.onLine || session.serverStale) return;
-  const batch = session.points.slice(-80);
+  if (!session || session.serverStale) return;
+
+  let batch = session.points.slice(-80);
+  if (!batch.length && session.livePosition) {
+    batch = [session.livePosition];
+  }
+  if (!batch.length) return;
+
   try {
     await session.api(`/api/workouts/${session.workoutId}/points`, {
       method: 'POST',
@@ -200,6 +206,16 @@ async function flushPointsToServer() {
       session.serverStale = true;
     }
   }
+}
+
+let lastLiveAnchorFlushAt = 0;
+
+function flushLiveAnchorIfNeeded() {
+  if (!session?.livePosition || session.points.length) return;
+  const now = Date.now();
+  if (now - lastLiveAnchorFlushAt < 3000) return;
+  lastLiveAnchorFlushAt = now;
+  flushPointsToServer().catch(() => {});
 }
 
 function markGpsSignal() {
@@ -213,6 +229,7 @@ function onGpsPosition(pos) {
 
   session.livePosition = pos;
   markGpsSignal();
+  flushLiveAnchorIfNeeded();
   processAutoPause(pos);
 
   if (!isTrackingFrozen()) {

@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const TRACK_COLORS = ['#c3f400', '#00d4ff', '#bf5af2', '#ff9f0a', '#ff453a', '#64d2ff'];
+const DEFAULT_CENTER = [38.5598, 68.787];
 
 export function trackColor(index) {
   return TRACK_COLORS[index % TRACK_COLORS.length];
@@ -24,11 +27,11 @@ export default function WorkoutLiveMap({
   const layersRef = useRef([]);
 
   useEffect(() => {
-    if (!window.L || !mapRef.current) return undefined;
+    if (!mapRef.current) return undefined;
 
     if (!mapInstanceRef.current) {
-      mapInstanceRef.current = window.L.map(mapRef.current, { zoomControl: true });
-      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      mapInstanceRef.current = L.map(mapRef.current, { zoomControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
         maxZoom: 19,
       }).addTo(mapInstanceRef.current);
@@ -48,13 +51,13 @@ export default function WorkoutLiveMap({
 
       const latlngs = points.map((p) => [p.lat, p.lng]);
       if (latlngs.length >= 2) {
-        const line = window.L.polyline(latlngs, { color, weight: 4, opacity: 0.9 });
+        const line = L.polyline(latlngs, { color, weight: 4, opacity: 0.9 });
         line.addTo(map);
         layersRef.current.push(line);
       }
 
       const last = latlngs[latlngs.length - 1];
-      const marker = window.L.circleMarker(last, {
+      const marker = L.circleMarker(last, {
         radius: 9,
         color: '#131313',
         weight: 2,
@@ -66,8 +69,10 @@ export default function WorkoutLiveMap({
       allLatLngs.push(...latlngs);
     });
 
+    window.setTimeout(() => map.invalidateSize(), 0);
+
     if (!allLatLngs.length) {
-      map.setView([38.5598, 68.787], 12);
+      map.setView(DEFAULT_CENTER, 12);
       return undefined;
     }
 
@@ -81,7 +86,7 @@ export default function WorkoutLiveMap({
       }
     }
 
-    map.fitBounds(window.L.latLngBounds(allLatLngs), { padding: [48, 48], maxZoom: 16 });
+    map.fitBounds(L.latLngBounds(allLatLngs), { padding: [48, 48], maxZoom: 16 });
     return undefined;
   }, [tracks, focusWorkoutId]);
 

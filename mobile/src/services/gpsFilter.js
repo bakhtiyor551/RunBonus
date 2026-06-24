@@ -2,7 +2,7 @@
 export const GPS_MAX_ACCURACY_M = 15;
 
 /** Для первой точки маршрута допускаем более слабый сигнал (Android / помещение). */
-export const GPS_ACQUIRE_ACCURACY_M = 80;
+export const GPS_ACQUIRE_ACCURACY_M = 120;
 
 /** Мин. смещение между сохранёнными точками (м). */
 export const GPS_MIN_SEGMENT_M = 2.5;

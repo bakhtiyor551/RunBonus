@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminApi } from './api';
 import WorkoutLiveMap, { trackColor } from './components/WorkoutLiveMap';
 import Icon from './components/Icon';
@@ -17,8 +17,6 @@ export default function WorkoutDetail({ workoutId, onClose }) {
   const [data, setData] = useState(null);
   const [live, setLive] = useState(null);
   const [error, setError] = useState('');
-  const pointsScrollRef = useRef(null);
-  const prevPointsCount = useRef(0);
 
   const loadDetail = useCallback(async () => {
     if (!workoutId) return;
@@ -31,18 +29,16 @@ export default function WorkoutDetail({ workoutId, onClose }) {
     }
   }, [workoutId]);
 
-  const loadDetail = () =>
-    adminApi(`/api/admin/workouts/${workoutId}`)
-      .then(setData)
-      .catch((e) => setError(e.message));
-
-  const loadLive = () =>
-    adminApi('/api/admin/workouts/live')
-      .then((payload) => {
-        const row = payload.workouts?.find((w) => w.workout_id === Number(workoutId));
-        setLive(row ?? null);
-      })
-      .catch(() => {});
+  const loadLive = useCallback(async () => {
+    if (!workoutId) return;
+    try {
+      const payload = await adminApi('/api/admin/workouts/live');
+      const row = payload.workouts?.find((w) => w.workout_id === Number(workoutId));
+      setLive(row ?? null);
+    } catch {
+      /* ignore live poll errors */
+    }
+  }, [workoutId]);
 
   useEffect(() => {
     if (!workoutId) return undefined;
@@ -51,24 +47,31 @@ export default function WorkoutDetail({ workoutId, onClose }) {
     setLive(null);
     loadDetail();
     loadLive();
-  }, [workoutId]);
+  }, [workoutId, loadDetail, loadLive]);
 
   const isLive = data?.workout?.status === 'in_progress';
 
   useEffect(() => {
     if (!workoutId || !isLive) return undefined;
-    const timer = setInterval(() => {
+    const timer = window.setInterval(() => {
       loadLive();
       loadDetail();
     }, LIVE_POLL_MS);
-    return () => clearInterval(timer);
-  }, [workoutId, isLive]);
+    return () => window.clearInterval(timer);
+  }, [workoutId, isLive, loadDetail, loadLive]);
 
   const mapTrack = useMemo(() => {
-    const points = (live?.points ?? data?.points ?? []).map((p) => ({
+    const rawPoints = live?.points?.length
+      ? live.points
+      : live?.last_position
+        ? [{ lat: live.last_position.lat, lng: live.last_position.lng }]
+        : data?.points ?? [];
+
+    const points = rawPoints.map((p) => ({
       lat: Number(p.lat ?? p.latitude),
       lng: Number(p.lng ?? p.longitude),
-    }));
+    })).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+
     if (!points.length) return [];
     return [
       {
@@ -84,7 +87,7 @@ export default function WorkoutDetail({ workoutId, onClose }) {
   }, [live, data, workoutId]);
 
   if (!workoutId) return null;
-  if (error) {
+  if (error && !data) {
     return (
       <div className="sub-card">
         <p className="error-text">{error}</p>
@@ -104,6 +107,7 @@ export default function WorkoutDetail({ workoutId, onClose }) {
   const distanceKm = live?.distance_km ?? w.distance_km;
   const elapsed = live?.elapsed_seconds ?? w.duration_seconds;
   const pointsCount = live?.points_count ?? data.points.length;
+  const hasMapPosition = mapTrack.length > 0;
 
   return (
     <div className="sub-card workout-detail">
@@ -133,7 +137,7 @@ export default function WorkoutDetail({ workoutId, onClose }) {
           focusWorkoutId={Number(workoutId)}
           height={320}
         />
-        {pointsCount === 0 && (
+        {isLive && !hasMapPosition && (
           <div className="workout-detail__map-overlay">
             <Icon name="my_location" />
             <span>GPS клиента ожидает сигнал…</span>
