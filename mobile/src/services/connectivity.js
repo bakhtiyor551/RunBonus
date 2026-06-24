@@ -4,14 +4,44 @@ import { App } from '@capacitor/app';
 import { API_URL } from '../api';
 
 const PROBE_TIMEOUT_MS = 5000;
-const PROBE_INTERVAL_MS = 8000;
-/** Сколько проверок подряд нужно, чтобы сменить статус (убирает мигание). */
+const PROBE_INTERVAL_MS = 30000;
 const OFFLINE_STREAK = 2;
 const ONLINE_STREAK = 1;
 
 let deviceHasLink = true;
+let workoutMode = false;
+let stableOnline = true;
+let failStreak = 0;
+let okStreak = 0;
+let intervalId = null;
+let setupDone = false;
+let probeInFlight = false;
+/** @type {Set<(online: boolean) => void>} */
+const subscribers = new Set();
 
-/** Реальная доступность API (navigator.onLine на Android часто врёт). */
+/** Во время тренировки не делаем HTTP /api/health — только Network + WebSocket. */
+export function setConnectivityWorkoutMode(active) {
+  workoutMode = Boolean(active);
+  if (workoutMode) {
+    if (deviceHasLink && !stableOnline) {
+      stableOnline = true;
+      notifySubscribers(true);
+    }
+  } else {
+    publish().catch(() => {});
+  }
+}
+
+function notifySubscribers(online) {
+  subscribers.forEach((fn) => {
+    try {
+      fn(online);
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 export async function probeServerReachable() {
   const url = `${API_URL}/api/health`;
   try {
@@ -34,27 +64,18 @@ export async function probeServerReachable() {
   }
 }
 
-async function isOnline() {
-  if (!deviceHasLink) return false;
-  return probeServerReachable();
-}
-
-/**
- * @param {(online: boolean) => void} onChange
- * @returns {() => void} unsubscribe
- */
-export function subscribeConnectivity(onChange) {
-  let cancelled = false;
-  let intervalId;
-  let removeNetworkListener;
-  let removeAppListener;
-  let stableOnline = true;
-  let failStreak = 0;
-  let okStreak = 0;
-
-  const publish = async () => {
-    const online = await isOnline();
-    if (cancelled) return;
+async function publish() {
+  if (probeInFlight) return;
+  probeInFlight = true;
+  try {
+    let online;
+    if (!deviceHasLink) {
+      online = false;
+    } else if (workoutMode) {
+      online = true;
+    } else {
+      online = await probeServerReachable();
+    }
 
     if (online) {
       failStreak = 0;
@@ -68,70 +89,94 @@ export function subscribeConnectivity(onChange) {
 
     if (online !== stableOnline) {
       stableOnline = online;
-      onChange(stableOnline);
+      notifySubscribers(online);
     }
-  };
+  } finally {
+    probeInFlight = false;
+  }
+}
 
-  const onLinkChange = (connected) => {
-    deviceHasLink = connected;
-    if (!connected) {
-      okStreak = 0;
-      failStreak = OFFLINE_STREAK;
-      if (!cancelled && stableOnline) {
-        stableOnline = false;
-        onChange(false);
-      }
-      return;
+function onLinkChange(connected) {
+  deviceHasLink = connected;
+  if (!connected) {
+    okStreak = 0;
+    failStreak = OFFLINE_STREAK;
+    if (stableOnline) {
+      stableOnline = false;
+      notifySubscribers(false);
     }
-    publish();
-  };
+    return;
+  }
+  publish().catch(() => {});
+}
 
-  const setup = async () => {
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const status = await Network.getStatus();
-        deviceHasLink = status.connected;
-      } catch {
-        deviceHasLink = navigator.onLine;
-      }
-      const handle = await Network.addListener('networkStatusChange', (s) => onLinkChange(s.connected));
-      removeNetworkListener = () => handle.remove();
+async function ensureSetup() {
+  if (setupDone) return;
+  setupDone = true;
 
-      const appHandle = await App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) publish();
-      });
-      removeAppListener = () => appHandle.remove();
-    } else {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const status = await Network.getStatus();
+      deviceHasLink = status.connected;
+    } catch {
       deviceHasLink = navigator.onLine;
-      const syncNav = () => onLinkChange(navigator.onLine);
-      window.addEventListener('online', syncNav);
-      window.addEventListener('offline', syncNav);
-      removeNetworkListener = () => {
-        window.removeEventListener('online', syncNav);
-        window.removeEventListener('offline', syncNav);
-      };
     }
+    Network.addListener('networkStatusChange', (s) => onLinkChange(s.connected));
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) publish().catch(() => {});
+    });
+  } else {
+    deviceHasLink = navigator.onLine;
+    const syncNav = () => onLinkChange(navigator.onLine);
+    window.addEventListener('online', syncNav);
+    window.addEventListener('offline', syncNav);
+  }
 
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') publish();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    const prevRemove = removeNetworkListener;
-    removeNetworkListener = () => {
-      prevRemove?.();
-      document.removeEventListener('visibilitychange', onVisible);
-    };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !workoutMode) {
+      publish().catch(() => {});
+    }
+  });
 
-    await publish();
-    intervalId = setInterval(publish, PROBE_INTERVAL_MS);
-  };
+  await publish();
+  intervalId = setInterval(() => {
+    if (!workoutMode) publish().catch(() => {});
+  }, PROBE_INTERVAL_MS);
+}
 
-  setup();
+/**
+ * @param {(online: boolean) => void} onChange
+ * @returns {() => void} unsubscribe
+ */
+export function subscribeConnectivity(onChange) {
+  subscribers.add(onChange);
+  onChange(stableOnline);
+  ensureSetup().catch(() => {});
 
   return () => {
-    cancelled = true;
-    clearInterval(intervalId);
-    removeNetworkListener?.();
-    removeAppListener?.();
+    subscribers.delete(onChange);
   };
+}
+
+export function getConnectivityOnline() {
+  return stableOnline;
+}
+
+export function subscribeNetworkReconnect(onReconnect) {
+  if (!Capacitor.isNativePlatform()) {
+    const handler = () => {
+      if (navigator.onLine) onReconnect();
+    };
+    window.addEventListener('online', handler);
+    return () => window.removeEventListener('online', handler);
+  }
+
+  let handle;
+  Network.addListener('networkStatusChange', (s) => {
+    if (s.connected) onReconnect();
+  }).then((h) => {
+    handle = h;
+  });
+
+  return () => handle?.remove?.();
 }
