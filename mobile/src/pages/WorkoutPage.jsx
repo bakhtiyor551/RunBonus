@@ -24,6 +24,8 @@ import {
   toggleWorkoutPause,
   flushAllPendingPoints,
   clearWorkoutGpsBuffer,
+  freezeWorkoutForFinish,
+  getWorkoutFinishSnapshot,
 } from '../services/workoutTracker';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
@@ -132,14 +134,16 @@ export default function WorkoutPage({ user, setUser }) {
   const finish = async () => {
     if (finishing || !workoutId) return;
     setFinishing(true);
+    freezeWorkoutForFinish();
+    const snap = getWorkoutFinishSnapshot();
 
-    const snapDistance = live.distance;
-    const snapSeconds = live.seconds;
-    const snapMoving = live.movingSeconds;
-    const snapPause = live.pauseSeconds;
-    const snapSteps = live.steps;
-    const snapMaxSpeed = live.maxSpeed;
-    const snapAvgSpeed = live.avgSpeed;
+    const snapDistance = snap?.distance ?? live.distance;
+    const snapSeconds = snap?.seconds ?? live.seconds;
+    const snapMoving = snap?.movingSeconds ?? live.movingSeconds;
+    const snapPause = snap?.pauseSeconds ?? live.pauseSeconds;
+    const snapSteps = snap?.steps ?? live.steps;
+    const snapMaxSpeed = snap?.maxSpeed ?? live.maxSpeed;
+    const snapAvgSpeed = snap?.avgSpeed ?? live.avgSpeed;
 
     let points = filterTrackPoints(getWorkoutPoints());
     if (points.length < 2) {
@@ -355,7 +359,11 @@ export default function WorkoutPage({ user, setUser }) {
                 <Icon name={live.manualPaused ? 'play_arrow' : live.autoPaused ? 'motion_sensor_active' : 'pause'} filled />
                 {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Продолжить' : 'Пауза'}
               </button>
-              <HoldToStopButton onStop={finish} disabled={finishing} />
+              <HoldToStopButton
+                onStop={finish}
+                disabled={finishing}
+                label={finishing ? 'Завершение…' : 'Удерживайте для остановки'}
+              />
             </div>
           </main>
         </div>

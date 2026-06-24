@@ -141,7 +141,7 @@ export default function HoldToStopButton({ onStop, disabled, label = 'Удерж
       />
       <span className="rb-hold-stop__inner">
         <Icon name="stop_circle" filled />
-        <span>{holding ? `${Math.ceil((HOLD_MS - (progress / 100) * HOLD_MS) / 1000)}…` : label}</span>
+        <span>{holding ? 'Удерживайте…' : label}</span>
       </span>
     </div>
   );
