@@ -238,6 +238,56 @@ export function persistWorkoutSession() {
   });
 }
 
+function clampPointRecordedAt(point) {
+  if (!session?.startedAt || !point) return point;
+  const startedMs = session.startedAt;
+  const t = new Date(point.recorded_at ?? Date.now()).getTime();
+  if (!Number.isFinite(t) || t < startedMs) {
+    return { ...point, recorded_at: new Date(startedMs).toISOString() };
+  }
+  return point;
+}
+
+async function uploadPointBatch(batch) {
+  if (!session || !batch.length) return;
+
+  const deduped = [];
+  const seen = new Set();
+  for (const p of batch) {
+    const key = `${p.latitude},${p.longitude},${p.recorded_at}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(p);
+  }
+  if (!deduped.length) return;
+
+  if (isWorkoutSocketOpen()) {
+    try {
+      await sendWorkoutPoints(deduped, session.steps);
+      return;
+    } catch {
+      /* fallback */
+    }
+  }
+
+  if (!isWorkoutSocketConnecting()) {
+    try {
+      await connectWorkoutSocket(session.workoutId, { onCommand: handleServerCommand });
+      if (isWorkoutSocketOpen()) {
+        await sendWorkoutPoints(deduped, session.steps);
+        return;
+      }
+    } catch {
+      /* HTTP fallback */
+    }
+  }
+
+  await session.api(`/api/workouts/${session.workoutId}/points`, {
+    method: 'POST',
+    body: JSON.stringify({ points: deduped, steps_count: session.steps }),
+  });
+}
+
 async function flushPointsToServer() {
   if (!session || session.serverStale) return;
 
@@ -246,35 +296,23 @@ async function flushPointsToServer() {
   while (session && !session.serverStale) {
     const pending = await getPendingPoints(session.workoutId, BATCH_SIZE);
     if (!pending.length) {
-      if (!sentAny && session.livePosition && !session.points.length && isWorkoutSocketOpen()) {
-        try {
-          await sendWorkoutPoints([session.livePosition], session.steps);
-        } catch {
-          /* оффлайн — точка останется в буфере при следующей записи */
-        }
+      if (!sentAny && session.livePosition && !session.points.length && !session.anchorBuffered) {
+        await ensureAnchorBuffered();
+        continue;
       }
       return;
     }
 
     const ids = pending.map((r) => r.id);
-    const batch = pending.map(bufferedToApiPoint);
+    const batch = pending.map((r) => clampPointRecordedAt(bufferedToApiPoint(r)));
 
     try {
-      if (isWorkoutSocketOpen()) {
-        await sendWorkoutPoints(batch, session.steps);
-      } else if (isWorkoutSocketConnecting()) {
-        return;
-      } else {
-        await connectWorkoutSocket(session.workoutId, {
-          onCommand: handleServerCommand,
-        });
-        await sendWorkoutPoints(batch, session.steps);
-      }
+      await uploadPointBatch(batch);
       await deleteBufferedPoints(ids);
       sentAny = true;
       if (pending.length < BATCH_SIZE) return;
     } catch (err) {
-      if (err.message?.includes('workout_not_active') || err.message?.includes('не найдена')) {
+      if (err.status === 404 || err.message?.includes('не найдена') || err.message?.includes('workout_not_active')) {
         session.serverStale = true;
       }
       return;
@@ -299,19 +337,23 @@ export async function flushAllPendingPoints() {
 async function migrateLocalPointsToBuffer(workoutId, points) {
   const pending = await getPendingPoints(workoutId, 1);
   if (pending.length) return;
+  const startedAt = session?.startedAt ?? Date.now();
   for (const p of points) {
+    const t = new Date(p.recorded_at ?? 0).getTime();
+    if (!Number.isFinite(t) || t < startedAt) continue;
     await bufferGpsPoint(workoutId, p).catch(() => {});
   }
 }
 
 let lastLiveAnchorFlushAt = 0;
 
-function flushLiveAnchorIfNeeded() {
-  if (!session?.livePosition || session.points.length) return;
+async function ensureAnchorBuffered() {
+  if (!session?.livePosition || session.points.length || session.anchorBuffered) return;
   const now = Date.now();
   if (now - lastLiveAnchorFlushAt < 3000) return;
   lastLiveAnchorFlushAt = now;
-  flushPointsToServer().catch(() => {});
+  session.anchorBuffered = true;
+  await bufferGpsPoint(session.workoutId, session.livePosition);
 }
 
 function markGpsSignal() {
@@ -325,7 +367,7 @@ function onGpsPosition(pos) {
 
   session.livePosition = pos;
   markGpsSignal();
-  flushLiveAnchorIfNeeded();
+  ensureAnchorBuffered().catch(() => {});
   processAutoPause(pos);
 
   if (!isTrackingFrozen()) {
@@ -420,10 +462,12 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
     livePosition: points.length ? points[points.length - 1] : null,
     api,
     serverStale: false,
+    anchorBuffered: false,
   };
 
   restoreSessionSteps(saved?.steps || 0);
   syncElapsedSeconds();
+  await clearWorkoutBuffer(id);
   await migrateLocalPointsToBuffer(id, points);
 
   setConnectivityWorkoutMode(true);

@@ -147,6 +147,7 @@ router.post('/shoes/generate', authAdmin, async (req, res) => {
 
 router.get('/workouts', authAdmin, async (_req, res) => {
   try {
+    res.set('Cache-Control', 'no-store');
     const [rows] = await pool.query(
       `SELECT w.id, w.user_id, u.name AS client_name, u.phone, w.distance_km, w.duration_seconds,
               w.avg_speed, w.max_speed, w.started_at, w.finished_at, w.status, w.reject_reason,
@@ -178,6 +179,7 @@ router.get('/workouts', authAdmin, async (_req, res) => {
 
 router.get('/workouts/live', authAdmin, async (_req, res) => {
   try {
+    res.set('Cache-Control', 'no-store');
     const payload = await buildLiveSnapshot();
     res.json(payload);
   } catch (err) {

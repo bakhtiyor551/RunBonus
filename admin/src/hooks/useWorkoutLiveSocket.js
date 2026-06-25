@@ -8,6 +8,9 @@ function resolveWsBase() {
   if (fromEnv) return fromEnv.replace(/\/$/, '');
 
   if (import.meta.env.PROD) {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
     return 'https://runbonus.online';
   }
 
@@ -22,9 +25,16 @@ function resolveWsBase() {
   return 'https://runbonus.online';
 }
 
+function httpBaseToWs(base) {
+  if (/^wss:\/\//i.test(base)) return base;
+  if (/^ws:\/\//i.test(base)) return base;
+  if (/^https:\/\//i.test(base)) return base.replace(/^https/i, 'wss');
+  return base.replace(/^http/i, 'ws');
+}
+
 function buildWsUrl(token) {
   const base = resolveWsBase();
-  const wsBase = base.replace(/^http/i, 'ws');
+  const wsBase = httpBaseToWs(base);
   return `${wsBase}${WS_PATH}?token=${encodeURIComponent(token)}`;
 }
 
@@ -48,7 +58,7 @@ function applyPointReceived(workouts, event) {
       {
         workout_id: id,
         distance_km: event.distance_km ?? 0,
-        points_count: incoming.length,
+        points_count: event.points_count ?? incoming.length,
         last_position: { lat: last.lat, lng: last.lng },
         points: incoming,
         client_name: event.client_name || 'Бегун',
@@ -62,7 +72,7 @@ function applyPointReceived(workouts, event) {
   const row = { ...next[idx] };
   const existing = row.points ?? [];
   row.points = [...existing, ...incoming];
-  row.points_count = row.points.length;
+  row.points_count = event.points_count ?? row.points.length;
   row.distance_km = event.distance_km ?? row.distance_km;
   const last = incoming[incoming.length - 1];
   row.last_position = { lat: last.lat, lng: last.lng };

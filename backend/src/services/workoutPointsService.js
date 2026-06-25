@@ -7,6 +7,7 @@ import {
 } from '../utils/geo.js';
 import {
   calcWorkoutDistanceKm,
+  clampPointToWorkoutStart,
   isPointTimestampValid,
 } from './liveTrackingService.js';
 import { emitPointReceived } from './liveTrackingWs.js';
@@ -31,21 +32,22 @@ async function getLastWorkoutPoint(workoutId, conn = pool) {
   return rows[0] ? normalizeGpsPoint(rows[0]) : null;
 }
 
-async function insertGpsPoint(conn, workoutId, rawPoint) {
+async function insertGpsPoint(conn, workoutId, rawPoint, workoutStartedAt = null) {
   const p = normalizeGpsPoint(rawPoint);
   if (!p) return false;
+
+  let recordedAt = p.recorded_at ? new Date(p.recorded_at) : new Date();
+  if (workoutStartedAt) {
+    const startedMs = new Date(workoutStartedAt).getTime();
+    if (Number.isFinite(startedMs) && recordedAt.getTime() < startedMs) {
+      recordedAt = new Date(workoutStartedAt);
+    }
+  }
 
   await conn.query(
     `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      workoutId,
-      p.latitude,
-      p.longitude,
-      p.speed,
-      p.accuracy,
-      p.recorded_at ? new Date(p.recorded_at) : new Date(),
-    ]
+    [workoutId, p.latitude, p.longitude, p.speed, p.accuracy, recordedAt]
   );
   return true;
 }
@@ -86,16 +88,16 @@ export async function saveWorkoutPoints(workoutId, userId, points, meta = {}) {
 
   if (!last) {
     for (const raw of list) {
-      const p = normalizeGpsPoint(raw);
+      const p = clampPointToWorkoutStart(workout, raw);
       if (!p || !isValidTrackPoint(p, { acquire: true })) continue;
       if (!isPointTimestampValid(workout, p.recorded_at)) continue;
-      await insertGpsPoint(pool, workoutId, p);
+      await insertGpsPoint(pool, workoutId, p, workout.started_at);
       savedPoints.push({
         lat: p.latitude,
         lng: p.longitude,
         speed: p.speed,
         accuracy: p.accuracy,
-        recorded_at: p.recorded_at,
+        recorded_at: p.recorded_at ?? workout.started_at,
       });
       last = p;
       break;
@@ -104,11 +106,11 @@ export async function saveWorkoutPoints(workoutId, userId, points, meta = {}) {
 
   for (const raw of list) {
     if (!shouldSaveGpsPoint(last, raw)) continue;
-    const p = normalizeGpsPoint(raw);
+    let p = clampPointToWorkoutStart(workout, raw);
     if (!p) continue;
     if (!isPointTimestampValid(workout, p.recorded_at)) continue;
     if (last && isSameCoordinates(last, p)) continue;
-    await insertGpsPoint(pool, workoutId, p);
+    await insertGpsPoint(pool, workoutId, p, workout.started_at);
     savedPoints.push({
       lat: p.latitude,
       lng: p.longitude,
@@ -127,7 +129,18 @@ export async function saveWorkoutPoints(workoutId, userId, points, meta = {}) {
   let distanceKm = 0;
   if (savedPoints.length) {
     distanceKm = await calcWorkoutDistanceKm(workoutId);
-    emitPointReceived(workoutId, savedPoints, distanceKm);
+    const [metaRows] = await pool.query(
+      `SELECT u.name AS client_name, u.phone,
+              (SELECT COUNT(*) FROM workout_points WHERE workout_id = ?) AS points_count
+       FROM workouts w JOIN users u ON u.id = w.user_id WHERE w.id = ?`,
+      [workoutId, workoutId]
+    );
+    const meta = metaRows[0] || {};
+    emitPointReceived(workoutId, savedPoints, distanceKm, {
+      client_name: meta.client_name,
+      phone: meta.phone,
+      points_count: Number(meta.points_count) || savedPoints.length,
+    });
   }
 
   return { workout, savedPoints, distanceKm };
