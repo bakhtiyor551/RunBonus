@@ -95,6 +95,8 @@ export default function WorkoutLiveMap({
           layers.line.setLatLngs([...current, ll]);
         }
         layers.lastCount = points.length;
+      } else if (points.length === 1 && layers.lastCount === 1) {
+        layers.marker.setLatLng(latlngs[0]);
       }
 
       const last = latlngs[latlngs.length - 1];

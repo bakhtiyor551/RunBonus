@@ -130,11 +130,17 @@ export async function saveWorkoutPoints(workoutId, userId, points, meta = {}) {
   if (savedPoints.length) {
     distanceKm = await calcWorkoutDistanceKm(workoutId);
     const [metaRows] = await pool.query(
-      `SELECT u.name AS client_name, u.phone
+      `SELECT u.name AS client_name, u.phone,
+              (SELECT COUNT(*) FROM workout_points WHERE workout_id = ?) AS points_count
        FROM workouts w JOIN users u ON u.id = w.user_id WHERE w.id = ?`,
-      [workoutId]
+      [workoutId, workoutId]
     );
-    emitPointReceived(workoutId, savedPoints, distanceKm, metaRows[0] || {});
+    const meta = metaRows[0] || {};
+    emitPointReceived(workoutId, savedPoints, distanceKm, {
+      client_name: meta.client_name,
+      phone: meta.phone,
+      points_count: Number(meta.points_count) || savedPoints.length,
+    });
   }
 
   return { workout, savedPoints, distanceKm };

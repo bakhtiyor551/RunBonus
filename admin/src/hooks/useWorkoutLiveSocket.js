@@ -58,7 +58,7 @@ function applyPointReceived(workouts, event) {
       {
         workout_id: id,
         distance_km: event.distance_km ?? 0,
-        points_count: incoming.length,
+        points_count: event.points_count ?? incoming.length,
         last_position: { lat: last.lat, lng: last.lng },
         points: incoming,
         client_name: event.client_name || 'Бегун',
@@ -72,7 +72,7 @@ function applyPointReceived(workouts, event) {
   const row = { ...next[idx] };
   const existing = row.points ?? [];
   row.points = [...existing, ...incoming];
-  row.points_count = row.points.length;
+  row.points_count = event.points_count ?? row.points.length;
   row.distance_km = event.distance_km ?? row.distance_km;
   const last = incoming[incoming.length - 1];
   row.last_position = { lat: last.lat, lng: last.lng };
