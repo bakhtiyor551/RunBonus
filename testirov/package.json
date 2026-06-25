@@ -1,0 +1,15 @@
+{
+  "name": "runbonus-testirov",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:workout": "node src/run.js",
+    "auth:token": "node src/getToken.js",
+    "auth:sms-send": "node src/sendSms.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ws": "^8.21.0"
+  }
+}

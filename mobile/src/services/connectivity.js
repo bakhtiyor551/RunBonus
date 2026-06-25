@@ -7,6 +7,7 @@ const PROBE_TIMEOUT_MS = 5000;
 const PROBE_INTERVAL_MS = 30000;
 const OFFLINE_STREAK = 2;
 const ONLINE_STREAK = 1;
+const RECONNECT_DEBOUNCE_MS = 700;
 
 let deviceHasLink = true;
 let workoutMode = false;
@@ -18,6 +19,11 @@ let setupDone = false;
 let probeInFlight = false;
 /** @type {Set<(online: boolean) => void>} */
 const subscribers = new Set();
+/** @type {Set<(linked: boolean) => void>} */
+const deviceLinkSubscribers = new Set();
+/** @type {Set<() => void>} */
+const reconnectSubscribers = new Set();
+let reconnectDebounceId = null;
 
 /** Во время тренировки не делаем HTTP /api/health — только Network + WebSocket. */
 export function setConnectivityWorkoutMode(active) {
@@ -40,6 +46,34 @@ function notifySubscribers(online) {
       /* ignore */
     }
   });
+}
+
+function notifyDeviceLink(linked) {
+  deviceLinkSubscribers.forEach((fn) => {
+    try {
+      fn(linked);
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+function scheduleReconnectNotify() {
+  clearTimeout(reconnectDebounceId);
+  reconnectDebounceId = setTimeout(async () => {
+    if (!deviceHasLink) return;
+    if (!workoutMode) {
+      const reachable = await probeServerReachable();
+      if (!reachable) return;
+    }
+    reconnectSubscribers.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        /* ignore */
+      }
+    });
+  }, RECONNECT_DEBOUNCE_MS);
 }
 
 export async function probeServerReachable() {
@@ -90,6 +124,7 @@ async function publish() {
     if (online !== stableOnline) {
       stableOnline = online;
       notifySubscribers(online);
+      if (online) scheduleReconnectNotify();
     }
   } finally {
     probeInFlight = false;
@@ -97,7 +132,10 @@ async function publish() {
 }
 
 function onLinkChange(connected) {
+  const wasLinked = deviceHasLink;
   deviceHasLink = connected;
+  if (wasLinked !== connected) notifyDeviceLink(connected);
+
   if (!connected) {
     okStreak = 0;
     failStreak = OFFLINE_STREAK;
@@ -108,6 +146,7 @@ function onLinkChange(connected) {
     return;
   }
   publish().catch(() => {});
+  scheduleReconnectNotify();
 }
 
 async function ensureSetup() {
@@ -158,25 +197,33 @@ export function subscribeConnectivity(onChange) {
   };
 }
 
+/**
+ * Физическое подключение к сети (Wi‑Fi / мобильные данные), без проверки сервера.
+ * @param {(linked: boolean) => void} onChange
+ * @returns {() => void} unsubscribe
+ */
+export function subscribeDeviceLink(onChange) {
+  deviceLinkSubscribers.add(onChange);
+  onChange(deviceHasLink);
+  ensureSetup().catch(() => {});
+  return () => deviceLinkSubscribers.delete(onChange);
+}
+
 export function getConnectivityOnline() {
   return stableOnline;
 }
 
+export function getDeviceHasLink() {
+  return deviceHasLink;
+}
+
+/**
+ * Вызов при восстановлении сети (с debounce и проверкой сервера вне тренировки).
+ * @param {() => void} onReconnect
+ * @returns {() => void} unsubscribe
+ */
 export function subscribeNetworkReconnect(onReconnect) {
-  if (!Capacitor.isNativePlatform()) {
-    const handler = () => {
-      if (navigator.onLine) onReconnect();
-    };
-    window.addEventListener('online', handler);
-    return () => window.removeEventListener('online', handler);
-  }
-
-  let handle;
-  Network.addListener('networkStatusChange', (s) => {
-    if (s.connected) onReconnect();
-  }).then((h) => {
-    handle = h;
-  });
-
-  return () => handle?.remove?.();
+  reconnectSubscribers.add(onReconnect);
+  ensureSetup().catch(() => {});
+  return () => reconnectSubscribers.delete(onReconnect);
 }

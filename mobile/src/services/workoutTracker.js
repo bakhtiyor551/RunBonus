@@ -34,11 +34,14 @@ import {
 } from './liveActivity';
 import {
   bufferGpsPoint,
+  bufferGpsPoints,
   bufferedToApiPoint,
   clearWorkoutBuffer,
   deleteBufferedPoints,
+  getPendingCount,
   getPendingPoints,
 } from './gpsBuffer';
+import { isNetworkError } from '../api';
 import { setConnectivityWorkoutMode, subscribeNetworkReconnect } from './connectivity';
 import {
   connectWorkoutSocket,
@@ -50,6 +53,9 @@ import {
 
 const SYNC_INTERVAL_MS = 4000;
 const PAUSED_SYNC_INTERVAL_MS = 8000;
+const SYNC_BACKOFF_MAX_MS = 32000;
+const BUFFER_FLUSH_MS = 1500;
+const BUFFER_FLUSH_BATCH = 8;
 const BATCH_SIZE = 50;
 const BACKGROUND_POLL_MS = 5000;
 const BACKGROUND_POLL_SLOW_MS = 10000;
@@ -59,6 +65,9 @@ const AUTO_PAUSE_GRACE_MS = 45000;
 let session = null;
 const listeners = new Set();
 const commandListeners = new Set();
+/** @type {{ workoutId: number, point: object }[]} */
+let bufferWriteQueue = [];
+let bufferFlushTimer = null;
 
 function emitCommand(cmd) {
   commandListeners.forEach((fn) => fn(cmd));
@@ -89,6 +98,47 @@ function restartSyncInterval() {
     if (!session) return;
     flushPointsToServer();
   }, syncIntervalMs());
+}
+
+function syncBackoffMs() {
+  if (!session?.syncFailStreak) return 0;
+  return Math.min(SYNC_BACKOFF_MAX_MS, SYNC_INTERVAL_MS * 2 ** session.syncFailStreak);
+}
+
+async function flushBufferWriteQueue() {
+  if (bufferFlushTimer) {
+    clearTimeout(bufferFlushTimer);
+    bufferFlushTimer = null;
+  }
+  if (!bufferWriteQueue.length) return;
+
+  const batch = bufferWriteQueue.splice(0);
+  const byWorkout = new Map();
+  for (const { workoutId, point } of batch) {
+    if (!byWorkout.has(workoutId)) byWorkout.set(workoutId, []);
+    byWorkout.get(workoutId).push(point);
+  }
+
+  for (const [workoutId, points] of byWorkout) {
+    await bufferGpsPoints(workoutId, points).catch(() => {});
+  }
+
+  if (session) {
+    session.pendingBufferCount = await getPendingCount(session.workoutId).catch(() => session.pendingBufferCount ?? 0);
+  }
+}
+
+function queueBufferPoint(workoutId, point) {
+  bufferWriteQueue.push({ workoutId, point });
+  if (bufferWriteQueue.length >= BUFFER_FLUSH_BATCH) {
+    flushBufferWriteQueue().catch(() => {});
+    return;
+  }
+  if (!bufferFlushTimer) {
+    bufferFlushTimer = setTimeout(() => {
+      flushBufferWriteQueue().catch(() => {});
+    }, BUFFER_FLUSH_MS);
+  }
 }
 
 function liveSnapshotFromSession() {
@@ -209,6 +259,8 @@ function emit() {
     gpsError: session.gpsError,
     points: session.points,
     livePosition: session.livePosition,
+    pendingBufferCount: session.pendingBufferCount ?? 0,
+    syncing: session.syncing ?? false,
   };
   listeners.forEach((fn) => fn(snapshot));
   syncWorkoutLiveActivity(snapshot);
@@ -291,38 +343,58 @@ async function uploadPointBatch(batch) {
 async function flushPointsToServer() {
   if (!session || session.serverStale) return;
 
+  const backoff = syncBackoffMs();
+  if (backoff > 0 && Date.now() - (session.lastSyncAttempt || 0) < backoff) return;
+
+  await flushBufferWriteQueue();
+
   let sentAny = false;
+  session.syncing = true;
 
-  while (session && !session.serverStale) {
-    const pending = await getPendingPoints(session.workoutId, BATCH_SIZE);
-    if (!pending.length) {
-      if (!sentAny && session.livePosition && !session.points.length && !session.anchorBuffered) {
-        await ensureAnchorBuffered();
-        continue;
+  try {
+    while (session && !session.serverStale) {
+      session.lastSyncAttempt = Date.now();
+      const pending = await getPendingPoints(session.workoutId, BATCH_SIZE);
+      if (!pending.length) {
+        if (!sentAny && session.livePosition && !session.points.length && !session.anchorBuffered) {
+          await ensureAnchorBuffered();
+          continue;
+        }
+        session.syncFailStreak = 0;
+        session.pendingBufferCount = 0;
+        return;
       }
-      return;
-    }
 
-    const ids = pending.map((r) => r.id);
-    const batch = pending.map((r) => clampPointRecordedAt(bufferedToApiPoint(r)));
+      const ids = pending.map((r) => r.id);
+      const batch = pending.map((r) => clampPointRecordedAt(bufferedToApiPoint(r)));
 
-    try {
-      await uploadPointBatch(batch);
-      await deleteBufferedPoints(ids);
-      sentAny = true;
-      if (pending.length < BATCH_SIZE) return;
-    } catch (err) {
-      if (err.status === 404 || err.message?.includes('не найдена') || err.message?.includes('workout_not_active')) {
-        session.serverStale = true;
+      try {
+        await uploadPointBatch(batch);
+        await deleteBufferedPoints(ids);
+        session.syncFailStreak = 0;
+        session.pendingBufferCount = await getPendingCount(session.workoutId).catch(() => 0);
+        sentAny = true;
+        if (pending.length < BATCH_SIZE) return;
+      } catch (err) {
+        if (err.status === 404 || err.message?.includes('не найдена') || err.message?.includes('workout_not_active')) {
+          session.serverStale = true;
+        } else if (isNetworkError(err) || !err.status) {
+          session.syncFailStreak = Math.min((session.syncFailStreak || 0) + 1, 6);
+          session.pendingBufferCount = await getPendingCount(session.workoutId).catch(() => pending.length);
+        }
+        return;
       }
-      return;
     }
+  } finally {
+    if (session) session.syncing = false;
   }
 }
 
 /** Выгрузить весь pending-буфер (при восстановлении сети / перед finish). */
 export async function flushAllPendingPoints() {
   if (!session || session.serverStale) return;
+  session.syncFailStreak = 0;
+  await flushBufferWriteQueue();
   let guard = 0;
   while (session && !session.serverStale && guard < 200) {
     const before = await getPendingPoints(session.workoutId, 1);
@@ -338,10 +410,12 @@ async function migrateLocalPointsToBuffer(workoutId, points) {
   const pending = await getPendingPoints(workoutId, 1);
   if (pending.length) return;
   const startedAt = session?.startedAt ?? Date.now();
-  for (const p of points) {
+  const toBuffer = points.filter((p) => {
     const t = new Date(p.recorded_at ?? 0).getTime();
-    if (!Number.isFinite(t) || t < startedAt) continue;
-    await bufferGpsPoint(workoutId, p).catch(() => {});
+    return Number.isFinite(t) && t >= startedAt;
+  });
+  if (toBuffer.length) {
+    await bufferGpsPoints(workoutId, toBuffer).catch(() => {});
   }
 }
 
@@ -353,7 +427,7 @@ async function ensureAnchorBuffered() {
   if (now - lastLiveAnchorFlushAt < 3000) return;
   lastLiveAnchorFlushAt = now;
   session.anchorBuffered = true;
-  await bufferGpsPoint(session.workoutId, session.livePosition);
+  queueBufferPoint(session.workoutId, session.livePosition);
 }
 
 function markGpsSignal() {
@@ -393,7 +467,7 @@ function onGpsPosition(pos) {
   session.distanceMeters += segmentMeters || 0;
   session.distance = Math.round((session.distanceMeters / 1000) * 1000) / 1000;
   session.gpsError = '';
-  bufferGpsPoint(session.workoutId, pos).catch(() => {});
+  queueBufferPoint(session.workoutId, pos);
   persistWorkoutSession();
   emit();
 }
@@ -463,6 +537,10 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
     api,
     serverStale: false,
     anchorBuffered: false,
+    pendingBufferCount: 0,
+    syncFailStreak: 0,
+    lastSyncAttempt: 0,
+    syncing: false,
   };
 
   restoreSessionSteps(saved?.steps || 0);
@@ -561,11 +639,18 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
 
   session.unsubConnectivity = subscribeNetworkReconnect(() => {
     if (session?.workoutId === id) {
+      session.syncFailStreak = 0;
       connectWorkoutSocket(id, { onCommand: handleServerCommand })
         .then(() => flushAllPendingPoints())
-        .catch(() => {});
+        .catch(() => flushAllPendingPoints());
     }
   });
+
+  getPendingCount(id)
+    .then((count) => {
+      if (session?.workoutId === id) session.pendingBufferCount = count;
+    })
+    .catch(() => {});
 
   attachLiveActivityHandlers();
   emit();
@@ -652,8 +737,9 @@ export async function resumeWorkoutSession() {
   emit();
 }
 
-export function stopWorkoutSession() {
+export async function stopWorkoutSession() {
   if (!session) return;
+  await flushBufferWriteQueue().catch(() => {});
   clearInterval(session.timerId);
   clearInterval(session.syncId);
   clearInterval(session.backgroundPollId);
@@ -706,6 +792,8 @@ export function subscribeWorkoutSession(fn) {
       gpsError: session.gpsError,
       points: session.points,
       livePosition: session.livePosition,
+      pendingBufferCount: session.pendingBufferCount ?? 0,
+      syncing: session.syncing ?? false,
     });
   }
   return () => listeners.delete(fn);

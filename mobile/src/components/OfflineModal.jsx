@@ -1,38 +1,61 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from './Icon';
-import { subscribeConnectivity } from '../services/connectivity';
+import { subscribeConnectivity, subscribeDeviceLink } from '../services/connectivity';
 import { getActiveWorkoutId } from '../services/geolocation';
 import { getWorkoutSession, subscribeWorkoutSession } from '../services/workoutTracker';
 
 export default function OfflineModal() {
   const [online, setOnline] = useState(true);
+  const [deviceLinked, setDeviceLinked] = useState(true);
   const [activeWorkout, setActiveWorkout] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => subscribeConnectivity(setOnline), []);
+  useEffect(() => subscribeDeviceLink(setDeviceLinked), []);
 
   useEffect(() => {
-    const sync = () => setActiveWorkout(Boolean(getWorkoutSession()?.workoutId ?? getActiveWorkoutId()));
+    const sync = () => {
+      setActiveWorkout(Boolean(getWorkoutSession()?.workoutId ?? getActiveWorkoutId()));
+    };
     sync();
-    return subscribeWorkoutSession(sync);
+    return subscribeWorkoutSession((snap) => {
+      sync();
+      setPendingCount(snap.pendingBufferCount ?? 0);
+      setSyncing(Boolean(snap.syncing));
+    });
   }, []);
 
+  const showWorkoutOffline = activeWorkout && !deviceLinked;
+  const showBlockingModal = !online && !activeWorkout;
+
   useEffect(() => {
-    if (online || activeWorkout) return undefined;
+    if (!showBlockingModal) return undefined;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [online, activeWorkout]);
+  }, [showBlockingModal]);
 
-  if (online) return null;
+  if (!showWorkoutOffline && !showBlockingModal) return null;
 
-  if (activeWorkout) {
+  if (showWorkoutOffline) {
+    const queueHint =
+      pendingCount > 0
+        ? ` — в очереди ${pendingCount} ${pendingCount === 1 ? 'точка' : pendingCount < 5 ? 'точки' : 'точек'}`
+        : '';
+    const syncHint = syncing ? ' · отправка на сервер…' : '';
+
     return createPortal(
       <div className="rb-offline-banner" role="status" aria-live="polite">
         <Icon name="wifi_off" style={{ fontSize: 18, flexShrink: 0 }} />
-        <span>Нет интернета — тренировка продолжается, данные сохранятся локально</span>
+        <span>
+          Нет интернета — тренировка продолжается, данные сохраняются локально
+          {queueHint}
+          {syncHint}
+        </span>
       </div>,
       document.body,
     );

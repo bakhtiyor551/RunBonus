@@ -15,6 +15,7 @@ import { formatBalance, formatWorkoutDate } from '../utils/format';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
+import { getConnectivityOnline } from '../services/connectivity';
 import {
   startDailyStepsPolling,
   stopDailyStepsPolling,
@@ -122,7 +123,7 @@ export default function HomePage({ user, setUser }) {
     if (starting) return;
     setStarting(true);
     try {
-      if (!navigator.onLine) {
+      if (!getConnectivityOnline()) {
         alert('Нужно подключение к интернету');
         return;
       }

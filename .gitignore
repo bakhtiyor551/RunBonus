@@ -13,6 +13,8 @@ dist/
 admin/dist/
 mobile/dist/
 
+testirov/.env
+testirov/node_modules/
 .env
 .env.local
 *.log

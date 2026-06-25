@@ -7,7 +7,7 @@ import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
 import WorkoutMap from '../components/WorkoutMap';
 import HoldToStopButton from '../components/HoldToStopButton';
-import { api } from '../api';
+import { api, isNetworkError } from '../api';
 import {
   clearWorkoutLocal,
   setActiveWorkoutId,
@@ -226,8 +226,9 @@ export default function WorkoutPage({ user, setUser }) {
         navigate('/', { replace: true });
         return;
       }
-      const msg =
-        err.code === 'DEVICE_REQUIRED'
+      const msg = isNetworkError(err)
+        ? 'Нет связи с сервером. Данные сохранены локально — подключитесь к интернету и завершите тренировку снова.'
+        : err.code === 'DEVICE_REQUIRED'
           ? 'Обновите приложение RunBonus и повторите вход.'
           : err.message;
       alert(msg);

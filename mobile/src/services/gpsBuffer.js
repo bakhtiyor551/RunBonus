@@ -38,18 +38,40 @@ function pointPayload(workoutId, point) {
   };
 }
 
+function pendingRange(workoutId) {
+  return IDBKeyRange.only([Number(workoutId), 'pending']);
+}
+
+function sortByRecordedAt(rows) {
+  return rows.sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at));
+}
+
 /** Записать GPS-точку в локальный буфер (status: pending). */
 export async function bufferGpsPoint(workoutId, point) {
-  const payload = pointPayload(workoutId, point);
-  if (!Number.isFinite(payload.latitude) || !Number.isFinite(payload.longitude)) return null;
+  const count = await bufferGpsPoints(workoutId, [point]);
+  return count ? 1 : null;
+}
+
+/** Пакетная запись GPS-точек — одна транзакция IndexedDB. */
+export async function bufferGpsPoints(workoutId, points) {
+  if (!points?.length) return 0;
+
+  const payloads = [];
+  for (const point of points) {
+    const payload = pointPayload(workoutId, point);
+    if (Number.isFinite(payload.latitude) && Number.isFinite(payload.longitude)) {
+      payloads.push(payload);
+    }
+  }
+  if (!payloads.length) return 0;
 
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
-    const req = store.add(payload);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    for (const payload of payloads) store.add(payload);
+    tx.oncomplete = () => resolve(payloads.length);
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -58,16 +80,24 @@ export async function getPendingPoints(workoutId, limit = 50) {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
-    const store = tx.objectStore(STORE);
-    const index = store.index('workout_id');
-    const req = index.getAll(Number(workoutId));
+    const index = tx.objectStore(STORE).index('workout_status');
+    const req = index.getAll(pendingRange(workoutId));
     req.onsuccess = () => {
-      const rows = (req.result || [])
-        .filter((r) => r.status === 'pending')
-        .sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at))
-        .slice(0, limit);
+      const rows = sortByRecordedAt(req.result || []).slice(0, limit);
       resolve(rows);
     };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** Количество pending-точек без загрузки всех записей. */
+export async function getPendingCount(workoutId) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const index = tx.objectStore(STORE).index('workout_status');
+    const req = index.count(pendingRange(workoutId));
+    req.onsuccess = () => resolve(req.result || 0);
     req.onerror = () => reject(req.error);
   });
 }
@@ -90,9 +120,8 @@ export async function clearWorkoutBuffer(workoutId) {
   const db = await openDb();
   const all = await new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
-    const store = tx.objectStore(STORE);
-    const index = store.index('workout_id');
-    const req = index.getAll(Number(workoutId));
+    const index = tx.objectStore(STORE).index('workout_status');
+    const req = index.getAll(pendingRange(workoutId));
     req.onsuccess = () => resolve(req.result || []);
     req.onerror = () => reject(req.error);
   });
