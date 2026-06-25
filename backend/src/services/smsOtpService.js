@@ -36,7 +36,15 @@ async function ensureTable() {
   return tableReady;
 }
 
-function generateCode() {
+function getFixedTestCode(phone) {
+  const t = config.sms.testOtp;
+  if (t && phone === t.phone) return t.code;
+  return null;
+}
+
+function generateCode(phone) {
+  const fixed = getFixedTestCode(phone);
+  if (fixed) return fixed;
   if (process.env.NODE_ENV !== 'production' && config.sms.devCode) {
     return String(config.sms.devCode).replace(/\D/g, '').slice(0, 6).padStart(6, '0');
   }
@@ -113,7 +121,7 @@ export async function sendVerificationCode(phoneRaw, purpose) {
     purpose,
   ]);
 
-  const code = generateCode();
+  const code = generateCode(phone);
   const expiresAt = new Date(Date.now() + CODE_TTL_MS);
 
   await pool.query(
@@ -121,17 +129,18 @@ export async function sendVerificationCode(phoneRaw, purpose) {
     [phone, hashCode(code), purpose, expiresAt]
   );
 
+  const isTestPhone = Boolean(getFixedTestCode(phone));
   const devMode = process.env.NODE_ENV !== 'production' && config.sms.devCode;
-  if (!devMode) {
+  if (!devMode && !isTestPhone) {
     await sendOtpSms(phone, code);
   }
 
   const payload = {
-    message: 'Код отправлен на ваш номер',
+    message: isTestPhone ? 'Тестовый код (SMS не отправляется)' : 'Код отправлен на ваш номер',
     phone,
     expires_in: Math.floor(CODE_TTL_MS / 1000),
   };
-  if (devMode) {
+  if (devMode || isTestPhone) {
     payload.dev_code = code;
   }
   return payload;
