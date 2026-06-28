@@ -16,11 +16,12 @@ const NAV = [
   { id: 9, label: 'Заказы', icon: 'shopping_bag' },
   { id: 10, label: 'Способы оплаты', icon: 'payments' },
   { id: 'ads', label: 'Реклама', icon: 'campaign' },
+  { id: 'nutrition', label: 'Питание', icon: 'restaurant' },
 ];
 
 export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {
   const isActive = (item) =>
-    item.id === 'dashboard' || item.id === 'ads'
+    item.id === 'dashboard' || item.id === 'ads' || item.id === 'nutrition'
       ? activeTab === item.id
       : activeTab === item.id;
 

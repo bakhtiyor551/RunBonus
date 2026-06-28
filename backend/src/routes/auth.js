@@ -21,6 +21,7 @@ import {
 } from '../services/deviceBinding.js';
 import { sendVerificationCode, verifyCode } from '../services/smsOtpService.js';
 import { isSmsEnabled } from '../services/smsService.js';
+import { getSubscriptionInfo } from '../services/subscriptionService.js';
 
 const router = Router();
 
@@ -379,11 +380,20 @@ async function buildUserProfile(userId, requestDeviceId = null) {
     /* migration not applied yet */
   }
 
+  let subscription = { is_premium: false };
+  try {
+    subscription = await getSubscriptionInfo(userId);
+  } catch {
+    /* migration not applied yet */
+  }
+
   return {
     ...base,
     balance: walletSummary.balance,
     blocked_balance: walletSummary.blocked_balance,
     available_balance: walletSummary.available_balance,
+    is_premium: subscription.is_premium,
+    premium_expires_at: subscription.expires_at || null,
     activeShoe: activeShoe[0]
       ? { id: activeShoe[0].id, unique_id: activeShoe[0].unique_id, model_name: activeShoe[0].model_name }
       : null,

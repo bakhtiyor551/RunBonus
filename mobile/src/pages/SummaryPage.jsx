@@ -221,6 +221,21 @@ export default function SummaryPage({ user, setUser }) {
           </section>
 
           <section className="glass-card rb-summary-section">
+            <button type="button" className="rb-summary-nutrition-cta" onClick={() => navigate('/nutrition')}>
+              <div className="rb-summary-nutrition-cta__left">
+                <div className="rb-summary-nutrition-cta__icon">
+                  <Icon name="restaurant" />
+                </div>
+                <div>
+                  <h2 className="rb-headline font-display" style={{ margin: 0 }}>Питание RunBonus+</h2>
+                  <p className="rb-text-muted" style={{ margin: '4px 0 0' }}>Калории, AI-распознавание еды, баланс</p>
+                </div>
+              </div>
+              <Icon name="chevron_right" />
+            </button>
+          </section>
+
+          <section className="glass-card rb-summary-section">
             <h2 className="rb-headline font-display">Кольца активности</h2>
             {loading ? <p className="rb-text-muted">Загрузка…</p> : <ActivityRings rings={summary?.rings} />}
           </section>

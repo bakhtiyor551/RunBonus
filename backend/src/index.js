@@ -21,6 +21,8 @@ import mobileRoutes from './routes/mobile.js';
 import adminShopRoutes from './routes/adminShop.js';
 import adminReportsRoutes from './routes/adminReports.js';
 import adminAdsRoutes from './routes/adminAds.js';
+import nutritionRoutes from './routes/nutrition.js';
+import adminNutritionRoutes from './routes/adminNutrition.js';
 import { isWithdrawalSchemaReady } from './services/withdrawalService.js';
 import { buildDailyTelegramReport } from './services/reportsService.js';
 import { sendTelegramMessage } from './services/telegramService.js';
@@ -69,6 +71,8 @@ app.use('/api/admin/reports', adminReportsRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/reports', adminReportsRoutes);
 app.use('/api/admin/ads', adminAdsRoutes);
+app.use('/api/nutrition', nutritionRoutes);
+app.use('/api/admin/nutrition', adminNutritionRoutes);
 
 /** Утренний Telegram-отчёт (08:00, один раз в сутки). */
 let lastDailyReportKey = '';

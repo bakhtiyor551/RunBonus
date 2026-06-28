@@ -2,6 +2,7 @@ import { pool } from '../db.js';
 import { ensureUserWallet } from './accountService.js';
 import { getWalletSummary } from './withdrawalService.js';
 import { normalizeAvatarUrl } from '../utils/userProfile.js';
+import { estimateCalories } from '../utils/calories.js';
 
 const DEFAULT_GOALS = {
   daily_distance_km: 8,
@@ -18,13 +19,6 @@ const DAY_LABELS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 function round2(n) {
   return Math.round(Number(n || 0) * 100) / 100;
-}
-
-function estimateCalories(distanceKm, activeMinutes, steps = 0) {
-  const fromDist = distanceKm * 60;
-  const fromTime = activeMinutes * 5;
-  const fromSteps = steps * 0.04;
-  return Math.round(Math.max(fromDist, fromTime, fromSteps));
 }
 
 function ringBlock(current, goal, unit) {

@@ -183,6 +183,12 @@ export async function sendPushToTokens(tokens, { title, body, data = {} }) {
   return { sent, failed, skipped: false };
 }
 
+/** Push одному пользователю по user_id. */
+export async function sendPushToUser(userId, { title, body, data = {} }) {
+  const tokens = await getUserPushTokens(userId);
+  return sendPushToTokens(tokens, { title, body, data });
+}
+
 /** Push пользователю при смене статуса заказа. */
 export async function sendOrderStatusPush({ userId, orderId, title, body, status }) {
   if (!userId || !orderId) {
