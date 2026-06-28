@@ -43,6 +43,13 @@ export const config = {
     /** 11-символьный хеш Android для автоподстановки кода (SMS Retriever) */
     appHash: (process.env.SMS_APP_HASH || '').trim(),
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY?.trim() || '',
+    baseUrl: (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
+    model: process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini',
+  },
+  /** В dev можно включить nutrition без подписки */
+  nutritionDevFree: process.env.NUTRITION_DEV_FREE === '1',
   firebase: {
     /** JSON строка service account (FIREBASE_SERVICE_ACCOUNT_JSON) */
     serviceAccount: (() => {

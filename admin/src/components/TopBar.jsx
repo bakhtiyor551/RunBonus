@@ -16,6 +16,7 @@ const TITLES = {
   9: 'Заказы магазина',
   10: 'Способы оплаты',
   ads: 'Реклама',
+  nutrition: 'Питание RunBonus+',
 };
 
 export default function TopBar({ activeTab, fundBalance, currency = 'TJS' }) {

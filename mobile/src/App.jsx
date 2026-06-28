@@ -18,7 +18,7 @@ import LevelPage from './pages/LevelPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
-import MyOrdersPage from './pages/MyOrdersPage';
+import NutritionPage from './pages/NutritionPage';
 import OfflineModal from './components/OfflineModal';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
 import {
@@ -192,6 +192,7 @@ function App() {
             <Route path="/shop/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage user={user} />} />
             <Route path="/orders" element={<MyOrdersPage />} />
+            <Route path="/nutrition" element={<NutritionPage user={user} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
