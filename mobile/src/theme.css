@@ -3303,12 +3303,53 @@ html.rb-keyboard-open .rb-main {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding-bottom: 100px;
+  padding-bottom: calc(var(--rb-bottom-nav-height, 72px) + 80px);
 }
 
-.rb-nutrition-hero h1 {
+.rb-nutrition-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rb-nutrition-hero__text h1 {
   margin: 0 0 4px;
-  font-size: 26px;
+  font-size: clamp(22px, 5vw, 28px);
+}
+
+.rb-nutrition-hero__ring-wrap {
+  flex-shrink: 0;
+}
+
+.rb-nutrition-ring {
+  position: relative;
+  width: 140px;
+  height: 140px;
+}
+
+.rb-nutrition-ring__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.rb-nutrition-ring__center strong {
+  font-size: 28px;
+  line-height: 1;
+  color: var(--rb-neon);
+}
+
+.rb-nutrition-ring__center span {
+  font-size: 11px;
+}
+
+.rb-nutrition-ring__arc {
+  transition: stroke-dashoffset 0.6s ease;
 }
 
 .rb-nutrition-plus-badge {
@@ -3322,23 +3363,24 @@ html.rb-keyboard-open .rb-main {
 
 .rb-nutrition-stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 
 .rb-nutrition-stat {
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .rb-nutrition-stat__emoji {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .rb-nutrition-stat strong {
-  font-size: 28px;
+  font-size: clamp(22px, 5vw, 28px);
   line-height: 1.1;
 }
 
@@ -3347,28 +3389,71 @@ html.rb-keyboard-open .rb-main {
 }
 
 .rb-nutrition-stat__unit {
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.rb-nutrition-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .rb-nutrition-balance__row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   margin-top: 12px;
 }
 
+.rb-nutrition-balance__item strong {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(16px, 3.5vw, 20px);
+}
+
 .rb-nutrition-balance__op {
-  font-size: 20px;
+  font-size: 18px;
   color: var(--rb-text-muted);
+  text-align: center;
 }
 
 .rb-nutrition-balance--plus {
   color: #ff9f43;
 }
 
+.rb-nutrition-goal-bar {
+  margin-top: 20px;
+}
+
+.rb-nutrition-goal-bar__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.rb-nutrition-goal-bar__track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.rb-nutrition-goal-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--rb-neon);
+  transition: width 0.5s ease;
+}
+
+.rb-nutrition-goal-bar__fill--over {
+  background: #ff6b6b;
+}
+
 .rb-nutrition-period-row,
-.rb-nutrition-meals-grid,
 .rb-nutrition-analytics {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3376,18 +3461,91 @@ html.rb-keyboard-open .rb-main {
   margin-top: 12px;
 }
 
-.rb-nutrition-chart {
+.rb-nutrition-period-row strong,
+.rb-nutrition-analytics strong {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(18px, 4vw, 22px);
+}
+
+.rb-nutrition-macros {
   display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  min-height: 120px;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rb-nutrition-macro__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.rb-nutrition-macro__val {
+  font-size: 13px;
+  color: var(--rb-text-muted);
+}
+
+.rb-nutrition-macro__track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.rb-nutrition-macro__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+.rb-nutrition-meals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.rb-nutrition-meal__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.rb-nutrition-meal__track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.rb-nutrition-meal__track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--rb-neon);
+  transition: width 0.5s ease;
+}
+
+.rb-nutrition-chart {
   margin-top: 16px;
   position: relative;
-  padding-bottom: 24px;
+  padding-bottom: 28px;
+}
+
+.rb-nutrition-chart__cols {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  min-height: 120px;
 }
 
 .rb-nutrition-chart__col {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3398,7 +3556,7 @@ html.rb-keyboard-open .rb-main {
   display: flex;
   gap: 3px;
   align-items: flex-end;
-  height: 90px;
+  height: clamp(80px, 18vw, 110px);
   width: 100%;
 }
 
@@ -3406,6 +3564,7 @@ html.rb-keyboard-open .rb-main {
   flex: 1;
   min-height: 4px;
   border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease;
 }
 
 .rb-nutrition-chart__bar--eat {
@@ -3417,7 +3576,7 @@ html.rb-keyboard-open .rb-main {
 }
 
 .rb-nutrition-chart__day {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--rb-text-muted);
 }
 
@@ -3427,7 +3586,8 @@ html.rb-keyboard-open .rb-main {
   left: 0;
   right: 0;
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   justify-content: center;
   font-size: 11px;
   color: var(--rb-text-muted);
@@ -3440,6 +3600,7 @@ html.rb-keyboard-open .rb-main {
   background: var(--rb-neon);
   border-radius: 2px;
   margin-right: 4px;
+  vertical-align: middle;
 }
 
 .rb-nutrition-chart__legend .burn {
@@ -3449,6 +3610,7 @@ html.rb-keyboard-open .rb-main {
   background: #00d4ff;
   border-radius: 2px;
   margin-right: 4px;
+  vertical-align: middle;
 }
 
 .rb-nutrition-history ul {
@@ -3461,42 +3623,124 @@ html.rb-keyboard-open .rb-main {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.rb-nutrition-history-item strong {
-  display: block;
+.rb-nutrition-history__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-nutrition-history__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 2px;
 }
 
 .rb-nutrition-history__time {
   font-size: 12px;
   color: var(--rb-text-muted);
-  margin-right: 8px;
+}
+
+.rb-nutrition-history__meal {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+}
+
+.rb-nutrition-history-item strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rb-nutrition-history__kcal {
+  font-size: 13px;
 }
 
 .rb-nutrition-history__del {
+  flex-shrink: 0;
   background: none;
   border: none;
   color: var(--rb-text-muted);
   padding: 8px;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.rb-nutrition-history__del:active {
+  background: rgba(255, 107, 107, 0.12);
+  color: #ff6b6b;
+}
+
+.rb-nutrition-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--rb-text-muted);
+}
+
+.rb-nutrition-empty .material-symbols-outlined {
+  font-size: 40px;
+  opacity: 0.5;
+}
+
+.rb-nutrition-empty p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--rb-on-surface);
 }
 
 .rb-nutrition-fab {
   position: fixed;
   bottom: calc(var(--rb-bottom-nav-height, 72px) + 16px);
-  left: 16px;
-  right: 16px;
+  left: max(var(--rb-gutter), env(safe-area-inset-left, 0px));
+  right: max(var(--rb-gutter), env(safe-area-inset-right, 0px));
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.rb-nutrition-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rb-nutrition-skeleton__card {
+  height: 96px;
+  animation: rb-nutrition-pulse 1.4s ease-in-out infinite;
+}
+
+.rb-nutrition-skeleton__block {
+  height: 140px;
+  animation: rb-nutrition-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes rb-nutrition-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.85; }
 }
 
 .rb-nutrition-paywall {
   text-align: center;
-  padding: 32px 16px;
+  padding: clamp(24px, 6vw, 48px) 16px;
+  max-width: 420px;
+  margin: 0 auto;
 }
 
 .rb-nutrition-paywall__icon {
@@ -3543,7 +3787,7 @@ html.rb-keyboard-open .rb-main {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 20px;
+  padding: 20px 12px;
   background: var(--rb-surface-high);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
@@ -3554,7 +3798,7 @@ html.rb-keyboard-open .rb-main {
   list-style: none;
   padding: 0;
   margin: 12px 0 0;
-  max-height: 280px;
+  max-height: min(280px, 45dvh);
   overflow-y: auto;
 }
 
@@ -3591,7 +3835,7 @@ html.rb-keyboard-open .rb-main {
 .rb-nutrition-photo-preview img {
   width: 100%;
   border-radius: 12px;
-  max-height: 200px;
+  max-height: min(200px, 35dvh);
   object-fit: cover;
 }
 
@@ -3668,6 +3912,100 @@ html.rb-keyboard-open .rb-main {
   margin-top: 12px;
   color: var(--rb-neon);
   font-size: 14px;
+}
+
+/* Адаптив: узкие экраны */
+@media (max-width: 380px) {
+  .rb-nutrition-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .rb-nutrition-hero__ring-wrap {
+    align-self: center;
+  }
+
+  .rb-nutrition-balance__row {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .rb-nutrition-balance__op {
+    display: none;
+  }
+
+  .rb-nutrition-balance__item:last-child {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .rb-nutrition-stat {
+    padding: 12px;
+  }
+
+  .rb-nutrition-add-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .rb-nutrition-edit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Адаптив: широкие телефоны */
+@media (min-width: 480px) {
+  .rb-nutrition-stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .rb-nutrition-stat strong {
+    font-size: 24px;
+  }
+}
+
+/* Адаптив: планшеты и десктоп */
+@media (min-width: 600px) {
+  .rb-nutrition-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .rb-nutrition-columns > section {
+    margin: 0;
+  }
+
+  .rb-nutrition-fab {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(480px, calc(100% - 48px));
+  }
+
+  .rb-nutrition-chart__bars {
+    height: 120px;
+  }
+
+  .rb-nutrition-analytics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .rb-nutrition {
+    gap: 24px;
+  }
+
+  .rb-nutrition-ring {
+    width: 160px;
+    height: 160px;
+  }
+
+  .rb-nutrition-ring__center strong {
+    font-size: 32px;
+  }
 }
 
 .rb-summary-nutrition-cta {

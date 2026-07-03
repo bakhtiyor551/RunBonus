@@ -18,6 +18,54 @@ import {
 } from '../services/nutrition';
 import { showToast } from '../utils/toast';
 
+function pctOf(value, goal) {
+  return goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
+}
+
+function CalorieRing({ consumed, goal }) {
+  const size = 140;
+  const stroke = 12;
+  const r = (size - stroke) / 2;
+  const cx = size / 2;
+  const pct = pctOf(consumed, goal);
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference - (pct / 100) * circumference;
+  const over = consumed > goal;
+
+  return (
+    <div className="rb-nutrition-ring">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+        <g transform={`rotate(-90 ${cx} ${cx})`}>
+          <circle
+            cx={cx}
+            cy={cx}
+            r={r}
+            fill="transparent"
+            stroke="rgba(255,255,255,0.07)"
+            strokeWidth={stroke}
+          />
+          <circle
+            cx={cx}
+            cy={cx}
+            r={r}
+            fill="transparent"
+            stroke={over ? '#ff6b6b' : 'var(--rb-neon)'}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            className="rb-nutrition-ring__arc"
+          />
+        </g>
+      </svg>
+      <div className="rb-nutrition-ring__center">
+        <strong className="font-display font-tabular">{consumed}</strong>
+        <span className="rb-text-muted">из {goal} kcal</span>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ emoji, label, value, unit, accent }) {
   return (
     <div className={`glass-card rb-nutrition-stat${accent ? ' rb-nutrition-stat--accent' : ''}`}>
@@ -29,24 +77,77 @@ function StatCard({ emoji, label, value, unit, accent }) {
   );
 }
 
+function MacroBar({ label, value, goal, color }) {
+  return (
+    <div className="rb-nutrition-macro">
+      <div className="rb-nutrition-macro__head">
+        <span className="rb-label">{label}</span>
+        <span className="rb-nutrition-macro__val font-tabular">{value} / {goal} г</span>
+      </div>
+      <div className="rb-nutrition-macro__track">
+        <span className="rb-nutrition-macro__fill" style={{ width: `${pctOf(value, goal)}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function MealRow({ label, calories, total }) {
+  const pct = total > 0 ? Math.min(100, (calories / total) * 100) : 0;
+  return (
+    <div className="rb-nutrition-meal">
+      <div className="rb-nutrition-meal__head">
+        <span>{label}</span>
+        <strong className="font-tabular">{calories} kcal</strong>
+      </div>
+      <div className="rb-nutrition-meal__track">
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function MiniChart({ days }) {
-  if (!days?.length) return null;
+  if (!days?.length) return <p className="rb-text-muted">Нет данных за неделю</p>;
   const max = Math.max(...days.map((d) => Math.max(d.consumed, d.burned)), 1);
   return (
     <div className="rb-nutrition-chart">
-      {days.map((d) => (
-        <div key={d.date} className="rb-nutrition-chart__col">
-          <div className="rb-nutrition-chart__bars">
-            <div className="rb-nutrition-chart__bar rb-nutrition-chart__bar--eat" style={{ height: `${(d.consumed / max) * 100}%` }} title={`${d.consumed} kcal`} />
-            <div className="rb-nutrition-chart__bar rb-nutrition-chart__bar--burn" style={{ height: `${(d.burned / max) * 100}%` }} title={`${d.burned} kcal`} />
+      <div className="rb-nutrition-chart__cols">
+        {days.map((d) => (
+          <div key={d.date} className="rb-nutrition-chart__col">
+            <div className="rb-nutrition-chart__bars">
+              <div
+                className="rb-nutrition-chart__bar rb-nutrition-chart__bar--eat"
+                style={{ height: `${(d.consumed / max) * 100}%` }}
+                title={`${d.consumed} kcal`}
+              />
+              <div
+                className="rb-nutrition-chart__bar rb-nutrition-chart__bar--burn"
+                style={{ height: `${(d.burned / max) * 100}%` }}
+                title={`${d.burned} kcal`}
+              />
+            </div>
+            <span className="rb-nutrition-chart__day">{d.day}</span>
           </div>
-          <span className="rb-nutrition-chart__day">{d.day}</span>
-        </div>
-      ))}
+        ))}
+      </div>
       <div className="rb-nutrition-chart__legend">
         <span><i className="eat" /> Съедено</span>
         <span><i className="burn" /> Сожжено</span>
       </div>
+    </div>
+  );
+}
+
+function NutritionSkeleton() {
+  return (
+    <div className="rb-nutrition-skeleton" aria-hidden>
+      <div className="rb-nutrition-stats-grid">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="glass-card rb-nutrition-skeleton__card" />
+        ))}
+      </div>
+      <div className="glass-card rb-nutrition-skeleton__block" />
+      <div className="glass-card rb-nutrition-skeleton__block" />
     </div>
   );
 }
@@ -112,7 +213,7 @@ export default function NutritionPage({ user }) {
       <IonPage>
         <AppHeader onBack={() => navigate('/summary')} showAvatar={false} />
         <IonContent>
-          <main className="rb-main">
+          <main className="rb-main rb-nutrition">
             <PremiumPaywall onClose={() => navigate('/summary')} />
           </main>
         </IonContent>
@@ -122,6 +223,13 @@ export default function NutritionPage({ user }) {
 
   const remaining = today?.remaining ?? 0;
   const balance = today?.balance ?? 0;
+  const consumed = today?.consumed_today ?? 0;
+  const goal = today?.daily_goal ?? 2200;
+  const burned = today?.burned_today ?? 0;
+  const macros = today?.consumed_macros;
+  const macrosGoal = today?.macros_goal;
+  const meals = today?.meals ?? {};
+  const mealsTotal = (meals.breakfast ?? 0) + (meals.lunch ?? 0) + (meals.dinner ?? 0) + (meals.snack ?? 0);
 
   return (
     <IonPage>
@@ -142,20 +250,27 @@ export default function NutritionPage({ user }) {
 
         <main className="rb-main rb-nutrition">
           <section className="rb-nutrition-hero">
-            <h1 className="font-display">Питание и калории</h1>
-            <p className="rb-text-muted">AI-диетолог RunBonus+</p>
+            <div className="rb-nutrition-hero__text">
+              <h1 className="font-display">Питание и калории</h1>
+              <p className="rb-text-muted">AI-диетолог RunBonus+</p>
+            </div>
+            {!loading && today && (
+              <div className="rb-nutrition-hero__ring-wrap">
+                <CalorieRing consumed={consumed} goal={goal} />
+              </div>
+            )}
           </section>
 
           {loading ? (
-            <p className="rb-text-muted">Загрузка…</p>
+            <NutritionSkeleton />
           ) : (
             <>
               <section className="rb-nutrition-stats-grid">
-                <StatCard emoji="🔥" label="Сожжено сегодня" value={today?.burned_today ?? 0} unit="kcal" />
-                <StatCard emoji="🍔" label="Съедено" value={today?.consumed_today ?? 0} unit="kcal" />
-                <StatCard emoji="🎯" label="Дневная цель" value={today?.daily_goal ?? 2200} unit="kcal" />
+                <StatCard emoji="🔥" label="Сожжено" value={burned} unit="kcal" />
+                <StatCard emoji="🍔" label="Съедено" value={consumed} unit="kcal" />
+                <StatCard emoji="🎯" label="Цель" value={goal} unit="kcal" />
                 <StatCard
-                  emoji="📉"
+                  emoji={remaining >= 0 ? '📉' : '⚠️'}
                   label="Осталось"
                   value={remaining >= 0 ? remaining : `+${Math.abs(remaining)}`}
                   unit={remaining >= 0 ? 'kcal' : 'превышение'}
@@ -163,91 +278,153 @@ export default function NutritionPage({ user }) {
                 />
               </section>
 
-              <section className="glass-card rb-nutrition-balance">
-                <h2 className="rb-headline font-display">Баланс</h2>
-                <div className="rb-nutrition-balance__row">
-                  <div>
-                    <span className="rb-label">Съедено</span>
-                    <strong>{today?.consumed_today ?? 0} kcal</strong>
+              <div className="rb-nutrition-columns">
+                <section className="glass-card rb-nutrition-balance">
+                  <h2 className="rb-headline font-display">Баланс дня</h2>
+                  <div className="rb-nutrition-balance__row">
+                    <div className="rb-nutrition-balance__item">
+                      <span className="rb-label">Съедено</span>
+                      <strong className="font-tabular">{consumed} kcal</strong>
+                    </div>
+                    <span className="rb-nutrition-balance__op" aria-hidden>−</span>
+                    <div className="rb-nutrition-balance__item">
+                      <span className="rb-label">Сожжено</span>
+                      <strong className="font-tabular">{burned} kcal</strong>
+                    </div>
+                    <span className="rb-nutrition-balance__op" aria-hidden>=</span>
+                    <div className="rb-nutrition-balance__item">
+                      <span className="rb-label">Итого</span>
+                      <strong className={`font-tabular${balance > 0 ? ' rb-nutrition-balance--plus' : ''}`}>
+                        {balance > 0 ? '+' : ''}{balance} kcal
+                      </strong>
+                    </div>
                   </div>
-                  <span className="rb-nutrition-balance__op">−</span>
-                  <div>
-                    <span className="rb-label">Сожжено</span>
-                    <strong>{today?.burned_today ?? 0} kcal</strong>
+                  <div className="rb-nutrition-goal-bar">
+                    <div className="rb-nutrition-goal-bar__head">
+                      <span className="rb-label">Прогресс цели</span>
+                      <span className="font-tabular">{Math.round((consumed / goal) * 100)}%</span>
+                    </div>
+                    <div className="rb-nutrition-goal-bar__track">
+                      <span
+                        className={`rb-nutrition-goal-bar__fill${consumed > goal ? ' rb-nutrition-goal-bar__fill--over' : ''}`}
+                        style={{ width: `${Math.min(100, (consumed / goal) * 100)}%` }}
+                      />
+                    </div>
                   </div>
-                  <span className="rb-nutrition-balance__op">=</span>
-                  <div>
-                    <span className="rb-label">Итого</span>
-                    <strong className={balance > 0 ? 'rb-nutrition-balance--plus' : ''}>
-                      {balance > 0 ? '+' : ''}{balance} kcal
-                    </strong>
+                </section>
+
+                <section className="glass-card">
+                  <h2 className="rb-headline font-display">Расход энергии</h2>
+                  <div className="rb-nutrition-period-row">
+                    <div>
+                      <span className="rb-label">Сегодня</span>
+                      <strong className="font-tabular">{burned} kcal</strong>
+                    </div>
+                    <div>
+                      <span className="rb-label">Неделя</span>
+                      <strong className="font-tabular">{today?.burned_week ?? 0} kcal</strong>
+                    </div>
                   </div>
-                </div>
-              </section>
+                </section>
+              </div>
+
+              {macros && macrosGoal && (
+                <section className="glass-card rb-nutrition-macros">
+                  <h2 className="rb-headline font-display">БЖУ сегодня</h2>
+                  <MacroBar label="Белки" value={macros.protein_g ?? 0} goal={macrosGoal.protein_g ?? 120} color="#c3f400" />
+                  <MacroBar label="Жиры" value={macros.fat_g ?? 0} goal={macrosGoal.fat_g ?? 70} color="#00d4ff" />
+                  <MacroBar label="Углеводы" value={macros.carbs_g ?? 0} goal={macrosGoal.carbs_g ?? 250} color="#ff9f43" />
+                </section>
+              )}
 
               <section className="glass-card">
-                <h2 className="rb-headline font-display">Сожжено</h2>
-                <div className="rb-nutrition-period-row">
-                  <div><span className="rb-label">Сегодня</span><strong>{today?.burned_today ?? 0} kcal</strong></div>
-                  <div><span className="rb-label">Неделя</span><strong>{today?.burned_week ?? 0} kcal</strong></div>
-                </div>
-              </section>
-
-              <section className="glass-card">
-                <h2 className="rb-headline font-display">Съедено по приёмам</h2>
-                <div className="rb-nutrition-meals-grid">
-                  <div><span className="rb-label">Завтрак</span><strong>{today?.meals?.breakfast ?? 0}</strong></div>
-                  <div><span className="rb-label">Обед</span><strong>{today?.meals?.lunch ?? 0}</strong></div>
-                  <div><span className="rb-label">Ужин</span><strong>{today?.meals?.dinner ?? 0}</strong></div>
-                  <div><span className="rb-label">Перекусы</span><strong>{today?.meals?.snack ?? 0}</strong></div>
+                <h2 className="rb-headline font-display">Приёмы пищи</h2>
+                <div className="rb-nutrition-meals-list">
+                  <MealRow label="Завтрак" calories={meals.breakfast ?? 0} total={mealsTotal || goal} />
+                  <MealRow label="Обед" calories={meals.lunch ?? 0} total={mealsTotal || goal} />
+                  <MealRow label="Ужин" calories={meals.dinner ?? 0} total={mealsTotal || goal} />
+                  <MealRow label="Перекусы" calories={meals.snack ?? 0} total={mealsTotal || goal} />
                 </div>
               </section>
 
               {tips.length > 0 && (
                 <section className="glass-card rb-nutrition-tips">
-                  <h2 className="rb-headline font-display"><Icon name="lightbulb" /> Рекомендации</h2>
+                  <h2 className="rb-headline font-display">
+                    <Icon name="lightbulb" /> Рекомендации
+                  </h2>
                   {tips.map((t, i) => (
                     <p key={i} className="rb-nutrition-tip">{t.message}</p>
                   ))}
                 </section>
               )}
 
-              {analytics && (
-                <section className="glass-card">
-                  <h2 className="rb-headline font-display">Аналитика (30 дней)</h2>
-                  <div className="rb-nutrition-analytics">
-                    <div><span className="rb-label">Среднее потребление</span><strong>{analytics.avg_consumed} kcal</strong></div>
-                    <div><span className="rb-label">Средний расход</span><strong>{analytics.avg_burned} kcal</strong></div>
-                    <div><span className="rb-label">Средний баланс</span><strong>{analytics.avg_balance > 0 ? '+' : ''}{analytics.avg_balance} kcal</strong></div>
-                  </div>
-                  {(today?.streak?.current_streak > 0) && (
-                    <p className="rb-nutrition-streak">
-                      <Icon name="local_fire_department" />
-                      Streak: {today.streak.current_streak} дн. (рекорд {today.streak.best_streak})
-                    </p>
-                  )}
-                </section>
-              )}
+              <div className="rb-nutrition-columns">
+                {analytics && (
+                  <section className="glass-card">
+                    <h2 className="rb-headline font-display">Аналитика (30 дней)</h2>
+                    <div className="rb-nutrition-analytics">
+                      <div>
+                        <span className="rb-label">Среднее потребление</span>
+                        <strong className="font-tabular">{analytics.avg_consumed} kcal</strong>
+                      </div>
+                      <div>
+                        <span className="rb-label">Средний расход</span>
+                        <strong className="font-tabular">{analytics.avg_burned} kcal</strong>
+                      </div>
+                      <div>
+                        <span className="rb-label">Средний баланс</span>
+                        <strong className="font-tabular">
+                          {analytics.avg_balance > 0 ? '+' : ''}{analytics.avg_balance} kcal
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="rb-label">За месяц</span>
+                        <strong className="font-tabular">{today?.consumed_month ?? 0} kcal</strong>
+                      </div>
+                    </div>
+                    {(today?.streak?.current_streak > 0) && (
+                      <p className="rb-nutrition-streak">
+                        <Icon name="local_fire_department" />
+                        Streak: {today.streak.current_streak} дн. (рекорд {today.streak.best_streak})
+                      </p>
+                    )}
+                  </section>
+                )}
 
-              <section className="glass-card">
-                <h2 className="rb-headline font-display">Калории за неделю</h2>
-                <MiniChart days={week?.days} />
-              </section>
+                <section className="glass-card">
+                  <h2 className="rb-headline font-display">Калории за неделю</h2>
+                  <MiniChart days={week?.days} />
+                </section>
+              </div>
 
               <section className="glass-card rb-nutrition-history">
                 <h2 className="rb-headline font-display">История сегодня</h2>
                 {!history.length ? (
-                  <p className="rb-text-muted">Пока нет записей</p>
+                  <div className="rb-nutrition-empty">
+                    <Icon name="restaurant" />
+                    <p>Пока нет записей</p>
+                    <span className="rb-text-muted">Нажмите «Добавить еду», чтобы записать приём пищи</span>
+                  </div>
                 ) : (
                   <ul>
                     {history.map((item) => (
                       <li key={item.id} className="rb-nutrition-history-item">
-                        <div>
-                          <span className="rb-nutrition-history__time">{item.time}</span>
+                        <div className="rb-nutrition-history__body">
+                          <div className="rb-nutrition-history__meta">
+                            <span className="rb-nutrition-history__time">{item.time}</span>
+                            {item.meal_label && (
+                              <span className="rb-nutrition-history__meal">{item.meal_label}</span>
+                            )}
+                          </div>
                           <strong>{item.name}</strong>
-                          <span className="rb-text-muted">{item.calories} kcal</span>
+                          <span className="rb-text-muted rb-nutrition-history__kcal">{item.calories} kcal</span>
                         </div>
-                        <button type="button" className="rb-nutrition-history__del" onClick={() => handleDelete(item.id)} aria-label="Удалить">
+                        <button
+                          type="button"
+                          className="rb-nutrition-history__del"
+                          onClick={() => handleDelete(item.id)}
+                          aria-label="Удалить"
+                        >
                           <Icon name="delete" />
                         </button>
                       </li>
