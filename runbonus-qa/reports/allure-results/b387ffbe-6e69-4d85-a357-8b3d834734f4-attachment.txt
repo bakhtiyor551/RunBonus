@@ -1,0 +1,3 @@
+unknown error: WebDriverError: An unknown server-side error occurred while processing the command. Original error: disconnected: not connected to DevTools
+  (failed to check if window was closed: disconnected: not connected to DevTools)
+  (Session info: chrome=124.0.6367.219) when running "url" with method "POST"

@@ -1,0 +1,6 @@
+{
+  "script": "\n            function webdriverioPolyfill() {\n  var __defProp = Object.defineProperty;\n  var __name = function(target, _value) {\n    return __defProp(target, \"name\", { value: _value, configurable: true });\n  };\n  var __globalThis = typeof globalThis === \"object\" && globalThis || typeof window === \"object\" && window;\n  __globalThis.__name = __name;\n}\n            webdriverioPolyfill();\n            return (val=>{const input=document.querySelector('input[type=\"tel\"], input');if(!input)return;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,\"value\")?.set;setter?.call(input,val);input.dispatchEvent(new Event(\"input\",{bubbles:true}));input.dispatchEvent(new Event(\"change\",{bubbles:true}))}).apply(null, arguments)\n        ",
+  "args": [
+    "939104140"
+  ]
+}
