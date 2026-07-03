@@ -5,8 +5,14 @@ import {
   calculateMacroTargets,
   scaleNutrients,
   kmToBurnCalories,
+  calculateBMI,
+  bmiCategory,
+  calculateDailyWaterGoal,
 } from '../utils/calories.js';
 import { sendPushToUser } from './pushNotificationService.js';
+import { checkAndUnlockAchievements } from './nutritionAchievementService.js';
+import { config } from '../config.js';
+import { isPremiumActive } from './subscriptionService.js';
 
 const MEAL_LABELS = {
   breakfast: 'Завтрак',
@@ -17,6 +23,10 @@ const MEAL_LABELS = {
 
 function round1(n) {
   return Math.round(Number(n || 0) * 10) / 10;
+}
+
+function triggerAchievements(userId) {
+  checkAndUnlockAchievements(userId).catch(() => {});
 }
 
 async function hasNutritionTables() {
@@ -300,89 +310,117 @@ export async function getDailyStats(userId) {
 }
 
 export async function getWeekStats(userId) {
-  const conn = await pool.getConnection();
-  try {
-    const profile = await getProfile(conn, userId);
-    const days = [];
-    for (let i = 6; i >= 0; i -= 1) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      const [consumed] = await conn.query(
-        `SELECT COALESCE(SUM(calories), 0) AS c FROM nutrition_logs
-         WHERE user_id = ? AND DATE(logged_at) = ?`,
-        [userId, key]
-      );
-      const [workouts] = await conn.query(
-        `SELECT COALESCE(SUM(distance_km), 0) AS d,
-                COALESCE(SUM(steps_count), 0) AS s,
-                COALESCE(SUM(COALESCE(moving_seconds, duration_seconds, 0)), 0) AS sec
-         FROM workouts WHERE user_id = ? AND status != 'in_progress'
-           AND DATE(COALESCE(finished_at, started_at)) = ?`,
-        [userId, key]
-      );
-      const burned = estimateCalories(
-        Number(workouts[0]?.d) || 0,
-        Math.round((Number(workouts[0]?.sec) || 0) / 60),
-        Number(workouts[0]?.s) || 0,
-        profile.weight_kg
-      );
-      const eaten = Math.round(Number(consumed[0]?.c) || 0);
-      days.push({
-        date: key,
-        day: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][d.getDay()],
-        consumed: eaten,
-        burned,
-        balance: eaten - burned,
-      });
-    }
-    return { days };
-  } finally {
-    conn.release();
+  const data = await getChartData(userId, 'week');
+  return { days: data.days };
+}
+
+const DAY_LABELS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+
+function parseChartPeriod(period) {
+  const map = {
+    week: { mode: 'day', count: 7 },
+    month: { mode: 'day', count: 30 },
+    '3m': { mode: 'day', count: 90 },
+    '6m': { mode: 'week', count: 26 },
+    '1y': { mode: 'week', count: 52 },
+  };
+  return map[period] || map.week;
+}
+
+function formatChartDayLabel(date, dayCount) {
+  if (dayCount <= 7) return DAY_LABELS[date.getDay()];
+  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+async function buildDailyChartDays(conn, userId, profile, dayCount) {
+  const [consumedRows] = await conn.query(
+    `SELECT DATE(logged_at) AS d, COALESCE(SUM(calories), 0) AS consumed
+     FROM nutrition_logs
+     WHERE user_id = ? AND logged_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+     GROUP BY DATE(logged_at) ORDER BY d`,
+    [userId, dayCount - 1]
+  );
+  const consumedMap = new Map(
+    consumedRows.map((r) => [String(r.d).slice(0, 10), Math.round(Number(r.consumed))])
+  );
+
+  const [workoutRows] = await conn.query(
+    `SELECT DATE(COALESCE(finished_at, started_at)) AS d,
+            COALESCE(SUM(distance_km), 0) AS dist,
+            COALESCE(SUM(steps_count), 0) AS steps,
+            COALESCE(SUM(COALESCE(moving_seconds, duration_seconds, 0)), 0) AS sec
+     FROM workouts
+     WHERE user_id = ? AND status != 'in_progress'
+       AND DATE(COALESCE(finished_at, started_at)) >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+     GROUP BY DATE(COALESCE(finished_at, started_at))`,
+    [userId, dayCount - 1]
+  );
+  const workoutMap = new Map(workoutRows.map((r) => [String(r.d).slice(0, 10), r]));
+
+  const days = [];
+  for (let i = dayCount - 1; i >= 0; i -= 1) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const w = workoutMap.get(key);
+    const burned = estimateCalories(
+      Number(w?.dist) || 0,
+      Math.round((Number(w?.sec) || 0) / 60),
+      Number(w?.steps) || 0,
+      profile.weight_kg
+    );
+    const consumed = consumedMap.get(key) || 0;
+    days.push({
+      date: key,
+      day: formatChartDayLabel(d, dayCount),
+      consumed,
+      burned,
+      balance: consumed - burned,
+    });
   }
+  return days;
+}
+
+function aggregateWeeklyDays(dailyDays, weekCount) {
+  const weeks = [];
+  for (let w = 0; w < weekCount; w += 1) {
+    const chunk = dailyDays.slice(w * 7, (w + 1) * 7);
+    if (!chunk.length) break;
+    const consumed = chunk.reduce((sum, d) => sum + d.consumed, 0);
+    const burned = chunk.reduce((sum, d) => sum + d.burned, 0);
+    const first = chunk[0];
+    weeks.push({
+      date: first.date,
+      day: first.day,
+      consumed,
+      burned,
+      balance: consumed - burned,
+    });
+  }
+  return weeks;
 }
 
 export async function getChartData(userId, period = 'week') {
-  if (period === 'month') {
-    const conn = await pool.getConnection();
-    try {
-      const profile = await getProfile(conn, userId);
-      const [rows] = await conn.query(
-        `SELECT DATE(logged_at) AS d, COALESCE(SUM(calories), 0) AS consumed
-         FROM nutrition_logs
-         WHERE user_id = ? AND logged_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
-         GROUP BY DATE(logged_at) ORDER BY d`,
-        [userId]
-      );
-      const consumedMap = new Map(rows.map((r) => [String(r.d).slice(0, 10), Math.round(Number(r.c))]));
-      const days = [];
-      for (let i = 29; i >= 0; i -= 1) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
-        const [w] = await conn.query(
-          `SELECT COALESCE(SUM(distance_km), 0) AS dist,
-                  COALESCE(SUM(steps_count), 0) AS steps,
-                  COALESCE(SUM(COALESCE(moving_seconds, duration_seconds, 0)), 0) AS sec
-           FROM workouts WHERE user_id = ? AND status != 'in_progress'
-             AND DATE(COALESCE(finished_at, started_at)) = ?`,
-          [userId, key]
-        );
-        const burned = estimateCalories(
-          Number(w[0]?.dist) || 0,
-          Math.round((Number(w[0]?.sec) || 0) / 60),
-          Number(w[0]?.steps) || 0,
-          profile.weight_kg
-        );
-        const consumed = consumedMap.get(key) || 0;
-        days.push({ date: key, consumed, burned, balance: consumed - burned });
-      }
-      return { period: 'month', days };
-    } finally {
-      conn.release();
+  const cfg = parseChartPeriod(period);
+  const conn = await pool.getConnection();
+  try {
+    const profile = await getProfile(conn, userId);
+
+    if (cfg.mode === 'week') {
+      const dayCount = cfg.count * 7;
+      const daily = await buildDailyChartDays(conn, userId, profile, dayCount);
+      return {
+        period,
+        granularity: 'week',
+        days: aggregateWeeklyDays(daily, cfg.count),
+      };
     }
+
+    const days = await buildDailyChartDays(conn, userId, profile, cfg.count);
+    return { period, granularity: 'day', days };
+  } finally {
+    conn.release();
   }
-  return getWeekStats(userId);
 }
 
 export async function getHistory(userId, { date, limit = 50 } = {}) {
@@ -455,7 +493,7 @@ export async function addLogEntry(userId, data) {
     throw err;
   }
 
-  const source = ['manual', 'search', 'photo_ai', 'favorite'].includes(data.source)
+  const source = ['manual', 'search', 'photo_ai', 'favorite', 'copy', 'barcode'].includes(data.source)
     ? data.source
     : 'manual';
 
@@ -485,7 +523,7 @@ export async function addLogEntry(userId, data) {
   const conn = await pool.getConnection();
   try {
     const streak = await updateDiaryStreak(conn, userId);
-    if (streak.milestone) {
+    if (!data.silent && streak.milestone) {
       sendPushToUser(userId, {
         title: 'RunBonus+',
         body: '7 дней подряд ведёте дневник питания! Бонус за streak скоро будет начислен.',
@@ -496,29 +534,124 @@ export async function addLogEntry(userId, data) {
     conn.release();
   }
 
-  // Уведомления о норме
-  const stats = await getDailyStats(userId);
-  if (stats.remaining <= 0 && stats.remaining > -50) {
-    sendPushToUser(userId, {
-      title: 'Дневная цель',
-      body: `Вы достигли дневной нормы ${stats.daily_goal} kcal`,
-      data: { url: '/nutrition' },
-    }).catch(() => {});
-  } else if (stats.remaining < 0) {
-    sendPushToUser(userId, {
-      title: 'Питание',
-      body: `Вы превысили дневную норму на ${Math.abs(stats.remaining)} kcal`,
-      data: { url: '/nutrition' },
-    }).catch(() => {});
-  } else if (stats.remaining <= 200 && stats.remaining > 0) {
-    sendPushToUser(userId, {
-      title: 'Питание',
-      body: `До цели осталось ${stats.remaining} kcal`,
-      data: { url: '/nutrition' },
-    }).catch(() => {});
+  if (!data.silent) {
+    const stats = await getDailyStats(userId);
+    if (stats.remaining <= 0 && stats.remaining > -50) {
+      sendPushToUser(userId, {
+        title: 'Дневная цель',
+        body: `Вы достигли дневной нормы ${stats.daily_goal} kcal`,
+        data: { url: '/nutrition' },
+      }).catch(() => {});
+    } else if (stats.remaining < 0) {
+      sendPushToUser(userId, {
+        title: 'Питание',
+        body: `Вы превысили дневную норму на ${Math.abs(stats.remaining)} kcal`,
+        data: { url: '/nutrition' },
+      }).catch(() => {});
+    } else if (stats.remaining <= 200 && stats.remaining > 0) {
+      sendPushToUser(userId, {
+        title: 'Питание',
+        body: `До цели осталось ${stats.remaining} kcal`,
+        data: { url: '/nutrition' },
+      }).catch(() => {});
+    }
   }
 
+  if (!data.silent) triggerAchievements(userId);
+
   return { id: result.insertId, ...nutrients, name, meal_type: mealType };
+}
+
+function shiftLoggedAtToToday(sourceLoggedAt) {
+  const src = new Date(sourceLoggedAt);
+  const now = new Date();
+  const shifted = new Date(now);
+  shifted.setHours(src.getHours(), src.getMinutes(), src.getSeconds(), 0);
+  if (shifted > now) {
+    shifted.setTime(now.getTime());
+  }
+  return shifted;
+}
+
+export async function copyDiaryEntries(userId, { from = 'yesterday', meal_type = null } = {}) {
+  if (!(await hasNutritionTables())) {
+    const err = new Error('Модуль питания не установлен');
+    err.status = 503;
+    throw err;
+  }
+
+  const mode = String(from).toLowerCase();
+  if (mode !== 'yesterday' && mode !== 'week') {
+    const err = new Error('Укажите from=yesterday или from=week');
+    err.status = 400;
+    throw err;
+  }
+
+  const offsetDays = mode === 'yesterday' ? 1 : 7;
+  const sourceDate = new Date();
+  sourceDate.setDate(sourceDate.getDate() - offsetDays);
+  const sourceDateStr = sourceDate.toISOString().slice(0, 10);
+
+  const params = [userId, sourceDateStr];
+  let mealClause = '';
+  if (meal_type && ['breakfast', 'lunch', 'dinner', 'snack'].includes(meal_type)) {
+    mealClause = 'AND meal_type = ?';
+    params.push(meal_type);
+  }
+
+  const [rows] = await pool.query(
+    `SELECT food_id, name, meal_type, grams, portions, calories, protein_g, fat_g, carbs_g, fiber_g, logged_at
+     FROM nutrition_logs
+     WHERE user_id = ? AND DATE(logged_at) = ? ${mealClause}
+     ORDER BY logged_at ASC`,
+    params
+  );
+
+  if (!rows.length) {
+    const err = new Error(
+      mode === 'yesterday'
+        ? 'Вчера нет записей для копирования'
+        : 'Нет записей за этот день неделю назад'
+    );
+    err.status = 404;
+    throw err;
+  }
+
+  const items = [];
+  for (const row of rows) {
+    const entry = await addLogEntry(userId, {
+      food_id: row.food_id,
+      name: row.name,
+      meal_type: row.meal_type,
+      grams: row.grams,
+      portions: 1,
+      calories: row.calories,
+      protein_g: row.protein_g,
+      fat_g: row.fat_g,
+      carbs_g: row.carbs_g,
+      fiber_g: row.fiber_g,
+      source: 'copy',
+      logged_at: shiftLoggedAtToToday(row.logged_at),
+      silent: true,
+    });
+    items.push(entry);
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await updateDiaryStreak(conn, userId);
+  } finally {
+    conn.release();
+  }
+
+  triggerAchievements(userId);
+
+  return {
+    copied: items.length,
+    source_date: sourceDateStr,
+    from: mode,
+    items,
+  };
 }
 
 export async function deleteLogEntry(userId, logId) {
@@ -692,6 +825,7 @@ export async function toggleFavorite(userId, foodId) {
     return { favorited: false };
   }
   await pool.query('INSERT INTO nutrition_favorites (user_id, food_id) VALUES (?, ?)', [userId, foodId]);
+  triggerAchievements(userId);
   return { favorited: true };
 }
 
@@ -792,12 +926,20 @@ export async function getAdminStats() {
        AND (expires_at IS NULL OR expires_at > NOW())`
   );
   const [foods] = await pool.query('SELECT COUNT(*) AS c FROM nutrition_foods WHERE is_active = 1');
+  let off_foods_count = 0;
+  try {
+    const [off] = await pool.query("SELECT COUNT(*) AS c FROM nutrition_foods WHERE is_active = 1 AND food_source = 'off'");
+    off_foods_count = Number(off[0]?.c) || 0;
+  } catch {
+    off_foods_count = 0;
+  }
   return {
     active_users_30d: Number(users[0]?.active_users) || 0,
     total_logs: Number(logs[0]?.c) || 0,
     ai_analyses: Number(ai[0]?.c) || 0,
     premium_users: Number(premium[0]?.c) || 0,
     foods_count: Number(foods[0]?.c) || 0,
+    off_foods_count,
   };
 }
 
@@ -849,4 +991,349 @@ export async function adminListFoods({ q, limit = 100 } = {}) {
   params.push(Math.min(Number(limit) || 100, 500));
   const [rows] = await pool.query(sql, params);
   return rows;
+}
+
+async function hasWeightLogsTable() {
+  try {
+    await pool.query('SELECT 1 FROM nutrition_weight_logs LIMIT 1');
+    return true;
+  } catch (e) {
+    if (e.code === 'ER_NO_SUCH_TABLE') return false;
+    throw e;
+  }
+}
+
+function parseWeightPeriod(period) {
+  const map = { '7d': 7, '30d': 30, '90d': 90, '365d': 365 };
+  return map[period] || 30;
+}
+
+async function buildWeightSummary(userId, items) {
+  const { profile } = await getNutritionProfile(userId);
+  const height = profile.height_cm || 170;
+  const target = profile.target_weight_kg;
+  const profileWeight = profile.weight_kg;
+
+  const current = items.length ? Number(items[items.length - 1].weight_kg) : profileWeight;
+  const first = items.length ? Number(items[0].weight_kg) : current;
+  const change = current != null && first != null ? round1(current - first) : 0;
+  const bmi = current ? calculateBMI(current, height) : null;
+
+  let forecast = null;
+  if (target != null && current != null && items.length >= 2) {
+    const diff = Number(target) - current;
+    const t0 = new Date(items[0].logged_at).getTime();
+    const t1 = new Date(items[items.length - 1].logged_at).getTime();
+    const daysSpan = Math.max(1, (t1 - t0) / 86400000);
+    const weeklyChange = ((current - first) / daysSpan) * 7;
+
+    const movingTowardGoal =
+      (diff < 0 && weeklyChange < 0) || (diff > 0 && weeklyChange > 0) || diff === 0;
+
+    if (movingTowardGoal && Math.abs(weeklyChange) > 0.05) {
+      forecast = {
+        target_weight_kg: Number(target),
+        remaining_kg: round1(Math.abs(diff)),
+        weekly_change_kg: round1(weeklyChange),
+        weeks_to_goal: Math.max(1, Math.round(Math.abs(diff / weeklyChange))),
+      };
+    }
+  }
+
+  return {
+    current_kg: current != null ? round1(current) : null,
+    change_kg: change,
+    bmi,
+    bmi_category: bmiCategory(bmi),
+    target_weight_kg: target != null ? Number(target) : null,
+    height_cm: height,
+    forecast,
+  };
+}
+
+export async function addWeightLog(userId, data) {
+  if (!(await hasWeightLogsTable())) {
+    const err = new Error('Модуль веса не установлен');
+    err.status = 503;
+    throw err;
+  }
+
+  const weight = Number(data.weight_kg);
+  if (!weight || weight < 30 || weight > 300) {
+    const err = new Error('Вес должен быть от 30 до 300 кг');
+    err.status = 400;
+    throw err;
+  }
+
+  const bodyFat = data.body_fat_pct != null && data.body_fat_pct !== ''
+    ? Number(data.body_fat_pct)
+    : null;
+  if (bodyFat != null && (bodyFat < 3 || bodyFat > 60)) {
+    const err = new Error('Процент жира должен быть от 3 до 60');
+    err.status = 400;
+    throw err;
+  }
+
+  const loggedAt = data.logged_at || new Date();
+
+  const [result] = await pool.query(
+    `INSERT INTO nutrition_weight_logs (user_id, weight_kg, body_fat_pct, logged_at, source)
+     VALUES (?, ?, ?, ?, 'manual')`,
+    [userId, weight, bodyFat, loggedAt]
+  );
+
+  await pool.query(
+    'UPDATE user_nutrition_profile SET weight_kg = ? WHERE user_id = ?',
+    [weight, userId]
+  ).catch(() => {});
+
+  triggerAchievements(userId);
+  return {
+    id: result.insertId,
+    weight_kg: round1(weight),
+    body_fat_pct: bodyFat != null ? round1(bodyFat) : null,
+    logged_at: loggedAt,
+  };
+}
+
+export async function getWeightHistory(userId, { period = '30d', limit = 200 } = {}) {
+  if (!(await hasWeightLogsTable())) {
+    return { items: [], summary: null, period };
+  }
+
+  const days = parseWeightPeriod(period);
+  const [rows] = await pool.query(
+    `SELECT id, weight_kg, body_fat_pct, logged_at
+     FROM nutrition_weight_logs
+     WHERE user_id = ? AND logged_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+     ORDER BY logged_at ASC
+     LIMIT ?`,
+    [userId, days, Math.min(Number(limit) || 200, 500)]
+  );
+
+  const items = rows.map((r) => ({
+    id: r.id,
+    weight_kg: round1(r.weight_kg),
+    body_fat_pct: r.body_fat_pct != null ? round1(r.body_fat_pct) : null,
+    date: new Date(r.logged_at).toISOString().slice(0, 10),
+    logged_at: r.logged_at,
+  }));
+
+  const summary = await buildWeightSummary(userId, items);
+  return { items, summary, period };
+}
+
+export async function deleteWeightLog(userId, logId) {
+  if (!(await hasWeightLogsTable())) return false;
+  const [r] = await pool.query(
+    'DELETE FROM nutrition_weight_logs WHERE id = ? AND user_id = ?',
+    [logId, userId]
+  );
+  return r.affectedRows > 0;
+}
+
+async function hasWaterLogsTable() {
+  try {
+    await pool.query('SELECT 1 FROM nutrition_water_logs LIMIT 1');
+    return true;
+  } catch (e) {
+    if (e.code === 'ER_NO_SUCH_TABLE') return false;
+    throw e;
+  }
+}
+
+async function getTodayWorkoutMinutes(conn, userId) {
+  const [rows] = await conn.query(
+    `SELECT COALESCE(SUM(COALESCE(moving_seconds, duration_seconds, 0)), 0) AS sec
+     FROM workouts
+     WHERE user_id = ? AND status != 'in_progress'
+       AND DATE(COALESCE(finished_at, started_at)) = CURDATE()`,
+    [userId]
+  );
+  return Math.round((Number(rows[0]?.sec) || 0) / 60);
+}
+
+async function resolveWaterGoal(userId) {
+  const { profile } = await getNutritionProfile(userId);
+  const conn = await pool.getConnection();
+  try {
+    const workoutMinutes = await getTodayWorkoutMinutes(conn, userId);
+    const customGoal = profile.daily_water_ml;
+    const goal = calculateDailyWaterGoal(profile.weight_kg || 70, {
+      workoutMinutes,
+      hotWeather: false,
+      customGoal,
+    });
+    const workoutBonus = workoutMinutes > 30 ? 500 : 0;
+    return { goal_ml: goal, workout_bonus_ml: workoutBonus, base_ml: goal - workoutBonus };
+  } finally {
+    conn.release();
+  }
+}
+
+export async function getWaterToday(userId) {
+  if (!(await hasWaterLogsTable())) {
+    return {
+      consumed_ml: 0,
+      goal_ml: 2310,
+      remaining_ml: 2310,
+      percent: 0,
+      workout_bonus_ml: 0,
+      logs: [],
+    };
+  }
+
+  const { goal_ml, workout_bonus_ml, base_ml } = await resolveWaterGoal(userId);
+
+  const [rows] = await pool.query(
+    `SELECT id, amount_ml, logged_at
+     FROM nutrition_water_logs
+     WHERE user_id = ? AND DATE(logged_at) = CURDATE()
+     ORDER BY logged_at DESC`,
+    [userId]
+  );
+
+  const consumed = rows.reduce((s, r) => s + Number(r.amount_ml), 0);
+  const remaining = Math.max(0, goal_ml - consumed);
+  const percent = goal_ml > 0 ? Math.min(100, Math.round((consumed / goal_ml) * 100)) : 0;
+
+  const logs = rows.map((r) => ({
+    id: r.id,
+    amount_ml: Number(r.amount_ml),
+    time: new Date(r.logged_at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
+    logged_at: r.logged_at,
+  }));
+
+  return {
+    consumed_ml: consumed,
+    goal_ml,
+    remaining_ml: remaining,
+    percent,
+    workout_bonus_ml,
+    base_ml,
+    logs,
+  };
+}
+
+export async function addWaterLog(userId, data) {
+  if (!(await hasWaterLogsTable())) {
+    const err = new Error('Модуль воды не установлен');
+    err.status = 503;
+    throw err;
+  }
+
+  const amount = Math.round(Number(data.amount_ml));
+  if (!amount || amount < 50 || amount > 2000) {
+    const err = new Error('Укажите объём от 50 до 2000 мл');
+    err.status = 400;
+    throw err;
+  }
+
+  const loggedAt = data.logged_at || new Date();
+  const [result] = await pool.query(
+    'INSERT INTO nutrition_water_logs (user_id, amount_ml, logged_at) VALUES (?, ?, ?)',
+    [userId, amount, loggedAt]
+  );
+
+  const today = await getWaterToday(userId);
+  triggerAchievements(userId);
+  return {
+    id: result.insertId,
+    amount_ml: amount,
+    logged_at: loggedAt,
+    today,
+  };
+}
+
+export async function deleteWaterLog(userId, logId) {
+  if (!(await hasWaterLogsTable())) return false;
+  const [r] = await pool.query(
+    'DELETE FROM nutrition_water_logs WHERE id = ? AND user_id = ?',
+    [logId, userId]
+  );
+  return r.affectedRows > 0;
+}
+
+export async function getWaterStats(userId, { period = '7d' } = {}) {
+  if (!(await hasWaterLogsTable())) {
+    return { days: [], avg_ml: 0, period };
+  }
+
+  const daysCount = period === '30d' ? 30 : 7;
+  const { goal_ml } = await resolveWaterGoal(userId);
+
+  const [rows] = await pool.query(
+    `SELECT DATE(logged_at) AS d,
+            COALESCE(SUM(amount_ml), 0) AS total,
+            DAYOFWEEK(logged_at) AS dow
+     FROM nutrition_water_logs
+     WHERE user_id = ? AND logged_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+     GROUP BY DATE(logged_at)
+     ORDER BY d ASC`,
+    [userId, daysCount - 1]
+  );
+
+  const map = Object.fromEntries(rows.map((r) => [String(r.d).slice(0, 10), Number(r.total)]));
+  const dayLabels = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const days = [];
+
+  for (let i = daysCount - 1; i >= 0; i -= 1) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    days.push({
+      date: key,
+      day: dayLabels[d.getDay()],
+      consumed_ml: map[key] || 0,
+      goal_ml,
+    });
+  }
+
+  const totals = days.map((x) => x.consumed_ml).filter((v) => v > 0);
+  const avg = totals.length ? Math.round(totals.reduce((a, b) => a + b, 0) / totals.length) : 0;
+
+  return { days, avg_ml: avg, goal_ml, period };
+}
+
+/**
+ * После пробежки: расчёт сожжённых kcal и push для RunBonus+.
+ */
+export async function buildPostWorkoutNutrition(userId, { distanceKm, movingSeconds, durationSeconds, stepsCount }) {
+  const isPremium = config.nutritionDevFree || (await isPremiumActive(userId));
+  if (!isPremium) return null;
+  if (!(await hasNutritionTables())) return null;
+
+  const distance = Number(distanceKm) || 0;
+  const activeSec = movingSeconds ?? durationSeconds ?? 0;
+  if (distance < 0.1 && activeSec < 120) return null;
+
+  const { profile } = await getNutritionProfile(userId);
+  const activeMinutes = Math.round(Number(activeSec) / 60);
+  const burned = estimateCalories(
+    distance,
+    activeMinutes,
+    Number(stepsCount) || 0,
+    profile.weight_kg ?? 70
+  );
+
+  if (burned < 30) return null;
+
+  return {
+    burned_kcal: burned,
+    extra_kcal: burned,
+    message: `Сожжено ${burned} kcal. Сегодня можно съесть +${burned} kcal`,
+  };
+}
+
+export async function notifyPostWorkoutNutrition(userId, meta) {
+  const info = await buildPostWorkoutNutrition(userId, meta);
+  if (!info) return null;
+
+  sendPushToUser(userId, {
+    title: 'Отличная пробежка!',
+    body: `+${info.burned_kcal} kcal — сегодня можно съесть больше`,
+    data: { url: '/nutrition', type: 'post_workout_nutrition' },
+  }).catch((err) => console.warn('[nutrition/post-workout]', err.message));
+
+  return info;
 }

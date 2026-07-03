@@ -7,6 +7,10 @@ import {
   adminUpsertFood,
 } from '../services/nutritionService.js';
 import { grantPremium, revokePremium, getSubscriptionInfo } from '../services/subscriptionService.js';
+import {
+  importOpenFoodFactsFile,
+  listImportBatches,
+} from '../services/nutritionOffImportService.js';
 
 const router = Router();
 
@@ -99,6 +103,33 @@ router.get('/premium/:userId', async (req, res) => {
     res.json(sub);
   } catch (err) {
     res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.get('/import/batches', async (req, res) => {
+  try {
+    const batches = await listImportBatches(req.query.limit);
+    res.json({ batches });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки импортов' });
+  }
+});
+
+router.post('/import/off', async (req, res) => {
+  try {
+    const { file_path, limit = 100000, countries = [] } = req.body || {};
+    if (!file_path) {
+      return res.status(400).json({ error: 'Укажите file_path на сервере' });
+    }
+    const result = await importOpenFoodFactsFile({
+      filePath: file_path,
+      limit: Number(limit) || 100000,
+      countries: Array.isArray(countries) ? countries : String(countries).split(',').map((s) => s.trim()).filter(Boolean),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[admin/nutrition/import/off]', err);
+    res.status(err.status || 500).json({ error: err.message || 'Ошибка импорта' });
   }
 });
 

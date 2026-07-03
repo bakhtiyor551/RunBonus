@@ -13,10 +13,14 @@ import {
   fetchNutritionProfile,
   fetchNutritionToday,
   fetchNutritionWeek,
+  fetchNutritionChart,
   fetchNutritionHistory,
   fetchNutritionRecommendations,
   fetchNutritionAnalytics,
   deleteNutritionEntry,
+  fetchWaterToday,
+  fetchCoachToday,
+  copyNutritionDiary,
 } from '../services/nutrition';
 import { showToast } from '../utils/toast';
 
@@ -108,9 +112,10 @@ function MealRow({ label, calories, total }) {
   );
 }
 
-function MiniChart({ days }) {
-  if (!days?.length) return <p className="rb-text-muted">Нет данных за неделю</p>;
+function MiniChart({ days, granularity }) {
+  if (!days?.length) return <p className="rb-text-muted">Нет данных за период</p>;
   const max = Math.max(...days.map((d) => Math.max(d.consumed, d.burned)), 1);
+  const unit = granularity === 'week' ? ' kcal/нед' : ' kcal';
   return (
     <div className="rb-nutrition-chart">
       <div className="rb-nutrition-chart__cols">
@@ -120,12 +125,12 @@ function MiniChart({ days }) {
               <div
                 className="rb-nutrition-chart__bar rb-nutrition-chart__bar--eat"
                 style={{ height: `${(d.consumed / max) * 100}%` }}
-                title={`${d.consumed} kcal`}
+                title={`${d.consumed}${unit}`}
               />
               <div
                 className="rb-nutrition-chart__bar rb-nutrition-chart__bar--burn"
                 style={{ height: `${(d.burned / max) * 100}%` }}
-                title={`${d.burned} kcal`}
+                title={`${d.burned}${unit}`}
               />
             </div>
             <span className="rb-nutrition-chart__day">{d.day}</span>
@@ -135,10 +140,19 @@ function MiniChart({ days }) {
       <div className="rb-nutrition-chart__legend">
         <span><i className="eat" /> Съедено</span>
         <span><i className="burn" /> Сожжено</span>
+        {granularity === 'week' && <span className="rb-text-muted">· сумма за неделю</span>}
       </div>
     </div>
   );
 }
+
+const CHART_PERIODS = [
+  { id: 'week', label: '7 дн.' },
+  { id: 'month', label: '30 дн.' },
+  { id: '3m', label: '3 мес.' },
+  { id: '6m', label: '6 мес.' },
+  { id: '1y', label: 'Год' },
+];
 
 function NutritionSkeleton() {
   return (
@@ -166,6 +180,11 @@ export default function NutritionPage({ user }) {
   const [addOpen, setAddOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
+  const [water, setWater] = useState(null);
+  const [coach, setCoach] = useState(null);
+  const [copying, setCopying] = useState(null);
+  const [chartPeriod, setChartPeriod] = useState('week');
+  const [chart, setChart] = useState(null);
 
   const loadAll = useCallback(async () => {
     try {
@@ -179,18 +198,22 @@ export default function NutritionPage({ user }) {
         return;
       }
 
-      const [t, w, h, rec, an] = await Promise.all([
+      const [t, w, h, rec, an, waterToday, coachData] = await Promise.all([
         fetchNutritionToday(),
         fetchNutritionWeek(),
         fetchNutritionHistory(),
         fetchNutritionRecommendations().catch(() => ({ tips: [] })),
         fetchNutritionAnalytics().catch(() => null),
+        fetchWaterToday().catch(() => null),
+        fetchCoachToday().catch(() => null),
       ]);
       setToday(t);
       setWeek(w);
       setHistory(h.items || []);
       setTips(rec.tips || []);
       setAnalytics(an);
+      setWater(waterToday);
+      setCoach(coachData?.report || null);
     } catch (e) {
       if (e?.code === 'PREMIUM_REQUIRED') {
         setPremium(false);
@@ -199,12 +222,21 @@ export default function NutritionPage({ user }) {
   }, [navigate]);
 
   useEffect(() => {
+    if (premium === false) return;
+    fetchNutritionChart(chartPeriod)
+      .then(setChart)
+      .catch(() => setChart(null));
+  }, [chartPeriod, premium]);
+
+  useEffect(() => {
     setLoading(true);
     loadAll().finally(() => setLoading(false));
   }, [loadAll]);
 
   const refresh = async () => {
     await loadAll();
+    const data = await fetchNutritionChart(chartPeriod).catch(() => null);
+    setChart(data);
   };
 
   const handleDelete = async (id) => {
@@ -214,6 +246,19 @@ export default function NutritionPage({ user }) {
       refresh();
     } catch {
       showToast('Ошибка удаления');
+    }
+  };
+
+  const handleCopy = async (from) => {
+    setCopying(from);
+    try {
+      const result = await copyNutritionDiary(from);
+      showToast(`Скопировано ${result.copied} ${result.copied === 1 ? 'запись' : result.copied < 5 ? 'записи' : 'записей'}`);
+      refresh();
+    } catch (e) {
+      showToast(e?.message || 'Не удалось скопировать');
+    } finally {
+      setCopying(null);
     }
   };
 
@@ -262,10 +307,28 @@ export default function NutritionPage({ user }) {
             <div className="rb-nutrition-hero__text">
               <h1 className="font-display">Питание и калории</h1>
               <p className="rb-text-muted">AI-диетолог RunBonus+</p>
-              <button type="button" className="rb-nutrition-profile-link" onClick={() => navigate('/nutrition/profile')}>
-                <Icon name="tune" />
-                Профиль питания
-              </button>
+              <div className="rb-nutrition-hero__links">
+                <button type="button" className="rb-nutrition-profile-link" onClick={() => navigate('/nutrition/profile')}>
+                  <Icon name="tune" />
+                  Профиль
+                </button>
+                <button type="button" className="rb-nutrition-profile-link" onClick={() => navigate('/nutrition/weight')}>
+                  <Icon name="monitor_weight" />
+                  Вес
+                </button>
+                <button type="button" className="rb-nutrition-profile-link" onClick={() => navigate('/nutrition/water')}>
+                  <Icon name="water_drop" />
+                  Вода
+                </button>
+                <button type="button" className="rb-nutrition-profile-link" onClick={() => navigate('/nutrition/coach')}>
+                  <Icon name="psychology" />
+                  AI-диетолог
+                </button>
+                <button type="button" className="rb-nutrition-profile-link" onClick={() => navigate('/nutrition/achievements')}>
+                  <Icon name="emoji_events" />
+                  Достижения
+                </button>
+              </div>
             </div>
             {!loading && today && (
               <div className="rb-nutrition-hero__ring-wrap">
@@ -290,6 +353,40 @@ export default function NutritionPage({ user }) {
                   accent={remaining < 0}
                 />
               </section>
+
+              {water && (
+                <button type="button" className="glass-card rb-water-mini" onClick={() => navigate('/nutrition/water')}>
+                  <div className="rb-water-mini__icon">
+                    <Icon name="water_drop" />
+                  </div>
+                  <div className="rb-water-mini__body">
+                    <span className="rb-label">Вода сегодня</span>
+                    <strong className="font-tabular">{water.consumed_ml} / {water.goal_ml} мл</strong>
+                    <div className="rb-nutrition-goal-bar__track rb-water-mini__bar">
+                      <span className="rb-water-mini__fill" style={{ width: `${water.percent}%` }} />
+                    </div>
+                  </div>
+                  <Icon name="chevron_right" />
+                </button>
+              )}
+
+              <button type="button" className="glass-card rb-coach-mini" onClick={() => navigate('/nutrition/coach')}>
+                <div className="rb-coach-mini__icon">
+                  <Icon name="psychology" />
+                </div>
+                <div className="rb-coach-mini__body">
+                  <span className="rb-label">AI-диетолог</span>
+                  {coach ? (
+                    <>
+                      <strong className="font-tabular">Оценка дня: {coach.score}/100</strong>
+                      <p className="rb-coach-mini__summary">{coach.summary}</p>
+                    </>
+                  ) : (
+                    <strong>Открыть ежедневный отчёт</strong>
+                  )}
+                </div>
+                <Icon name="chevron_right" />
+              </button>
 
               <div className="rb-nutrition-columns">
                 <section className="glass-card rb-nutrition-balance">
@@ -351,7 +448,29 @@ export default function NutritionPage({ user }) {
               )}
 
               <section className="glass-card">
-                <h2 className="rb-headline font-display">Приёмы пищи</h2>
+                <div className="rb-nutrition-meals-head">
+                  <h2 className="rb-headline font-display">Приёмы пищи</h2>
+                  <div className="rb-nutrition-copy-actions">
+                    <button
+                      type="button"
+                      className="rb-nutrition-copy-btn"
+                      disabled={!!copying}
+                      onClick={() => handleCopy('yesterday')}
+                    >
+                      <Icon name="content_copy" />
+                      {copying === 'yesterday' ? '…' : 'Вчера'}
+                    </button>
+                    <button
+                      type="button"
+                      className="rb-nutrition-copy-btn"
+                      disabled={!!copying}
+                      onClick={() => handleCopy('week')}
+                    >
+                      <Icon name="date_range" />
+                      {copying === 'week' ? '…' : 'Неделю назад'}
+                    </button>
+                  </div>
+                </div>
                 <div className="rb-nutrition-meals-list">
                   <MealRow label="Завтрак" calories={meals.breakfast ?? 0} total={mealsTotal || goal} />
                   <MealRow label="Обед" calories={meals.lunch ?? 0} total={mealsTotal || goal} />
@@ -405,8 +524,22 @@ export default function NutritionPage({ user }) {
                 )}
 
                 <section className="glass-card">
-                  <h2 className="rb-headline font-display">Калории за неделю</h2>
-                  <MiniChart days={week?.days} />
+                  <div className="rb-nutrition-chart-head">
+                    <h2 className="rb-headline font-display">Калории</h2>
+                    <div className="rb-weight-period rb-nutrition-chart-period">
+                      {CHART_PERIODS.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={`rb-weight-period__btn${chartPeriod === p.id ? ' active' : ''}`}
+                          onClick={() => setChartPeriod(p.id)}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <MiniChart days={chart?.days || week?.days} granularity={chart?.granularity || 'day'} />
                 </section>
               </div>
 

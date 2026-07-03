@@ -8,6 +8,12 @@ export function parseShoeCode(raw) {
   return match ? match[0] : s;
 }
 
+export function parseBarcode(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length >= 8 && digits.length <= 14) return digits;
+  return null;
+}
+
 async function safeStopScanner(scanner) {
   if (!scanner) return;
   try {
@@ -31,7 +37,7 @@ async function safeStopScanner(scanner) {
 /**
  * @param {boolean} [enableCamera] — по умолчанию только в нативном приложении (APK)
  */
-export default function QrScanner({ onScan, active = true, enableCamera }) {
+export default function QrScanner({ onScan, active = true, enableCamera, parseCode = parseShoeCode }) {
   const reactId = useId().replace(/:/g, '');
   const elementId = `rb-qr-reader-${reactId}`;
   const scannerRef = useRef(null);
@@ -58,7 +64,7 @@ export default function QrScanner({ onScan, active = true, enableCamera }) {
           { fps: 10, qrbox: { width: 220, height: 220 } },
           (text) => {
             if (cancelled) return;
-            const code = parseShoeCode(text);
+            const code = parseCode(text);
             if (code) onScanRef.current(code);
           },
           () => {}
@@ -83,7 +89,7 @@ export default function QrScanner({ onScan, active = true, enableCamera }) {
       scannerRef.current = null;
       void safeStopScanner(scanner);
     };
-  }, [active, canUseCamera, elementId]);
+  }, [active, canUseCamera, elementId, parseCode]);
 
   if (!canUseCamera) {
     return (

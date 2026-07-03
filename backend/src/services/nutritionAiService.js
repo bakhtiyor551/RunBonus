@@ -7,6 +7,21 @@ import { scaleNutrients } from '../utils/calories.js';
 
 const CONFIDENCE_THRESHOLD = 80;
 
+const VISION_PROMPT = `You are a nutrition expert. Analyze this food photo. Return ONLY valid JSON:
+{
+  "name": "dish name in Russian",
+  "confidence": 0-100,
+  "grams": estimated weight in grams,
+  "portions": 1,
+  "calories": total kcal,
+  "protein_g": grams,
+  "fat_g": grams,
+  "carbs_g": grams,
+  "fiber_g": grams,
+  "alternatives": [{"name": "...", "confidence": 0-100}]
+}
+Focus on Central Asian cuisine (Tajik, Uzbek, Russian). Be realistic with portions.`;
+
 function parseBase64Image(dataUrl) {
   const match = String(dataUrl).match(/^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/i);
   if (!match) {
@@ -21,7 +36,17 @@ function parseBase64Image(dataUrl) {
     err.status = 400;
     throw err;
   }
-  return { ext, buf, mime: `image/${ext === 'jpg' ? 'jpeg' : ext}` };
+  return { ext, buf, mime: `image/${ext === 'jpg' ? 'jpeg' : ext}`, base64: match[2] };
+}
+
+function parseVisionJson(text) {
+  const jsonMatch = String(text || '').match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    return null;
+  }
 }
 
 export function saveNutritionPhoto(userId, dataUrl) {
@@ -53,21 +78,6 @@ async function analyzeWithOpenAI(dataUrl) {
   const apiKey = config.openai?.apiKey;
   if (!apiKey) return null;
 
-  const prompt = `You are a nutrition expert. Analyze this food photo. Return ONLY valid JSON:
-{
-  "name": "dish name in Russian",
-  "confidence": 0-100,
-  "grams": estimated weight in grams,
-  "portions": 1,
-  "calories": total kcal,
-  "protein_g": grams,
-  "fat_g": grams,
-  "carbs_g": grams,
-  "fiber_g": grams,
-  "alternatives": [{"name": "...", "confidence": 0-100}]
-}
-Focus on Central Asian cuisine (Tajik, Uzbek, Russian). Be realistic with portions.`;
-
   const res = await fetch(`${config.openai.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -80,7 +90,7 @@ Focus on Central Asian cuisine (Tajik, Uzbek, Russian). Be realistic with portio
         {
           role: 'user',
           content: [
-            { type: 'text', text: prompt },
+            { type: 'text', text: VISION_PROMPT },
             { type: 'image_url', image_url: { url: dataUrl } },
           ],
         },
@@ -91,19 +101,78 @@ Focus on Central Asian cuisine (Tajik, Uzbek, Russian). Be realistic with portio
   });
 
   if (!res.ok) {
-    console.warn('[nutrition-ai] OpenAI error', res.status);
+    const detail = await res.text().catch(() => '');
+    console.warn('[nutrition-ai] OpenAI error', res.status, detail.slice(0, 200));
     return null;
   }
 
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content || '';
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch {
+  const parsed = parseVisionJson(text);
+  if (!parsed) return null;
+  return { ...parsed, _provider: 'openai' };
+}
+
+async function analyzeWithGemini(dataUrl) {
+  const apiKey = config.gemini?.apiKey;
+  if (!apiKey) return null;
+
+  const { mime, base64 } = parseBase64Image(dataUrl);
+  const model = config.gemini.model;
+  const url = `${config.gemini.baseUrl}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: VISION_PROMPT },
+            { inline_data: { mime_type: mime, data: base64 } },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 600,
+        responseMimeType: 'application/json',
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    console.warn('[nutrition-ai] Gemini error', res.status, detail.slice(0, 200));
     return null;
   }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const parsed = parseVisionJson(text);
+  if (!parsed) {
+    console.warn('[nutrition-ai] Gemini: invalid JSON in response');
+    return null;
+  }
+  return { ...parsed, _provider: 'gemini' };
+}
+
+async function analyzeWithVision(dataUrl) {
+  try {
+    const openai = await analyzeWithOpenAI(dataUrl);
+    if (openai) return openai;
+  } catch (e) {
+    console.warn('[nutrition-ai] OpenAI', e.message);
+  }
+
+  try {
+    const gemini = await analyzeWithGemini(dataUrl);
+    if (gemini) return gemini;
+  } catch (e) {
+    console.warn('[nutrition-ai] Gemini', e.message);
+  }
+
+  return null;
 }
 
 function buildFromDbFood(food, grams) {
@@ -119,8 +188,7 @@ function buildFromDbFood(food, grams) {
   };
 }
 
-async function fallbackAnalysis(dataUrl) {
-  // Без AI — предлагаем популярные блюда региона
+async function fallbackAnalysis() {
   const [foods] = await pool.query(
     `SELECT * FROM nutrition_foods WHERE is_active = 1 AND country IN ('TJ', 'UZ', 'RU')
      ORDER BY RAND() LIMIT 4`
@@ -139,11 +207,13 @@ async function fallbackAnalysis(dataUrl) {
       fiber_g: 2,
       alternatives: [],
       low_confidence: true,
+      _provider: 'fallback',
     };
   }
   const result = buildFromDbFood(primary, primary.serving_grams);
   result.confidence = 45;
   result.low_confidence = true;
+  result._provider = 'fallback';
   result.alternatives = foods.slice(1).map((f) => ({
     name: f.name,
     food_id: f.id,
@@ -159,19 +229,19 @@ export async function analyzeFoodPhoto(userId, photoBase64) {
 
   let aiResult = null;
   try {
-    aiResult = await analyzeWithOpenAI(photoBase64);
+    aiResult = await analyzeWithVision(photoBase64);
   } catch (e) {
     console.warn('[nutrition-ai]', e.message);
   }
 
   if (!aiResult) {
-    aiResult = await fallbackAnalysis(photoBase64);
+    aiResult = await fallbackAnalysis();
   }
 
+  const provider = aiResult._provider || 'fallback';
   const confidence = Math.min(100, Math.max(0, Number(aiResult.confidence) || 0));
   let alternatives = Array.isArray(aiResult.alternatives) ? aiResult.alternatives : [];
 
-  // Попробуем сопоставить с базой
   let foodId = aiResult.food_id || null;
   if (!foodId && aiResult.name) {
     const matches = await searchFoodByName(aiResult.name);
@@ -205,9 +275,9 @@ export async function analyzeFoodPhoto(userId, photoBase64) {
     fiber_g: Math.round(Number(aiResult.fiber_g) * 10) / 10 || 0,
     alternatives,
     low_confidence: lowConfidence,
+    provider,
   };
 
-  // Пересчёт из базы если есть food_id и нет калорий
   if (foodId && !result.calories) {
     const [foods] = await pool.query('SELECT * FROM nutrition_foods WHERE id = ?', [foodId]);
     if (foods.length) {
@@ -232,7 +302,7 @@ export async function analyzeFoodPhoto(userId, photoBase64) {
       result.carbs_g,
       result.fiber_g,
       JSON.stringify(alternatives),
-      JSON.stringify(aiResult),
+      JSON.stringify({ ...aiResult, provider }),
     ]
   );
 

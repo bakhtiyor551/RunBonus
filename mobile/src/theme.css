@@ -2779,6 +2779,51 @@ html.rb-keyboard-open .rb-main {
   gap: 12px;
 }
 
+.rb-workout-nutrition-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 16px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(195, 244, 0, 0.2);
+  background: rgba(195, 244, 0, 0.06);
+}
+
+.rb-workout-nutrition-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(195, 244, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rb-neon);
+  flex-shrink: 0;
+}
+
+.rb-workout-nutrition-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-workout-nutrition-card__body strong {
+  display: block;
+  font-size: 28px;
+  color: var(--rb-neon);
+  line-height: 1.1;
+  margin: 4px 0;
+}
+
+.rb-workout-nutrition-card__body p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .rb-workout-result-card {
   min-height: 118px;
 }
@@ -4191,6 +4236,461 @@ html.rb-keyboard-open .rb-main {
   }
 }
 
+.rb-nutrition-hero__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rb-nutrition-profile__weight-link {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+/* —— Трекер веса —— */
+.rb-weight-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 32px;
+}
+
+.rb-weight-summary {
+  padding: 20px;
+}
+
+.rb-weight-summary__main {
+  margin-bottom: 16px;
+}
+
+.rb-weight-summary__main strong {
+  display: block;
+  font-size: clamp(36px, 8vw, 48px);
+  color: var(--rb-neon);
+  line-height: 1.1;
+  margin: 4px 0 8px;
+}
+
+.rb-weight-summary__unit {
+  font-size: 20px;
+  color: var(--rb-neon-dim);
+}
+
+.rb-weight-summary__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.rb-weight-summary__grid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.rb-weight-summary__bmi-cat {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.rb-weight-change {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rb-weight-change--down {
+  background: rgba(195, 244, 0, 0.15);
+  color: var(--rb-neon);
+}
+
+.rb-weight-change--up {
+  background: rgba(255, 159, 67, 0.15);
+  color: #ff9f43;
+}
+
+.rb-weight-change--neutral {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--rb-text-muted);
+}
+
+.rb-weight-forecast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  color: var(--rb-neon);
+}
+
+.rb-weight-forecast p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.rb-weight-period {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.rb-weight-period__btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+}
+
+.rb-weight-period__btn.active {
+  border-color: var(--rb-neon);
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+}
+
+.rb-weight-chart {
+  position: relative;
+  padding-top: 8px;
+}
+
+.rb-weight-chart__target {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rb-weight-chart__cols {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  min-height: 120px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.rb-weight-chart__col {
+  flex: 1;
+  min-width: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.rb-weight-chart__val {
+  font-size: 11px;
+  color: var(--rb-neon);
+}
+
+.rb-weight-chart__bar-wrap {
+  width: 100%;
+  height: clamp(80px, 16vw, 100px);
+  display: flex;
+  align-items: flex-end;
+}
+
+.rb-weight-chart__bar {
+  width: 100%;
+  min-height: 8px;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(to top, var(--rb-neon-dim), var(--rb-neon));
+  transition: height 0.4s ease;
+}
+
+.rb-weight-chart__day {
+  font-size: 9px;
+  color: var(--rb-text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.rb-weight-chart__scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--rb-text-muted);
+}
+
+.rb-weight-form-card {
+  padding: 20px;
+}
+
+.rb-weight-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.rb-weight-history ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.rb-weight-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rb-weight-history-item strong {
+  display: block;
+  margin-top: 2px;
+}
+
+@media (max-width: 380px) {
+  .rb-weight-summary__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* —— Трекер воды —— */
+.rb-water-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 32px;
+}
+
+.rb-water-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.rb-water-ring {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.rb-water-ring__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.rb-water-ring__center strong {
+  font-size: 28px;
+  line-height: 1;
+  color: #00d4ff;
+}
+
+.rb-water-ring__center span {
+  font-size: 11px;
+}
+
+.rb-water-ring__arc {
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.rb-water-hero__info {
+  flex: 1;
+  min-width: 160px;
+}
+
+.rb-water-hero__remaining {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.rb-water-hero__remaining strong {
+  color: #00d4ff;
+}
+
+.rb-water-hero__done {
+  color: var(--rb-neon);
+}
+
+.rb-water-hero__bonus {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.rb-water-quick {
+  padding: 20px;
+}
+
+.rb-water-quick__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+
+.rb-water-quick__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  background: rgba(0, 212, 255, 0.08);
+  color: #00d4ff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rb-water-quick__btn:active {
+  background: rgba(0, 212, 255, 0.18);
+}
+
+.rb-water-custom {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rb-water-custom .rb-input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.rb-water-custom .rb-btn-pill {
+  flex-shrink: 0;
+}
+
+.rb-water-stats-avg {
+  margin: 0 0 12px;
+}
+
+.rb-water-chart {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  min-height: 100px;
+  overflow-x: auto;
+}
+
+.rb-water-chart__col {
+  flex: 1;
+  min-width: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.rb-water-chart__bars {
+  height: 80px;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.rb-water-chart__bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(to top, #0099cc, #00d4ff);
+  min-height: 4px;
+  transition: height 0.4s ease;
+}
+
+.rb-water-chart__day {
+  font-size: 9px;
+  color: var(--rb-text-muted);
+}
+
+.rb-water-history ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.rb-water-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rb-water-history-item strong {
+  display: block;
+  color: #00d4ff;
+}
+
+.rb-water-mini {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  border: none;
+}
+
+.rb-water-mini__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(0, 212, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00d4ff;
+  flex-shrink: 0;
+}
+
+.rb-water-mini__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-water-mini__body strong {
+  display: block;
+  margin: 4px 0 8px;
+  font-size: 18px;
+}
+
+.rb-water-mini__bar {
+  height: 6px;
+}
+
+.rb-water-mini__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #00d4ff;
+  transition: width 0.5s ease;
+}
+
+@media (max-width: 380px) {
+  .rb-water-quick__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rb-water-custom {
+    flex-direction: column;
+  }
+
+  .rb-water-custom .rb-btn-pill {
+    width: 100%;
+  }
+}
+
 .rb-summary-nutrition-cta {
   display: flex;
   align-items: center;
@@ -4219,4 +4719,400 @@ html.rb-keyboard-open .rb-main {
   align-items: center;
   justify-content: center;
   color: var(--rb-neon);
+}
+
+/* AI-диетолог */
+.rb-coach-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 24px;
+}
+
+.rb-coach-page__title {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.rb-coach-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 20px 16px;
+}
+
+.rb-coach-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rb-coach-ring {
+  position: relative;
+  margin: 8px 0;
+}
+
+.rb-coach-ring__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.rb-coach-ring__center strong {
+  font-size: 42px;
+  line-height: 1;
+}
+
+.rb-coach-ring__arc {
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.rb-coach-hero__date {
+  margin: 0;
+  font-size: 13px;
+  color: var(--rb-text-muted);
+}
+
+.rb-coach-summary {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.rb-coach-regen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.rb-coach-recs__list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rb-coach-recs__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.rb-coach-recs__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(195, 244, 0, 0.1);
+  color: var(--rb-neon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rb-coach-tip p {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #00d4ff;
+}
+
+.rb-coach-history ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rb-coach-history__item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.rb-coach-history__score {
+  flex-shrink: 0;
+  width: 40px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rb-coach-history__body p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--rb-text-muted);
+}
+
+.rb-coach-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.rb-coach-empty .material-symbols-outlined {
+  font-size: 48px;
+  color: var(--rb-neon);
+  opacity: 0.6;
+}
+
+.rb-coach-skeleton {
+  min-height: 280px;
+  animation: rb-pulse 1.5s ease-in-out infinite;
+}
+
+.rb-coach-mini {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.rb-coach-mini__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rb-coach-mini__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-coach-mini__body strong {
+  display: block;
+  font-size: 15px;
+}
+
+.rb-coach-mini__summary {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--rb-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 380px) {
+  .rb-coach-mini__summary {
+    -webkit-line-clamp: 1;
+  }
+}
+
+.rb-nutrition-meals-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.rb-nutrition-meals-head .rb-headline {
+  margin: 0;
+}
+
+.rb-nutrition-copy-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rb-nutrition-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(195, 244, 0, 0.25);
+  background: rgba(195, 244, 0, 0.08);
+  color: var(--rb-neon);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rb-nutrition-copy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rb-nutrition-copy-btn:active:not(:disabled) {
+  background: rgba(195, 244, 0, 0.18);
+}
+
+.rb-nutrition-chart-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.rb-nutrition-chart-head .rb-headline {
+  margin: 0;
+}
+
+.rb-nutrition-chart-period {
+  flex-wrap: wrap;
+}
+
+.rb-nutrition-barcode {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rb-nutrition-barcode__manual {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rb-nutrition-barcode__manual .rb-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.rb-nutrition-barcode__result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+}
+
+.rb-nutrition-barcode__fallback {
+  align-self: center;
+  font-size: 13px;
+}
+
+.rb-ach-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 24px;
+}
+
+.rb-ach-page__title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.rb-ach-page__summary {
+  margin: 0;
+}
+
+.rb-ach-categories {
+  flex-wrap: wrap;
+}
+
+.rb-ach-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rb-ach-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  opacity: 0.72;
+}
+
+.rb-ach-card--unlocked {
+  opacity: 1;
+  border-color: rgba(195, 244, 0, 0.35);
+  background: rgba(195, 244, 0, 0.06);
+}
+
+.rb-ach-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--rb-text-muted);
+}
+
+.rb-ach-card--unlocked .rb-ach-card__icon {
+  background: rgba(195, 244, 0, 0.15);
+  color: var(--rb-neon);
+}
+
+.rb-ach-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-ach-card__body strong {
+  display: block;
+  font-size: 15px;
+}
+
+.rb-ach-card__body p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.rb-ach-card__progress {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rb-ach-card__bonus {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--rb-neon);
+  font-weight: 600;
+}
+
+.rb-ach-skeleton {
+  min-height: 200px;
+  animation: rb-pulse 1.5s ease-in-out infinite;
 }

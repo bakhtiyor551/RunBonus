@@ -35,6 +35,7 @@ import {
   emitWorkoutStarted,
 } from '../services/liveTrackingWs.js';
 import { saveWorkoutPoints } from '../services/workoutPointsService.js';
+import { notifyPostWorkoutNutrition } from '../services/nutritionService.js';
 
 const router = Router();
 
@@ -564,6 +565,18 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       client_name: null,
     });
 
+    let nutritionInfo = null;
+    try {
+      nutritionInfo = await notifyPostWorkoutNutrition(userId, {
+        distanceKm: validation.distanceKm ?? distanceKm,
+        movingSeconds,
+        durationSeconds,
+        stepsCount: stepsCount ?? 0,
+      });
+    } catch (nutErr) {
+      console.warn('[workout/finish/nutrition]', nutErr.message);
+    }
+
     const client = buildClientFinishResponse({
       finalStatus,
       bonusAmount,
@@ -573,6 +586,10 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       rejectReason,
       levelUp,
     });
+
+    if (nutritionInfo) {
+      client.nutrition = nutritionInfo;
+    }
 
     return { status: 200, body: client };
   } catch (err) {

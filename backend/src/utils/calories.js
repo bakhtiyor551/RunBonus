@@ -64,3 +64,30 @@ export function kmToBurnCalories(excessKcal, weightKg = 70) {
   if (kcalPerKm <= 0) return 0;
   return Math.round((excessKcal / kcalPerKm) * 10) / 10;
 }
+
+export function calculateBMI(weightKg, heightCm) {
+  const w = Number(weightKg) || 0;
+  const h = (Number(heightCm) || 0) / 100;
+  if (!w || h <= 0) return null;
+  return Math.round((w / (h * h)) * 10) / 10;
+}
+
+export function bmiCategory(bmi) {
+  if (bmi == null) return null;
+  if (bmi < 18.5) return 'Недостаточный';
+  if (bmi < 25) return 'Норма';
+  if (bmi < 30) return 'Избыточный';
+  return 'Ожирение';
+}
+
+/** Дневная норма воды (мл) */
+export function calculateDailyWaterGoal(weightKg, { workoutMinutes = 0, hotWeather = false, customGoal = null } = {}) {
+  if (customGoal != null && customGoal > 0) {
+    return Math.min(4000, Math.max(1000, Math.round(Number(customGoal))));
+  }
+  const base = Math.round(Math.max(Number(weightKg) || 70, 40) * 33);
+  let goal = base;
+  if (workoutMinutes > 30) goal += 500;
+  if (hotWeather) goal += 300;
+  return Math.min(4000, Math.max(1500, goal));
+}
