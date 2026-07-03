@@ -6,9 +6,11 @@ import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import PremiumPaywall from '../components/nutrition/PremiumPaywall';
 import AddFoodSheet from '../components/nutrition/AddFoodSheet';
+import EditFoodSheet from '../components/nutrition/EditFoodSheet';
 import PhotoAnalysisSheet from '../components/nutrition/PhotoAnalysisSheet';
 import {
   fetchNutritionStatus,
+  fetchNutritionProfile,
   fetchNutritionToday,
   fetchNutritionWeek,
   fetchNutritionHistory,
@@ -163,12 +165,19 @@ export default function NutritionPage({ user }) {
   const [analytics, setAnalytics] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState(null);
 
   const loadAll = useCallback(async () => {
     try {
       const status = await fetchNutritionStatus();
       setPremium(status.is_premium);
       if (!status.is_premium) return;
+
+      const profileData = await fetchNutritionProfile().catch(() => null);
+      if (profileData && !profileData.profile?.onboarding_completed) {
+        navigate('/nutrition/onboarding', { replace: true });
+        return;
+      }
 
       const [t, w, h, rec, an] = await Promise.all([
         fetchNutritionToday(),
@@ -187,7 +196,7 @@ export default function NutritionPage({ user }) {
         setPremium(false);
       }
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     setLoading(true);
@@ -253,6 +262,10 @@ export default function NutritionPage({ user }) {
             <div className="rb-nutrition-hero__text">
               <h1 className="font-display">Питание и калории</h1>
               <p className="rb-text-muted">AI-диетолог RunBonus+</p>
+              <button type="button" className="rb-nutrition-profile-link" onClick={() => navigate('/nutrition/profile')}>
+                <Icon name="tune" />
+                Профиль питания
+              </button>
             </div>
             {!loading && today && (
               <div className="rb-nutrition-hero__ring-wrap">
@@ -419,14 +432,24 @@ export default function NutritionPage({ user }) {
                           <strong>{item.name}</strong>
                           <span className="rb-text-muted rb-nutrition-history__kcal">{item.calories} kcal</span>
                         </div>
-                        <button
-                          type="button"
-                          className="rb-nutrition-history__del"
-                          onClick={() => handleDelete(item.id)}
-                          aria-label="Удалить"
-                        >
-                          <Icon name="delete" />
-                        </button>
+                        <div className="rb-nutrition-history__actions">
+                          <button
+                            type="button"
+                            className="rb-nutrition-history__edit"
+                            onClick={() => setEditEntry(item)}
+                            aria-label="Редактировать"
+                          >
+                            <Icon name="edit" />
+                          </button>
+                          <button
+                            type="button"
+                            className="rb-nutrition-history__del"
+                            onClick={() => handleDelete(item.id)}
+                            aria-label="Удалить"
+                          >
+                            <Icon name="delete" />
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -446,6 +469,12 @@ export default function NutritionPage({ user }) {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onPhoto={() => setPhotoOpen(true)}
+        onSaved={refresh}
+      />
+      <EditFoodSheet
+        open={!!editEntry}
+        entry={editEntry}
+        onClose={() => setEditEntry(null)}
         onSaved={refresh}
       />
       <PhotoAnalysisSheet

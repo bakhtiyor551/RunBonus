@@ -50,6 +50,21 @@ export async function addNutritionEntry(data) {
   });
 }
 
+export async function fetchNutritionProfile() {
+  return api('/api/nutrition/profile');
+}
+
+export async function updateNutritionEntry(id, data) {
+  return api(`/api/nutrition/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchRecentFoods() {
+  return api('/api/nutrition/recent');
+}
+
 export async function deleteNutritionEntry(id) {
   return api(`/api/nutrition/${id}`, { method: 'DELETE' });
 }
