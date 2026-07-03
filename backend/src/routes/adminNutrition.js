@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authAdmin } from '../middleware/auth.js';
 import { pool } from '../db.js';
+import { normalizePhone } from '../utils/phone.js';
 import {
   getAdminStats,
   adminListFoods,
@@ -11,6 +12,26 @@ import { grantPremium, revokePremium, getSubscriptionInfo } from '../services/su
 const router = Router();
 
 router.use(authAdmin);
+
+async function resolveUserId({ user_id, phone }) {
+  if (user_id) return Number(user_id);
+  if (!phone) return null;
+
+  const normalized = normalizePhone(phone);
+  if (!normalized) {
+    const err = new Error('Неверный формат номера');
+    err.status = 400;
+    throw err;
+  }
+
+  const [rows] = await pool.query('SELECT id FROM users WHERE phone = ?', [normalized]);
+  if (!rows.length) {
+    const err = new Error('Пользователь не найден');
+    err.status = 404;
+    throw err;
+  }
+  return rows[0].id;
+}
 
 router.get('/stats', async (_req, res) => {
   try {
@@ -61,12 +82,7 @@ router.get('/categories', async (_req, res) => {
 router.post('/premium/grant', async (req, res) => {
   try {
     const { user_id, phone, days = 30 } = req.body;
-    let userId = user_id;
-    if (!userId && phone) {
-      const [rows] = await pool.query('SELECT id FROM users WHERE phone = ?', [phone]);
-      if (!rows.length) return res.status(404).json({ error: 'Пользователь не найден' });
-      userId = rows[0].id;
-    }
+    const userId = await resolveUserId({ user_id, phone });
     if (!userId) return res.status(400).json({ error: 'Укажите user_id или phone' });
     const sub = await grantPremium(userId, { days: Number(days) || 30 });
     res.json(sub);
@@ -78,18 +94,13 @@ router.post('/premium/grant', async (req, res) => {
 router.post('/premium/revoke', async (req, res) => {
   try {
     const { user_id, phone } = req.body;
-    let userId = user_id;
-    if (!userId && phone) {
-      const [rows] = await pool.query('SELECT id FROM users WHERE phone = ?', [phone]);
-      if (!rows.length) return res.status(404).json({ error: 'Пользователь не найден' });
-      userId = rows[0].id;
-    }
+    const userId = await resolveUserId({ user_id, phone });
     if (!userId) return res.status(400).json({ error: 'Укажите user_id или phone' });
     await revokePremium(userId);
     const sub = await getSubscriptionInfo(userId);
     res.json(sub);
   } catch (err) {
-    res.status(500).json({ error: 'Ошибка отзыва подписки' });
+    res.status(err.status || 500).json({ error: err.message || 'Ошибка' });
   }
 });
 

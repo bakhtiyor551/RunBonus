@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { adminApi } from '../api';
+import { adminApi } from './api';
 
 function StatCard({ label, value }) {
   return (
@@ -103,7 +103,7 @@ export default function NutritionTab() {
           <label>
             Телефон клиента
             <input
-              placeholder="+992…"
+              placeholder="992901234567 или +992 90 123 4567"
               value={premiumForm.phone}
               onChange={(e) => setPremiumForm({ ...premiumForm, phone: e.target.value })}
               required
