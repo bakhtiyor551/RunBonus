@@ -18,6 +18,7 @@ import LevelPage from './pages/LevelPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
+import MyOrdersPage from './pages/MyOrdersPage';
 import NutritionPage from './pages/NutritionPage';
 import OfflineModal from './components/OfflineModal';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';

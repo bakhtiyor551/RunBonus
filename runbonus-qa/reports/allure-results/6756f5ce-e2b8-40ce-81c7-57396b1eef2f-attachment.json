@@ -1,0 +1,5 @@
+{
+  "error": "no such element",
+  "message": "no such element: Unable to locate element: {\"method\":\"css selector\",\"selector\":\"[aria-label=\"Код из SMS\"]\"}\n  (Session info: chrome=124.0.6367.219)",
+  "stacktrace": "\tGetHandleVerifier [0x00007FF6D4161522+60802]\n\t(No symbol) [0x00007FF6D40DAC22]\n\t(No symbol) [0x00007FF6D3F97CE4]\n\t(No symbol) [0x00007FF6D3FE6D4D]\n\t(No symbol) [0x00007FF6D3FE6E1C]\n\t(No symbol) [0x00007FF6D402CE37]\n\t(No symbol) [0x00007FF6D400ABBF]\n\t(No symbol) [0x00007FF6D402A224]\n\t(No symbol) [0x00007FF6D400A923]\n\t(No symbol) [0x00007FF6D3FD8FEC]\n\t(No symbol) [0x00007FF6D3FD9C21]\n\tGetHandleVerifier [0x00007FF6D44641BD+3217949]\n\tGetHandleVerifier [0x00007FF6D44A6157+3488183]\n\tGetHandleVerifier [0x00007FF6D449F0DF+3459391]\n\tGetHandleVerifier [0x00007FF6D421B8E6+823622]\n\t(No symbol) [0x00007FF6D40E5FBF]\n\t(No symbol) [0x00007FF6D40E0EE4]\n\t(No symbol) [0x00007FF6D40E1072]\n\t(No symbol) [0x00007FF6D40D18C4]\n\tBaseThreadInitThunk [0x00007FFE6AB37374+20]\n\tRtlUserThreadStart [0x00007FFE6B8BCC91+33]\n"
+}
