@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+reports/allure-results/
+reports/allure-report/
+reports/json/
+reports/html/
+screenshots/
+*.log

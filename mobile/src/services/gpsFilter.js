@@ -79,6 +79,22 @@ function segmentSeconds(a, b) {
   return dt > 0 ? dt : null;
 }
 
+/** Скорость: max(от GPS, по смещению между точками) — Android часто не отдаёт speed. */
+export function effectiveSpeedMps(last, pos) {
+  const reported = normalizeSpeedMps(
+    pos.speedMps ?? (pos.speed != null ? speedKmhToMps(pos.speed) : null)
+  );
+  if (!last) return reported;
+
+  const distM = haversineMeters(last.latitude, last.longitude, pos.latitude, pos.longitude);
+  const dtSec = segmentSeconds(last, pos);
+  let implied = dtSec != null && dtSec > 0 ? distM / dtSec : 0;
+  if (implied <= 0 && distM >= GPS_MIN_SEGMENT_M) {
+    implied = GPS_STATIONARY_SPEED_MPS;
+  }
+  return Math.max(reported, implied);
+}
+
 function isGpsJump(last, pos, distM) {
   const dt = segmentSeconds(last, pos);
   if (dt == null || dt > MAX_JUMP_SECONDS) return false;
@@ -128,7 +144,7 @@ export function shouldRecordGpsPoint(last, pos) {
     return { record: false, reason: 'min_distance', distM };
   }
 
-  const speedMps = normalizeSpeedMps(pos.speedMps ?? (pos.speed != null ? pos.speed / 3.6 : null));
+  const speedMps = effectiveSpeedMps(last, pos);
   if (speedMps < GPS_STATIONARY_SPEED_MPS) {
     return { record: false, reason: 'stationary_speed', distM };
   }

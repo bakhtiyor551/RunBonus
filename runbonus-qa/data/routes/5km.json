@@ -1,0 +1,5 @@
+{
+  "name": "5km-dushanbe",
+  "distanceMeters": 5000,
+  "note": "Полный маршрут генерируется в gpsHelper.generateRoute(38.5598, 68.7738, 5000)"
+}

@@ -38,6 +38,24 @@ export default function LoginPage({ onAuth }) {
     }, 1000);
   };
 
+  /** E2E: переход на шаг OTP без повторной отправки SMS (runbonus-qa). */
+  useEffect(() => {
+    window.__rbE2EGotoOtp = (phoneOverride) => {
+      const p = String(phoneOverride ?? phone).trim();
+      if (!p) return false;
+      if (phoneOverride && phoneOverride !== phone) {
+        setPhone(phoneOverride);
+      }
+      setStep(1);
+      setOtp('');
+      startResendTimer();
+      return true;
+    };
+    return () => {
+      delete window.__rbE2EGotoOtp;
+    };
+  }, [phone]);
+
   const sendCode = async (e) => {
     e?.preventDefault();
     setError('');

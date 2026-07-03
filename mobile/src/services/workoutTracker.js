@@ -15,6 +15,7 @@ import {
   GPS_AUTO_PAUSE_SPEED_MPS,
   GPS_AUTO_RESUME_SPEED_MPS,
   computeAvgSpeedKmh,
+  effectiveSpeedMps,
   movingAverageSpeedMps,
   normalizeSpeedMps,
   speedMpsToKmh,
@@ -183,8 +184,9 @@ function syncElapsedSeconds() {
   return session.seconds;
 }
 
-function updateDisplaySpeed(pos) {
-  const mps = normalizeSpeedMps(pos.speedMps);
+function updateDisplaySpeed(pos, prevPosition = null) {
+  const last = session.points[session.points.length - 1] ?? prevPosition ?? null;
+  const mps = effectiveSpeedMps(last, pos);
   session.speedSamplesMps.push(mps);
   if (session.speedSamplesMps.length > 6) {
     session.speedSamplesMps = session.speedSamplesMps.slice(-6);
@@ -197,14 +199,15 @@ function updateDisplaySpeed(pos) {
   }
 }
 
-function processAutoPause(pos) {
+function processAutoPause(pos, prevPosition = null) {
   if (!session || session.paused || !session.gpsReady) return;
 
   const waitingForTrack = !session.points.length;
   const inGracePeriod = Date.now() - session.startedAt < AUTO_PAUSE_GRACE_MS;
   if (waitingForTrack && inGracePeriod) return;
 
-  const mps = Number(pos.speedMps) || 0;
+  const last = session.points[session.points.length - 1] ?? prevPosition ?? null;
+  const mps = effectiveSpeedMps(last, pos);
 
   if (session.autoPaused) {
     if (mps >= GPS_AUTO_RESUME_SPEED_MPS) {
@@ -439,13 +442,14 @@ function markGpsSignal() {
 function onGpsPosition(pos) {
   if (!session || !pos || session.finishing) return;
 
+  const prevLive = session.livePosition;
   session.livePosition = pos;
   markGpsSignal();
   ensureAnchorBuffered().catch(() => {});
-  processAutoPause(pos);
+  processAutoPause(pos, prevLive);
 
   if (!isTrackingFrozen()) {
-    updateDisplaySpeed(pos);
+    updateDisplaySpeed(pos, prevLive);
   } else {
     session.currentSpeed = 0;
   }

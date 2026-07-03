@@ -1,5 +1,7 @@
 package com.runbonus.app;
 
+import android.content.pm.ApplicationInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.WebView;
@@ -13,6 +15,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            boolean debuggable = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+            WebView.setWebContentsDebuggingEnabled(debuggable);
+        }
         registerPlugin(WorkoutTrackingPlugin.class);
         super.onCreate(savedInstanceState);
         disableWebViewSounds();

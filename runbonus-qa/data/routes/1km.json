@@ -1,0 +1,16 @@
+{
+  "name": "1km-dushanbe",
+  "distanceMeters": 1000,
+  "points": [
+    { "latitude": 38.5598, "longitude": 68.7738 },
+    { "latitude": 38.5607, "longitude": 68.7738 },
+    { "latitude": 38.5616, "longitude": 68.7738 },
+    { "latitude": 38.5625, "longitude": 68.7738 },
+    { "latitude": 38.5634, "longitude": 68.7738 },
+    { "latitude": 38.5643, "longitude": 68.7738 },
+    { "latitude": 38.5652, "longitude": 68.7738 },
+    { "latitude": 38.5661, "longitude": 68.7738 },
+    { "latitude": 38.5670, "longitude": 68.7738 },
+    { "latitude": 38.5679, "longitude": 68.7738 }
+  ]
+}

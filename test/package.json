@@ -1,0 +1,23 @@
+{
+  "name": "runbonus-qa-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RunBonus QA Bot — GPS / Бег / Offline / Антифрод / Бонусы",
+  "scripts": {
+    "test": "node src/index.js",
+    "test:all": "node src/index.js --all",
+    "test:gps": "node src/index.js --suite=gps",
+    "test:running": "node src/index.js --suite=running",
+    "test:offline": "node src/index.js --suite=offline",
+    "test:sync": "node src/index.js --suite=sync",
+    "test:fraud": "node src/index.js --suite=fraud",
+    "test:bonus": "node src/index.js --suite=bonus",
+    "auth:token": "node src/getToken.js",
+    "auth:sms-send": "node src/sendSms.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ws": "^8.21.0"
+  }
+}
