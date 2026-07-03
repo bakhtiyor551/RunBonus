@@ -20,7 +20,26 @@ import {
   getNutritionProfile,
   updateLogEntry,
   getRecentFoods,
+  addWeightLog,
+  getWeightHistory,
+  deleteWeightLog,
+  getWaterToday,
+  addWaterLog,
+  deleteWaterLog,
+  getWaterStats,
+  copyDiaryEntries,
 } from '../services/nutritionService.js';
+import {
+  getCoachToday,
+  getCoachHistory,
+  generateCoachReport,
+} from '../services/nutritionCoachService.js';
+import { lookupFoodByBarcode } from '../services/nutritionBarcodeService.js';
+import {
+  getAchievementsCatalog,
+  getUserAchievements,
+  checkAndUnlockAchievements,
+} from '../services/nutritionAchievementService.js';
 
 const router = Router();
 
@@ -71,7 +90,8 @@ router.get('/week', async (req, res) => {
 
 router.get('/chart', async (req, res) => {
   try {
-    const period = req.query.period === 'month' ? 'month' : 'week';
+    const allowed = new Set(['week', 'month', '3m', '6m', '1y']);
+    const period = allowed.has(req.query.period) ? req.query.period : 'week';
     const data = await getChartData(req.userId, period);
     res.json(data);
   } catch (err) {
@@ -100,6 +120,15 @@ router.get('/foods/search', async (req, res) => {
   }
 });
 
+router.get('/foods/barcode/:code', async (req, res) => {
+  try {
+    const data = await lookupFoodByBarcode(req.params.code);
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Ошибка поиска по штрихкоду' });
+  }
+});
+
 router.get('/favorites', async (req, res) => {
   try {
     const favorites = await getFavorites(req.userId);
@@ -124,6 +153,73 @@ router.get('/recommendations', async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: 'Ошибка рекомендаций' });
+  }
+});
+
+router.get('/coach/today', async (req, res) => {
+  try {
+    const data = await getCoachToday(req.userId);
+    res.json(data);
+  } catch (err) {
+    console.error('[nutrition/coach/today]', err);
+    res.status(err.status || 500).json({ error: err.message || 'Ошибка загрузки отчёта' });
+  }
+});
+
+router.get('/coach/history', async (req, res) => {
+  try {
+    const data = await getCoachHistory(req.userId, { limit: req.query.limit });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка истории отчётов' });
+  }
+});
+
+router.post('/coach/generate', async (req, res) => {
+  try {
+    const report = await generateCoachReport(req.userId, { force: true });
+    res.json({ report });
+  } catch (err) {
+    console.error('[nutrition/coach/generate]', err);
+    res.status(err.status || 500).json({ error: err.message || 'Не удалось сгенерировать отчёт' });
+  }
+});
+
+router.post('/copy', async (req, res) => {
+  try {
+    const from = req.query.from || req.body?.from || 'yesterday';
+    const meal_type = req.query.meal_type || req.body?.meal_type || null;
+    const result = await copyDiaryEntries(req.userId, { from, meal_type });
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Не удалось скопировать записи' });
+  }
+});
+
+router.get('/achievements', async (req, res) => {
+  try {
+    const data = await getAchievementsCatalog(req.userId);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки достижений' });
+  }
+});
+
+router.get('/achievements/mine', async (req, res) => {
+  try {
+    const data = await getUserAchievements(req.userId);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки достижений' });
+  }
+});
+
+router.post('/achievements/check', async (req, res) => {
+  try {
+    const unlocked = await checkAndUnlockAchievements(req.userId);
+    res.json({ unlocked });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка проверки достижений' });
   }
 });
 
@@ -160,6 +256,73 @@ router.put('/profile', async (req, res) => {
     res.json({ profile });
   } catch (err) {
     res.status(500).json({ error: 'Не удалось сохранить профиль' });
+  }
+});
+
+router.get('/weight', async (req, res) => {
+  try {
+    const period = req.query.period || '30d';
+    const data = await getWeightHistory(req.userId, { period, limit: req.query.limit });
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Ошибка загрузки веса' });
+  }
+});
+
+router.post('/weight', async (req, res) => {
+  try {
+    const entry = await addWeightLog(req.userId, req.body);
+    res.status(201).json(entry);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Не удалось сохранить вес' });
+  }
+});
+
+router.delete('/weight/:id', async (req, res) => {
+  try {
+    const ok = await deleteWeightLog(req.userId, Number(req.params.id));
+    if (!ok) return res.status(404).json({ error: 'Запись не найдена' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка удаления' });
+  }
+});
+
+router.get('/water/today', async (req, res) => {
+  try {
+    const data = await getWaterToday(req.userId);
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Ошибка загрузки воды' });
+  }
+});
+
+router.get('/water/stats', async (req, res) => {
+  try {
+    const period = req.query.period === '30d' ? '30d' : '7d';
+    const data = await getWaterStats(req.userId, { period });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка статистики воды' });
+  }
+});
+
+router.post('/water', async (req, res) => {
+  try {
+    const entry = await addWaterLog(req.userId, req.body);
+    res.status(201).json(entry);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Не удалось добавить воду' });
+  }
+});
+
+router.delete('/water/:id', async (req, res) => {
+  try {
+    const ok = await deleteWaterLog(req.userId, Number(req.params.id));
+    if (!ok) return res.status(404).json({ error: 'Запись не найдена' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка удаления' });
   }
 });
 

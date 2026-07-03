@@ -94,8 +94,18 @@ export default function NutritionTab() {
           <StatCard label="AI-анализов" value={stats.ai_analyses} />
           <StatCard label="Premium-пользователей" value={stats.premium_users} />
           <StatCard label="Продуктов в базе" value={stats.foods_count} />
+          <StatCard label="Из Open Food Facts" value={stats.off_foods_count ?? 0} />
         </div>
       )}
+
+      <div className="glass-card card" style={{ marginBottom: 24 }}>
+        <h3>Импорт Open Food Facts</h3>
+        <p className="hint">
+          Скачайте openfoodfacts-products.jsonl.gz с world.openfoodfacts.org/data и выполните на сервере:
+          <br />
+          <code>node scripts/importOpenFoodFacts.js --file ./data/openfoodfacts-products.jsonl.gz --limit 100000</code>
+        </p>
+      </div>
 
       <div className="glass-card card" style={{ marginBottom: 24 }}>
         <h3>Выдать RunBonus+</h3>

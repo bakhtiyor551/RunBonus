@@ -83,3 +83,63 @@ export async function updateNutritionProfile(data) {
     body: JSON.stringify(data),
   });
 }
+
+export async function fetchWeightHistory(period = '30d') {
+  return api(`/api/nutrition/weight?period=${encodeURIComponent(period)}`);
+}
+
+export async function addWeightLog(data) {
+  return api('/api/nutrition/weight', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteWeightLog(id) {
+  return api(`/api/nutrition/weight/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchWaterToday() {
+  return api('/api/nutrition/water/today');
+}
+
+export async function fetchWaterStats(period = '7d') {
+  return api(`/api/nutrition/water/stats?period=${encodeURIComponent(period)}`);
+}
+
+export async function addWaterLog(amountMl) {
+  return api('/api/nutrition/water', {
+    method: 'POST',
+    body: JSON.stringify({ amount_ml: amountMl }),
+  });
+}
+
+export async function deleteWaterLog(id) {
+  return api(`/api/nutrition/water/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchCoachToday() {
+  return api('/api/nutrition/coach/today');
+}
+
+export async function fetchCoachHistory(limit = 14) {
+  return api(`/api/nutrition/coach/history?limit=${limit}`);
+}
+
+export async function generateCoachReport() {
+  return api('/api/nutrition/coach/generate', { method: 'POST' });
+}
+
+export async function copyNutritionDiary(from = 'yesterday', mealType = null) {
+  const params = new URLSearchParams({ from });
+  if (mealType) params.set('meal_type', mealType);
+  return api(`/api/nutrition/copy?${params}`, { method: 'POST' });
+}
+
+export async function fetchFoodByBarcode(code) {
+  return api(`/api/nutrition/foods/barcode/${encodeURIComponent(code)}`);
+}
+
+export async function fetchAchievements() {
+  return api('/api/nutrition/achievements');
+}

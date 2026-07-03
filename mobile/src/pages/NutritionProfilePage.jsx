@@ -125,6 +125,9 @@ export default function NutritionProfilePage() {
               )}
 
               <button type="submit" className="rb-btn-pill" disabled={saving}>{saving ? '…' : 'Сохранить'}</button>
+              <button type="button" className="rb-btn-ghost rb-nutrition-profile__weight-link" onClick={() => navigate('/nutrition/weight')}>
+                История веса и ИМТ →
+              </button>
             </form>
           )}
         </main>

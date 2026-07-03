@@ -48,6 +48,11 @@ export const config = {
     baseUrl: (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
     model: process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini',
   },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY?.trim() || '',
+    baseUrl: (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, ''),
+    model: process.env.GEMINI_VISION_MODEL || 'gemini-2.0-flash',
+  },
   /** В dev можно включить nutrition без подписки */
   nutritionDevFree: process.env.NUTRITION_DEV_FREE === '1',
   firebase: {

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import DetailSheet from '../DetailSheet';
 import Icon from '../Icon';
+import QrScanner, { parseBarcode } from '../QrScanner';
 import {
   searchNutritionFoods,
   fetchNutritionFavorites,
   fetchRecentFoods,
   addNutritionEntry,
+  fetchFoodByBarcode,
 } from '../../services/nutrition';
 import { showToast } from '../../utils/toast';
 
@@ -245,6 +247,93 @@ function FavoritesList({ mealType, onSaved, onClose }) {
   );
 }
 
+function BarcodePanel({ mealType, onSaved, onClose, onManual }) {
+  const [manualCode, setManualCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState(null);
+
+  const lookup = async (raw) => {
+    const code = parseBarcode(raw);
+    if (!code) {
+      showToast('Неверный штрихкод');
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await fetchFoodByBarcode(code);
+      if (!data.found) {
+        showToast('Продукт не найден');
+        setPreview(null);
+        return;
+      }
+      setPreview({ ...data, barcode: code });
+    } catch (e) {
+      showToast(e?.message || 'Ошибка поиска');
+      setPreview(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addProduct = async () => {
+    if (!preview?.food) return;
+    const food = preview.food;
+    const n = food.default_nutrients;
+    try {
+      await addNutritionEntry({
+        food_id: food.id || undefined,
+        name: food.name,
+        meal_type: mealType,
+        grams: food.serving_grams,
+        portions: 1,
+        calories: n.calories,
+        protein_g: n.protein_g,
+        fat_g: n.fat_g,
+        carbs_g: n.carbs_g,
+        source: 'barcode',
+      });
+      showToast(`${food.name} добавлено`);
+      onSaved?.();
+      onClose?.();
+    } catch (e) {
+      showToast(e?.message || 'Ошибка');
+    }
+  };
+
+  return (
+    <div className="rb-nutrition-barcode">
+      <QrScanner active={!preview} onScan={lookup} parseCode={parseBarcode} />
+      <div className="rb-nutrition-barcode__manual">
+        <input
+          className="rb-input"
+          placeholder="Или введите штрихкод вручную"
+          value={manualCode}
+          onChange={(e) => setManualCode(e.target.value)}
+          inputMode="numeric"
+        />
+        <button type="button" className="rb-btn-pill" disabled={loading} onClick={() => lookup(manualCode)}>
+          {loading ? '…' : 'Найти'}
+        </button>
+      </div>
+      {preview?.food && (
+        <div className="rb-nutrition-barcode__result glass-card">
+          <span className="rb-label">Найдено {preview.source === 'off' ? '(Open Food Facts)' : ''}</span>
+          <strong>{preview.food.name}</strong>
+          <span className="rb-text-muted">
+            {preview.food.default_nutrients?.calories} kcal · {preview.food.serving_grams} г
+          </span>
+          <button type="button" className="rb-btn-pill" onClick={addProduct}>Добавить</button>
+        </div>
+      )}
+      {!preview && !loading && (
+        <button type="button" className="rb-btn-ghost rb-nutrition-barcode__fallback" onClick={onManual}>
+          Продукт не найден — ввести вручную
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AddFoodSheet({ open, onClose, onPhoto, onSaved, mealType = 'lunch' }) {
   const [mode, setMode] = useState(null);
 
@@ -263,6 +352,7 @@ export default function AddFoodSheet({ open, onClose, onPhoto, onSaved, mealType
     manual: 'Вручную',
     favorites: 'Избранное',
     recent: 'Недавние',
+    barcode: 'Штрихкод',
   };
 
   return (
@@ -276,6 +366,10 @@ export default function AddFoodSheet({ open, onClose, onPhoto, onSaved, mealType
           <button type="button" className="rb-nutrition-add-opt" onClick={() => setMode('search')}>
             <Icon name="search" />
             <span>Поиск</span>
+          </button>
+          <button type="button" className="rb-nutrition-add-opt" onClick={() => setMode('barcode')}>
+            <Icon name="barcode_scanner" />
+            <span>Штрихкод</span>
           </button>
           <button type="button" className="rb-nutrition-add-opt" onClick={() => setMode('recent')}>
             <Icon name="history" />
@@ -292,6 +386,14 @@ export default function AddFoodSheet({ open, onClose, onPhoto, onSaved, mealType
         </div>
       )}
       {mode === 'search' && <FoodPicker mealType={mealType} onSaved={onSaved} onClose={handleClose} />}
+      {mode === 'barcode' && (
+        <BarcodePanel
+          mealType={mealType}
+          onSaved={onSaved}
+          onClose={handleClose}
+          onManual={() => setMode('manual')}
+        />
+      )}
       {mode === 'recent' && <RecentList mealType={mealType} onSaved={onSaved} onClose={handleClose} />}
       {mode === 'manual' && <ManualForm mealType={mealType} onSaved={onSaved} onClose={handleClose} />}
       {mode === 'favorites' && <FavoritesList mealType={mealType} onSaved={onSaved} onClose={handleClose} />}
