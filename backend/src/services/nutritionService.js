@@ -39,6 +39,8 @@ async function getProfile(conn, userId) {
       gender: 'male',
       activity_level: 'moderate',
       goal: 'maintain',
+      target_weight_kg: null,
+      onboarding_completed: false,
     };
   }
   const p = rows[0];
@@ -52,7 +54,13 @@ async function getProfile(conn, userId) {
       }
     : calculateMacroTargets(calculateTDEE({ ...p, age }));
 
-  return { ...p, age, ...targets };
+  return {
+    ...p,
+    age,
+    ...targets,
+    onboarding_completed: !!p.onboarding_completed,
+    target_weight_kg: p.target_weight_kg != null ? Number(p.target_weight_kg) : null,
+  };
 }
 
 export async function upsertNutritionProfile(userId, data) {
@@ -62,6 +70,10 @@ export async function upsertNutritionProfile(userId, data) {
   const gender = data.gender || null;
   const activity = data.activity_level || 'moderate';
   const goal = data.goal || 'maintain';
+  const targetWeight = data.target_weight_kg != null ? Number(data.target_weight_kg) : null;
+  const onboardingCompleted = data.onboarding_completed != null
+    ? (data.onboarding_completed ? 1 : 0)
+    : null;
 
   const profile = {
     weight_kg: weight || 70,
@@ -74,11 +86,20 @@ export async function upsertNutritionProfile(userId, data) {
   };
   const macros = calculateMacroTargets(calculateTDEE(profile));
 
+  const [existing] = await pool.query(
+    'SELECT onboarding_completed FROM user_nutrition_profile WHERE user_id = ?',
+    [userId]
+  );
+  const onboardingValue = onboardingCompleted != null
+    ? onboardingCompleted
+    : (existing.length ? existing[0].onboarding_completed : 0);
+
   await pool.query(
     `INSERT INTO user_nutrition_profile
        (user_id, weight_kg, height_cm, birth_year, gender, activity_level, goal,
-        daily_calories, daily_protein_g, daily_fat_g, daily_carbs_g)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        daily_calories, daily_protein_g, daily_fat_g, daily_carbs_g,
+        target_weight_kg, onboarding_completed)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        weight_kg = COALESCE(VALUES(weight_kg), weight_kg),
        height_cm = COALESCE(VALUES(height_cm), height_cm),
@@ -89,7 +110,9 @@ export async function upsertNutritionProfile(userId, data) {
        daily_calories = VALUES(daily_calories),
        daily_protein_g = VALUES(daily_protein_g),
        daily_fat_g = VALUES(daily_fat_g),
-       daily_carbs_g = VALUES(daily_carbs_g)`,
+       daily_carbs_g = VALUES(daily_carbs_g),
+       target_weight_kg = COALESCE(VALUES(target_weight_kg), target_weight_kg),
+       onboarding_completed = VALUES(onboarding_completed)`,
     [
       userId,
       weight,
@@ -102,10 +125,23 @@ export async function upsertNutritionProfile(userId, data) {
       macros.daily_protein_g,
       macros.daily_fat_g,
       macros.daily_carbs_g,
+      targetWeight,
+      onboardingValue,
     ]
   );
 
   return getProfile(pool, userId);
+}
+
+export async function getNutritionProfile(userId) {
+  const profile = await getProfile(pool, userId);
+  const macros = {
+    daily_calories: profile.daily_calories,
+    daily_protein_g: profile.daily_protein_g,
+    daily_fat_g: profile.daily_fat_g,
+    daily_carbs_g: profile.daily_carbs_g,
+  };
+  return { profile, goals: macros, daily_goal: profile.daily_calories };
 }
 
 async function getBurnedCalories(conn, userId, dateClause = 'DATE(COALESCE(finished_at, started_at)) = CURDATE()') {
@@ -488,6 +524,118 @@ export async function addLogEntry(userId, data) {
 export async function deleteLogEntry(userId, logId) {
   const [r] = await pool.query('DELETE FROM nutrition_logs WHERE id = ? AND user_id = ?', [logId, userId]);
   return r.affectedRows > 0;
+}
+
+export async function updateLogEntry(userId, logId, data) {
+  const [existing] = await pool.query(
+    'SELECT * FROM nutrition_logs WHERE id = ? AND user_id = ?',
+    [logId, userId]
+  );
+  if (!existing.length) {
+    const err = new Error('Запись не найдена');
+    err.status = 404;
+    throw err;
+  }
+
+  const mealType = ['breakfast', 'lunch', 'dinner', 'snack'].includes(data.meal_type)
+    ? data.meal_type
+    : existing[0].meal_type;
+  let name = data.name != null ? String(data.name).trim() : existing[0].name;
+  let foodId = data.food_id !== undefined ? (data.food_id || null) : existing[0].food_id;
+  let grams = data.grams != null ? Math.max(Number(data.grams) || 100, 1) : Number(existing[0].grams);
+  const portions = data.portions != null ? Math.max(Number(data.portions) || 1, 0.1) : Number(existing[0].portions);
+  if (data.grams != null || data.portions != null) {
+    grams = Math.round(grams * portions);
+  }
+
+  let nutrients = {
+    calories: data.calories != null ? Number(data.calories) : Number(existing[0].calories),
+    protein_g: data.protein_g != null ? Number(data.protein_g) : Number(existing[0].protein_g),
+    fat_g: data.fat_g != null ? Number(data.fat_g) : Number(existing[0].fat_g),
+    carbs_g: data.carbs_g != null ? Number(data.carbs_g) : Number(existing[0].carbs_g),
+    fiber_g: data.fiber_g != null ? Number(data.fiber_g) : Number(existing[0].fiber_g),
+  };
+
+  if (foodId) {
+    const [foods] = await pool.query('SELECT * FROM nutrition_foods WHERE id = ? AND is_active = 1', [foodId]);
+    if (foods.length && (data.grams != null || data.food_id != null)) {
+      name = name || foods[0].name;
+      nutrients = scaleNutrients(foods[0], grams);
+    }
+  }
+
+  if (!name) {
+    const err = new Error('Укажите название блюда');
+    err.status = 400;
+    throw err;
+  }
+
+  const loggedAt = data.logged_at || existing[0].logged_at;
+
+  await pool.query(
+    `UPDATE nutrition_logs SET
+       food_id = ?, name = ?, meal_type = ?, grams = ?, portions = ?,
+       calories = ?, protein_g = ?, fat_g = ?, carbs_g = ?, fiber_g = ?,
+       logged_at = ?
+     WHERE id = ? AND user_id = ?`,
+    [
+      foodId,
+      name,
+      mealType,
+      grams,
+      portions,
+      nutrients.calories,
+      nutrients.protein_g,
+      nutrients.fat_g,
+      nutrients.carbs_g,
+      nutrients.fiber_g || 0,
+      loggedAt,
+      logId,
+      userId,
+    ]
+  );
+
+  return {
+    id: logId,
+    name,
+    meal_type: mealType,
+    grams,
+    portions,
+    ...nutrients,
+    logged_at: loggedAt,
+  };
+}
+
+export async function getRecentFoods(userId, limit = 15) {
+  const [rows] = await pool.query(
+    `SELECT food_id, name, meal_type, grams, portions, calories, protein_g, fat_g, carbs_g, logged_at
+     FROM nutrition_logs
+     WHERE user_id = ?
+     ORDER BY logged_at DESC
+     LIMIT 50`,
+    [userId]
+  );
+
+  const seen = new Set();
+  const items = [];
+  for (const r of rows) {
+    const key = r.food_id ? `f:${r.food_id}` : `n:${r.name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({
+      food_id: r.food_id,
+      name: r.name,
+      meal_type: r.meal_type,
+      grams: round1(r.grams),
+      portions: round1(r.portions),
+      calories: Math.round(Number(r.calories)),
+      protein_g: round1(r.protein_g),
+      fat_g: round1(r.fat_g),
+      carbs_g: round1(r.carbs_g),
+    });
+    if (items.length >= Math.min(Number(limit) || 15, 30)) break;
+  }
+  return items;
 }
 
 export async function searchFoods(query, { country, limit = 20 } = {}) {

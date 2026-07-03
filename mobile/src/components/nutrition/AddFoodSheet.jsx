@@ -4,6 +4,7 @@ import Icon from '../Icon';
 import {
   searchNutritionFoods,
   fetchNutritionFavorites,
+  fetchRecentFoods,
   addNutritionEntry,
 } from '../../services/nutrition';
 import { showToast } from '../../utils/toast';
@@ -154,6 +155,51 @@ function FoodPicker({ mealType, onSaved, onClose }) {
   );
 }
 
+function RecentList({ mealType, onSaved, onClose }) {
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    fetchRecentFoods().then((d) => setItems(d.items || [])).catch(() => setItems([]));
+  }, []);
+
+  const pick = async (food) => {
+    try {
+      await addNutritionEntry({
+        food_id: food.food_id || undefined,
+        name: food.name,
+        meal_type: mealType,
+        grams: food.grams,
+        portions: food.portions || 1,
+        calories: food.calories,
+        protein_g: food.protein_g,
+        fat_g: food.fat_g,
+        carbs_g: food.carbs_g,
+        source: 'search',
+      });
+      showToast(`${food.name} добавлено`);
+      onSaved?.();
+      onClose?.();
+    } catch (e) {
+      showToast(e?.message || 'Ошибка');
+    }
+  };
+
+  if (!items.length) return <p className="rb-text-muted">Недавних продуктов пока нет</p>;
+
+  return (
+    <ul className="rb-nutrition-food-list">
+      {items.map((f, i) => (
+        <li key={`${f.food_id || f.name}-${i}`}>
+          <button type="button" className="rb-nutrition-food-item" onClick={() => pick(f)}>
+            <span>{f.name}</span>
+            <span className="rb-text-muted">{f.calories} kcal</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function FavoritesList({ mealType, onSaved, onClose }) {
   const [items, setItems] = useState([]);
 
@@ -216,6 +262,7 @@ export default function AddFoodSheet({ open, onClose, onPhoto, onSaved, mealType
     search: 'Поиск блюда',
     manual: 'Вручную',
     favorites: 'Избранное',
+    recent: 'Недавние',
   };
 
   return (
@@ -230,6 +277,10 @@ export default function AddFoodSheet({ open, onClose, onPhoto, onSaved, mealType
             <Icon name="search" />
             <span>Поиск</span>
           </button>
+          <button type="button" className="rb-nutrition-add-opt" onClick={() => setMode('recent')}>
+            <Icon name="history" />
+            <span>Недавние</span>
+          </button>
           <button type="button" className="rb-nutrition-add-opt" onClick={() => setMode('manual')}>
             <Icon name="edit" />
             <span>Вручную</span>
@@ -241,6 +292,7 @@ export default function AddFoodSheet({ open, onClose, onPhoto, onSaved, mealType
         </div>
       )}
       {mode === 'search' && <FoodPicker mealType={mealType} onSaved={onSaved} onClose={handleClose} />}
+      {mode === 'recent' && <RecentList mealType={mealType} onSaved={onSaved} onClose={handleClose} />}
       {mode === 'manual' && <ManualForm mealType={mealType} onSaved={onSaved} onClose={handleClose} />}
       {mode === 'favorites' && <FavoritesList mealType={mealType} onSaved={onSaved} onClose={handleClose} />}
     </DetailSheet>

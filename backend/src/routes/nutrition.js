@@ -17,6 +17,9 @@ import {
   getRecommendations,
   getAnalytics,
   upsertNutritionProfile,
+  getNutritionProfile,
+  updateLogEntry,
+  getRecentFoods,
 } from '../services/nutritionService.js';
 
 const router = Router();
@@ -133,10 +136,19 @@ router.get('/analytics', async (req, res) => {
   }
 });
 
+router.get('/recent', async (req, res) => {
+  try {
+    const items = await getRecentFoods(req.userId, req.query.limit);
+    res.json({ items });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки недавних' });
+  }
+});
+
 router.get('/profile', async (req, res) => {
   try {
-    const stats = await getDailyStats(req.userId);
-    res.json({ profile: stats.profile, goals: stats.macros_goal, daily_goal: stats.daily_goal });
+    const data = await getNutritionProfile(req.userId);
+    res.json(data);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || 'Ошибка' });
   }
@@ -171,6 +183,15 @@ router.post('/', async (req, res) => {
     res.status(201).json(entry);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || 'Не удалось добавить запись' });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const entry = await updateLogEntry(req.userId, Number(req.params.id), req.body);
+    res.json(entry);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Не удалось обновить запись' });
   }
 });
 
