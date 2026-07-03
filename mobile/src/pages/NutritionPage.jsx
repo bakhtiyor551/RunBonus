@@ -588,15 +588,19 @@ export default function NutritionPage({ user }) {
                   </ul>
                 )}
               </section>
-
-              <button type="button" className="rb-btn-pill rb-nutrition-fab" onClick={() => setAddOpen(true)}>
-                <Icon name="add" />
-                Добавить еду
-              </button>
             </>
           )}
         </main>
       </IonContent>
+
+      {!loading && premium !== false && (
+        <div className="rb-nutrition-action-bar">
+          <button type="button" className="rb-btn-pill rb-nutrition-action-bar__btn" onClick={() => setAddOpen(true)}>
+            <Icon name="add" />
+            Добавить еду
+          </button>
+        </div>
+      )}
 
       <AddFoodSheet
         open={addOpen}

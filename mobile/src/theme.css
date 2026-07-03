@@ -1778,6 +1778,10 @@ html.rb-keyboard-open .rb-shop-fixed-bar {
   display: none !important;
 }
 
+html.rb-keyboard-open .rb-nutrition-action-bar {
+  display: none !important;
+}
+
 html.cap-ios .rb-main {
   padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
@@ -3348,12 +3352,21 @@ html.rb-keyboard-open .rb-main {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding-bottom: calc(var(--rb-bottom-nav-height, 72px) + 80px);
+  padding-bottom: calc(68px + 72px + env(safe-area-inset-bottom, 0px));
+}
+
+.rb-nutrition .glass-card:not(.rb-nutrition-stat):not(.rb-water-mini):not(.rb-coach-mini) {
+  padding: var(--rb-card-padding);
+}
+
+.rb-nutrition .glass-card .rb-headline {
+  margin: 0 0 16px;
+  line-height: 1.35;
 }
 
 .rb-nutrition-hero {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
@@ -3923,18 +3936,28 @@ html.rb-keyboard-open .rb-main {
   color: var(--rb-on-surface);
 }
 
-.rb-nutrition-fab {
+.rb-nutrition-action-bar {
   position: fixed;
-  bottom: calc(var(--rb-bottom-nav-height, 72px) + 16px);
-  left: max(var(--rb-gutter), env(safe-area-inset-left, 0px));
-  right: max(var(--rb-gutter), env(safe-area-inset-right, 0px));
-  z-index: 10;
+  left: 0;
+  right: 0;
+  z-index: 49;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  padding: 12px var(--rb-container-margin);
+  background: rgba(19, 19, 19, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(68, 73, 51, 0.35);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.rb-nutrition-action-bar__btn {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  max-width: 480px;
-  margin: 0 auto;
 }
 
 .rb-nutrition-skeleton {
@@ -4143,15 +4166,18 @@ html.rb-keyboard-open .rb-main {
 }
 
 /* Адаптив: узкие экраны */
-@media (max-width: 380px) {
+@media (max-width: 480px) {
   .rb-nutrition-hero {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .rb-nutrition-hero__ring-wrap {
     align-self: center;
   }
+}
+
+@media (max-width: 380px) {
 
   .rb-nutrition-balance__row {
     grid-template-columns: 1fr 1fr;
@@ -4238,9 +4264,22 @@ html.rb-keyboard-open .rb-main {
 
 .rb-nutrition-hero__links {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-top: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.rb-nutrition-hero__links::-webkit-scrollbar {
+  display: none;
+}
+
+.rb-nutrition-hero__links .rb-nutrition-profile-link {
+  flex-shrink: 0;
+  margin-top: 0;
 }
 
 .rb-nutrition-profile__weight-link {
