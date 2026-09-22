@@ -10,7 +10,6 @@ import HomePage from './pages/HomePage';
 import SummaryPage from './pages/SummaryPage';
 import WorkoutPage from './pages/WorkoutPage';
 import WalletPage from './pages/WalletPage';
-import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage';
@@ -171,7 +170,6 @@ function App() {
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
             <Route path="/summary" element={<SummaryPage user={user} setUser={setUser} />} />
             <Route path="/wallet" element={<WalletPage user={user} />} />
-            <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
             <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
             <Route path="/progress" element={<ProgressPage />} />

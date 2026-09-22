@@ -200,13 +200,10 @@ export default function SummaryPage({ user, setUser }) {
                 <strong>{formatBalance(summary?.total_earned ?? 0)} с.</strong>
               </div>
               <div>
-                <span className="rb-label">Доступно к выводу</span>
-                <strong>{formatBalance(summary?.available_withdraw ?? user.available_balance ?? 0)} с.</strong>
+                <span className="rb-label">Доступно</span>
+                <strong>{formatBalance(summary?.available_balance ?? user.available_balance ?? 0)} с.</strong>
               </div>
             </div>
-            <button type="button" className="rb-btn-pill rb-summary-balance__cta" onClick={() => navigate('/wallet/withdraw')}>
-              Вывести средства
-            </button>
           </section>
 
           <section className="rb-summary-section">

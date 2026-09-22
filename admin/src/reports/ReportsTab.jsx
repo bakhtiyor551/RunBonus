@@ -9,7 +9,6 @@ const SECTIONS = [
   { id: 'sales', label: 'Продажи', path: 'sales' },
   { id: 'workouts', label: 'Тренировки', path: 'workouts' },
   { id: 'bonuses', label: 'Бонусы', path: 'bonuses' },
-  { id: 'withdrawals', label: 'Вывод средств', path: 'withdrawals' },
   { id: 'clients', label: 'Клиенты', path: 'clients' },
   { id: 'shoes', label: 'Кроссовки', path: 'shoes' },
   { id: 'finance', label: 'Финансы', path: 'finance' },
@@ -83,7 +82,6 @@ export default function ReportsTab() {
               { label: 'Продано пар', value: formatNumber(c.shoes_sold_pairs) },
               { label: 'Километров', value: `${formatNumber(c.total_km)} км` },
               { label: 'Начислено бонусов', value: formatMoney(c.bonuses_earned) },
-              { label: 'Выведено', value: formatMoney(c.withdrawn) },
               { label: 'Доход', value: formatMoney(c.income) },
               { label: 'Расход', value: formatMoney(c.expense) },
               { label: 'Прибыль', value: formatMoney(c.profit) },
@@ -204,33 +202,6 @@ export default function ReportsTab() {
       );
     }
 
-    if (section === 'withdrawals') {
-      const s = data.summary || {};
-      return (
-        <>
-          <StatGrid
-            items={[
-              { label: 'Всего заявок', value: formatNumber(s.total) },
-              { label: 'Успешные', value: formatNumber(s.success) },
-              { label: 'Отклонённые', value: formatNumber(s.rejected) },
-              { label: 'В обработке', value: formatNumber(s.pending) },
-              { label: 'Сумма выплат', value: formatMoney(s.paid_total) },
-            ]}
-          />
-          <div className="glass-card card">
-            <h4>По кошелькам</h4>
-            <ul className="ranking-list">
-              {(data.by_wallet || []).map((w) => (
-                <li key={w.code}>
-                  {w.name}: {formatMoney(w.paid)} ({w.cnt} заявок)
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      );
-    }
-
     if (section === 'clients') {
       const s = data.summary || {};
       return (
@@ -305,7 +276,6 @@ export default function ReportsTab() {
               { label: 'Доход от рекламы', value: formatMoney(b.ad_revenue) },
               { label: 'Доход всего', value: formatMoney(b.income) },
               { label: 'Расход на бонусы', value: formatMoney(b.bonus_expense) },
-              { label: 'Расход на выводы', value: formatMoney(b.withdrawal_expense) },
               { label: 'Чистая прибыль', value: formatMoney(b.profit) },
             ]}
           />

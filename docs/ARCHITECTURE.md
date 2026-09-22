@@ -42,9 +42,9 @@ backend/src/
 ### Основные сервисы
 
 - `bonusService.js` — начисление/списание бонусов, кошелёк
+- `accountService.js` — бонусный фонд и кошельки клиентов
 - `workoutValidation.js` — проверка тренировки перед бонусом
 - `summaryService.js` — экран «Сводка» в приложении
-- `withdrawalService.js` — заявки на вывод
 - `customerLevelService.js` — уровни клиентов по километражу
 - `telegramService.js` — уведомления в Telegram
 

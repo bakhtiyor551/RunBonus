@@ -1,6 +1,5 @@
 import { pool } from '../db.js';
-import { ensureUserWallet } from './accountService.js';
-import { getWalletSummary } from './withdrawalService.js';
+import { ensureUserWallet, getWalletSummary } from './accountService.js';
 import { normalizeAvatarUrl } from '../utils/userProfile.js';
 import { estimateCalories } from '../utils/calories.js';
 
@@ -341,7 +340,7 @@ export async function getUserSummary(userId) {
       },
       balance: round2(wallet.balance),
       total_earned: round2(totalEarned),
-      available_withdraw: round2(wallet.available_balance),
+      available_balance: round2(wallet.available_balance),
       today,
       rings,
       weekly: weekly.days,

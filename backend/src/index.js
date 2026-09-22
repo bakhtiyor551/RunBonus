@@ -13,8 +13,6 @@ import shoesRoutes from './routes/shoes.js';
 import workoutRoutes from './routes/workouts.js';
 import bonusRoutes from './routes/bonus.js';
 import adminRoutes from './routes/admin.js';
-import withdrawalRoutes from './routes/withdrawal.js';
-import adminWithdrawalsRoutes from './routes/adminWithdrawals.js';
 import meRoutes from './routes/me.js';
 import userRoutes from './routes/user.js';
 import mobileRoutes from './routes/mobile.js';
@@ -23,7 +21,6 @@ import adminReportsRoutes from './routes/adminReports.js';
 import adminAdsRoutes from './routes/adminAds.js';
 import rewardsRoutes from './routes/rewards.js';
 import adminRewardsRoutes from './routes/adminRewards.js';
-import { isWithdrawalSchemaReady } from './services/withdrawalService.js';
 import { buildDailyTelegramReport } from './services/reportsService.js';
 import { sendTelegramMessage } from './services/telegramService.js';
 
@@ -47,14 +44,8 @@ app.use(express.json({ limit: '12mb' }));
 app.use('/uploads', express.static(UPLOADS_ROOT));
 app.use('/api/uploads', express.static(UPLOADS_ROOT));
 
-app.get('/api/health', async (_req, res) => {
-  let withdrawals = false;
-  try {
-    withdrawals = await isWithdrawalSchemaReady();
-  } catch {
-    withdrawals = false;
-  }
-  res.json({ ok: true, service: 'runbonus-api', withdrawals });
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'runbonus-api' });
 });
 
 app.use('/api/auth', authRoutes);
@@ -64,11 +55,8 @@ app.use('/api/bonus', bonusRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/mobile', mobileRoutes);
-app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/shop', adminShopRoutes);
-app.use('/api/admin/reports', adminReportsRoutes);
-app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/reports', adminReportsRoutes);
 app.use('/api/admin/ads', adminAdsRoutes);
 app.use('/api/rewards', rewardsRoutes);

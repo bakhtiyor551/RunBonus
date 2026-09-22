@@ -90,18 +90,8 @@ Authorization: Bearer <admin_jwt>
 | Метод | Путь | Auth | Описание |
 |-------|------|------|----------|
 | GET | `/balance` | User | Баланс бонусов |
-| GET | `/history` | User | История операций |
-
----
-
-## Withdrawal (`/api/withdrawal`)
-
-| Метод | Путь | Auth | Описание |
-|-------|------|------|----------|
-| GET | `/methods` | User | Способы вывода |
 | GET | `/wallet-summary` | User | Сводка кошелька |
-| GET | `/my-requests` | User | Мои заявки |
-| POST | `/requests` | User | Создать заявку на вывод |
+| GET | `/history` | User | История операций |
 
 ---
 
@@ -131,6 +121,7 @@ Authorization: Bearer <admin_jwt>
 | GET | `/shoes` | Кроссовки |
 | POST | `/shoes/generate` | Генерация QR-партии |
 | POST | `/bonus/topup` | Пополнение кошелька клиента |
+| GET | `/bonus-fund` | Баланс бонусного фонда |
 | POST | `/users/block` | Блокировка |
 | POST | `/users/reset-device` | Сброс привязки устройства |
 
@@ -158,13 +149,11 @@ Authorization: Bearer <admin_jwt>
 
 | Префикс | Назначение |
 |---------|------------|
-| `/api/admin/accounts` | Бонусные счета компании |
-| `/api/admin/bonus-settings` | Настройки бонусов |
 | `/api/admin/customer-levels` | Уровни клиентов |
 | `/api/admin/shop` | Магазин, заказы, склад |
-| `/api/admin/withdrawals` | Заявки на вывод |
 | `/api/admin/reports` | Отчёты |
 | `/api/admin/ads` | Реклама |
+| `/api/admin/rewards` | Награды |
 
 ---
 

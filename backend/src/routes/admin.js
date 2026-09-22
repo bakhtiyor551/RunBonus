@@ -5,16 +5,15 @@ import { customAlphabet } from 'nanoid';
 import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authAdmin } from '../middleware/auth.js';
-import { getUserBalance, spendBonus, manualAdjustBonus, topupClientBonus } from '../services/bonusService.js';
+import { getUserBalance, manualAdjustBonus, topupClientBonus } from '../services/bonusService.js';
 import { formatDeviceAdminInfo, resetUserDevice } from '../services/deviceBinding.js';
-import adminAccountsRoutes from './adminAccounts.js';
-import adminBonusSettingsRoutes from './adminBonusSettings.js';
 import adminCustomerLevelsRoutes from './adminCustomerLevels.js';
 import adminPaymentMethodsRoutes from './adminPaymentMethods.js';
 import adminDeliveryMethodsRoutes from './adminDeliveryMethods.js';
 import adminMobileWalletsRoutes from './adminMobileWallets.js';
 import { getAdminClientLevelInfo } from '../services/customerLevelService.js';
 import { buildLiveSnapshot } from '../services/liveTrackingService.js';
+import { getBonusFundBalance } from '../services/accountService.js';
 
 const router = Router();
 const genId = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 8);
@@ -295,14 +294,6 @@ router.get('/users/:id', authAdmin, async (req, res) => {
     );
     const st = stats[0];
 
-    const [withdrawals] = await pool.query(
-      `SELECT
-         COUNT(*) AS total,
-         SUM(status IN ('pending', 'processing')) AS active
-       FROM withdrawal_requests WHERE user_id = ?`,
-      [userId]
-    );
-
     res.json({
       id: u.id,
       name: u.name,
@@ -317,7 +308,6 @@ router.get('/users/:id', authAdmin, async (req, res) => {
         available_balance: Math.round((balance - blocked) * 100) / 100,
         total_earned: w ? Number(w.total_earned) : 0,
         total_spent: w ? Number(w.total_spent) : 0,
-        total_withdrawn: w ? Number(w.total_withdrawn || 0) : 0,
       },
       shoe: u.shoe_id
         ? {
@@ -336,10 +326,6 @@ router.get('/users/:id', authAdmin, async (req, res) => {
         suspicious: Number(st.suspicious),
         total_km: Number(st.total_km),
         total_bonus_calc: Number(st.total_bonus_calc),
-      },
-      withdrawals: {
-        total: Number(withdrawals[0].total),
-        active: Number(withdrawals[0].active),
       },
       device: formatDeviceAdminInfo(u.device_id, u.device_bound_at),
       level_info: await getAdminClientLevelInfo(userId),
@@ -454,45 +440,6 @@ router.post('/bonus/topup', authAdmin, async (req, res) => {
   }
 });
 
-router.post('/bonus/spend', authAdmin, async (req, res) => {
-  const conn = await pool.getConnection();
-  try {
-    const { phone, amount, comment } = req.body;
-    if (!phone || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'Укажите телефон и сумму' });
-    }
-
-    const [users] = await conn.query('SELECT id, status FROM users WHERE phone = ?', [phone]);
-    if (!users.length) {
-      return res.status(404).json({ error: 'Клиент не найден' });
-    }
-    const user = users[0];
-    if (user.status === 'blocked') {
-      return res.status(403).json({ error: 'Клиент заблокирован' });
-    }
-
-    await conn.beginTransaction();
-    const balanceAfter = await spendBonus(conn, {
-      userId: user.id,
-      amount: Number(amount),
-      comment,
-      adminId: req.adminId,
-    });
-    await conn.commit();
-
-    res.json({ ok: true, balance_after: balanceAfter });
-  } catch (err) {
-    await conn.rollback();
-    if (err.code === 'INSUFFICIENT_BALANCE') {
-      return res.status(400).json({ error: 'Недостаточно бонусов на кошельке клиента' });
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка списания' });
-  } finally {
-    conn.release();
-  }
-});
-
 router.post('/bonus/manual', authAdmin, async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -521,11 +468,19 @@ router.post('/bonus/manual', authAdmin, async (req, res) => {
   }
 });
 
-router.use(adminAccountsRoutes);
-router.use(adminBonusSettingsRoutes);
 router.use(adminCustomerLevelsRoutes);
 router.use(adminPaymentMethodsRoutes);
 router.use(adminDeliveryMethodsRoutes);
 router.use(adminMobileWalletsRoutes);
+
+router.get('/bonus-fund', authAdmin, async (_req, res) => {
+  try {
+    const fund = await getBonusFundBalance();
+    res.json(fund);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
 
 export default router;

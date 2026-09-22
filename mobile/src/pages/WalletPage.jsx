@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
-import Icon from '../components/Icon';
 import OperationRow from '../components/OperationRow';
 import OperationDetailModal from '../components/OperationDetailModal';
 import { formatBalance } from '../utils/format';
 
 export default function WalletPage({ user }) {
-  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [selectedOperation, setSelectedOperation] = useState(null);
   const [wallet, setWallet] = useState({
@@ -21,7 +18,7 @@ export default function WalletPage({ user }) {
 
   useEffect(() => {
     api('/api/bonus/history').then(setItems).catch(() => {});
-    api('/api/withdrawal/wallet-summary')
+    api('/api/bonus/wallet-summary')
       .then(setWallet)
       .catch(() => {});
   }, []);
@@ -47,15 +44,6 @@ export default function WalletPage({ user }) {
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              className="rb-btn-pill"
-              style={{ width: '100%', marginTop: 16 }}
-              onClick={() => navigate('/wallet/withdraw')}
-            >
-              <Icon name="account_balance_wallet" />
-              Вывод средств
-            </button>
           </section>
           <section>
             <h2 className="rb-headline font-display" style={{ marginBottom: 16 }}>История операций</h2>

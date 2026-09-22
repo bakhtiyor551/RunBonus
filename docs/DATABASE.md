@@ -39,7 +39,7 @@ database/
 | `account_transactions` | Движения по счетам |
 | `bonus_settings` | Настройки программы лояльности |
 | `customer_levels` | Уровни по километражу |
-| `withdrawal_requests` | Заявки на вывод |
+| `withdrawal_requests` | Legacy: заявки на вывод (модуль отключён) |
 | `products`, `orders` | Магазин |
 | `warehouse_stock` | Склад |
 | `ad_campaigns` | Реклама |
