@@ -265,9 +265,6 @@ export default function WorkoutPage({ user, setUser }) {
           <main className="rb-main rb-workout-result">
             <CelebrateBlock result={result} units={units} />
             <ResultCards result={result} units={units} />
-            {result.nutrition && (
-              <NutritionResultCard nutrition={result.nutrition} onOpen={() => navigate('/nutrition')} />
-            )}
             <PageAdSlots
               key={`workout-ads-${result.workout_id ?? result.id ?? 'done'}`}
               page="workout"
@@ -444,22 +441,6 @@ function CelebrateBlock({ result, units }) {
         {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
       </p>
     </div>
-  );
-}
-
-function NutritionResultCard({ nutrition, onOpen }) {
-  return (
-    <button type="button" className="glass-card rb-workout-nutrition-card" onClick={onOpen}>
-      <div className="rb-workout-nutrition-card__icon" aria-hidden>
-        <Icon name="restaurant" />
-      </div>
-      <div className="rb-workout-nutrition-card__body">
-        <span className="rb-label">RunBonus+ Питание</span>
-        <strong className="font-display font-tabular">+{nutrition.burned_kcal} kcal</strong>
-        <p className="rb-text-muted">{nutrition.message || 'Сегодня можно съесть больше'}</p>
-      </div>
-      <Icon name="chevron_right" />
-    </button>
   );
 }
 
