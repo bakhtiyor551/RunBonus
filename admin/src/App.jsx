@@ -15,7 +15,6 @@ import WarehouseTab from './WarehouseTab';
 import ReportsTab from './reports/ReportsTab';
 import AdsTab from './ads/AdsTab';
 import RewardsTab from './rewards/RewardsTab';
-import NutritionTab from './NutritionTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -153,11 +152,6 @@ export default function App() {
           {tab === 11 && <ReportsTab />}
           {tab === 'ads' && <AdsTab />}
           {tab === 'rewards' && <RewardsTab />}
-          {tab === 'nutrition' && (
-            <div className="page-content">
-              <NutritionTab />
-            </div>
-          )}
           {tab === 5 && (
             <div className="page-content">
               <div className="glass-card card">

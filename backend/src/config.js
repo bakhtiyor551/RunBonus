@@ -53,8 +53,6 @@ export const config = {
     baseUrl: (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, ''),
     model: process.env.GEMINI_VISION_MODEL || 'gemini-2.0-flash',
   },
-  /** В dev можно включить nutrition без подписки */
-  nutritionDevFree: process.env.NUTRITION_DEV_FREE === '1',
   firebase: {
     /** JSON строка service account (FIREBASE_SERVICE_ACCOUNT_JSON) */
     serviceAccount: (() => {

@@ -17,7 +17,6 @@ const TITLES = {
   10: 'Способы оплаты',
   rewards: 'Награды',
   ads: 'Реклама',
-  nutrition: 'Питание RunBonus+',
 };
 
 export default function TopBar({ activeTab, fundBalance, currency = 'TJS' }) {
