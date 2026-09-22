@@ -195,13 +195,21 @@ export default function WorkoutPage({ user, setUser }) {
       clearWorkoutLocal(workoutId);
       await clearWorkoutGpsBuffer(workoutId);
       setActiveWorkoutId(null);
-      setResult(data);
       if (setUser && data.balance_after != null) {
         setUser({ ...user, balance: data.balance_after });
       } else if (setUser) {
         const profile = await api('/api/auth/me');
         setUser(profile);
       }
+      if (data.reward_popup) {
+        const milestoneId =
+          data.reward_popup.milestoneId ||
+          data.reward_popup.milestone_id ||
+          data.reward_popup.id;
+        navigate(milestoneId ? `/progress?milestone=${milestoneId}` : '/progress', { replace: true });
+        return;
+      }
+      setResult(data);
     } catch (err) {
       if (err.code === 'DEVICE_MISMATCH') {
         setFinishing(false);

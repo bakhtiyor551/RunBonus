@@ -14,6 +14,8 @@ import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage';
+import ProgressPage from './pages/ProgressPage';
+import MyRewardsPage from './pages/MyRewardsPage';
 import LevelPage from './pages/LevelPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
@@ -179,6 +181,8 @@ function App() {
             <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
             <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
+            <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/rewards" element={<MyRewardsPage />} />
             <Route
               path="/activate"
               element={

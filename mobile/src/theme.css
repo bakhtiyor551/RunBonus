@@ -5116,3 +5116,295 @@ html.rb-keyboard-open .rb-main {
   min-height: 200px;
   animation: rb-pulse 1.5s ease-in-out infinite;
 }
+
+/* —— Milestone gifts —— */
+.rb-progress-page,
+.rb-rewards-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rb-progress-hero,
+.rb-rewards-hero {
+  padding: var(--rb-card-padding);
+}
+
+.rb-progress-hero__distance {
+  margin: 8px 0 6px;
+  font-size: clamp(44px, 13vw, 64px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--rb-neon);
+}
+
+.rb-progress-hero__distance span {
+  margin-left: 8px;
+  font-size: 20px;
+  color: var(--rb-neon-dim);
+}
+
+.rb-progress-bar {
+  height: 10px;
+  margin-top: 20px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rb-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--rb-neon-dim), var(--rb-neon));
+  box-shadow: 0 0 18px rgba(195, 244, 0, 0.35);
+  transition: width 0.35s ease;
+}
+
+.rb-progress-hero__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-progress-hero__foot strong {
+  color: var(--rb-neon);
+  text-align: right;
+}
+
+.rb-progress-milestones,
+.rb-rewards-list,
+.rb-reward-options,
+.rb-reward-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rb-progress-card,
+.rb-reward-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.rb-progress-card:not(:disabled),
+.rb-reward-option:not(:disabled) {
+  cursor: pointer;
+}
+
+.rb-progress-card:disabled,
+.rb-reward-option:disabled {
+  opacity: 0.72;
+}
+
+.rb-progress-card__icon,
+.rb-rewards-hero__icon,
+.rb-reward-success__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rb-progress-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-progress-card__head,
+.rb-reward-history-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.rb-progress-card__head strong,
+.rb-reward-option strong {
+  display: block;
+  font-size: 16px;
+}
+
+.rb-progress-card p,
+.rb-reward-option p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.rb-progress-card__remaining,
+.rb-reward-option__accent {
+  color: var(--rb-neon);
+  font-weight: 600;
+}
+
+.rb-progress-status {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--rb-on-surface-variant);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rb-progress-status--available,
+.rb-progress-status--choosing,
+.rb-progress-status--delivered {
+  background: rgba(195, 244, 0, 0.15);
+  color: var(--rb-neon);
+}
+
+.rb-progress-status--selected,
+.rb-progress-status--processing,
+.rb-progress-status--ready {
+  background: rgba(100, 181, 246, 0.18);
+  color: #64b5f6;
+}
+
+.rb-progress-status--cancelled {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff8a80;
+}
+
+.rb-progress-card--available,
+.rb-progress-card--choosing,
+.rb-reward-option--active {
+  border-color: rgba(195, 244, 0, 0.35);
+  background: rgba(195, 244, 0, 0.07);
+}
+
+.rb-progress-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-progress-empty .material-symbols-outlined {
+  font-size: 42px;
+  color: var(--rb-neon);
+}
+
+.rb-rewards-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rb-rewards-hero h1 {
+  margin: 4px 0;
+}
+
+.rb-reward-history-card {
+  padding: 18px;
+}
+
+.rb-reward-history-card h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+
+.rb-reward-history-card .rb-btn-pill {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.rb-reward-history-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--rb-on-surface-variant);
+  font-size: 13px;
+}
+
+.rb-reward-history-card__meta .material-symbols-outlined {
+  color: var(--rb-neon);
+}
+
+.rb-reward-modal .rb-detail-sheet__panel {
+  max-width: min(520px, 100%);
+}
+
+.rb-reward-option {
+  justify-content: space-between;
+}
+
+.rb-reward-option--disabled {
+  filter: grayscale(0.35);
+}
+
+.rb-reward-size-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rb-reward-delivery {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rb-reward-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0 20px;
+  text-align: center;
+}
+
+.rb-reward-success h3 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.rb-reward-promo {
+  width: 100%;
+  padding: 18px;
+}
+
+.rb-reward-promo strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 28px;
+  color: var(--rb-neon);
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 380px) {
+  .rb-progress-hero__foot,
+  .rb-progress-card__head,
+  .rb-reward-history-card__head {
+    flex-direction: column;
+  }
+
+  .rb-progress-hero__foot strong {
+    text-align: left;
+  }
+}

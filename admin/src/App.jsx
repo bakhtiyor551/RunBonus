@@ -14,6 +14,7 @@ import PaymentMethodsTab from './PaymentMethodsTab';
 import WarehouseTab from './WarehouseTab';
 import ReportsTab from './reports/ReportsTab';
 import AdsTab from './ads/AdsTab';
+import RewardsTab from './rewards/RewardsTab';
 import NutritionTab from './NutritionTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
@@ -151,6 +152,7 @@ export default function App() {
           )}
           {tab === 11 && <ReportsTab />}
           {tab === 'ads' && <AdsTab />}
+          {tab === 'rewards' && <RewardsTab />}
           {tab === 'nutrition' && (
             <div className="page-content">
               <NutritionTab />
