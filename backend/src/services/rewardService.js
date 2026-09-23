@@ -344,7 +344,7 @@ export async function selectReward(userId, { milestoneId, rewardId, size, color,
     }
 
     const [[activeShoe]] = await conn.query(
-      `SELECT id FROM user_shoes WHERE user_id = ? AND status = 'active' LIMIT 1`,
+      `SELECT shoe_id AS id FROM user_active_shoes WHERE user_id = ? LIMIT 1`,
       [userId]
     );
     if (!activeShoe) {

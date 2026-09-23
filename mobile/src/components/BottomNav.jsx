@@ -6,8 +6,9 @@ import { cartCount } from '../services/cart';
 
 const tabs = [
   { to: '/', label: 'Главная', icon: 'home', end: true },
-  { to: '/workouts', label: 'Тренировки', icon: 'directions_run' },
-  { to: '/rewards', label: 'Награды', icon: 'redeem', badgeKey: 'rewards' },
+  { to: '/workouts', label: 'Тренировки', icon: 'directions_run', match: ['/workouts', '/workout'] },
+  { to: '/rewards', label: 'Награды', icon: 'redeem', badgeKey: 'rewards', match: ['/rewards', '/my-rewards'] },
+  { to: '/shop', label: 'Магазин', icon: 'storefront', badgeKey: 'cart', match: ['/shop', '/cart', '/orders'] },
   { to: '/profile', label: 'Профиль', icon: 'person' },
 ];
 
@@ -52,7 +53,7 @@ export default function BottomNav() {
   }, []);
 
   return (
-    <nav className="rb-bottom-nav rb-bottom-nav--4" aria-label="Навигация">
+    <nav className="rb-bottom-nav rb-bottom-nav--5" aria-label="Навигация">
       {tabs.map((tab) => (
         <NavLink
           key={tab.to}

@@ -82,7 +82,14 @@ router.post('/select', authUser, requireActiveUser, async (req, res) => {
       NOT_FOUND: 404,
       INVALID_REWARD: 400,
     };
-    res.status(map[e.code] || 400).json({ error: e.message, code: e.code });
+    const status = map[e.code] || 400;
+    const raw = String(e.message || '');
+    const leak = /Table |ER_|SQLSYNTAX|doesn't exist|Duplicate entry/i.test(raw);
+    if (!map[e.code]) console.error('[rewards/select]', e);
+    res.status(status).json({
+      error: map[e.code] || !leak ? raw || 'Не удалось выбрать награду' : 'Не удалось выбрать награду',
+      code: e.code,
+    });
   }
 });
 
