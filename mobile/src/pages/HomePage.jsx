@@ -13,7 +13,6 @@ import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
 import { fetchRewardsProgress } from '../services/rewards';
-import { fetchMyLevel } from '../services/achievements';
 import { PageAdSlots } from '../components/MobileAdSlot';
 
 function km(value) {
@@ -45,7 +44,6 @@ export default function HomePage({ user }) {
   const [starting, setStarting] = useState(false);
   const [workouts, setWorkouts] = useState([]);
   const [progress, setProgress] = useState(null);
-  const [level, setLevel] = useState(null);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
 
@@ -64,14 +62,12 @@ export default function HomePage({ user }) {
   };
 
   const loadHome = useCallback(async () => {
-    const [history, rewardProgress, myLevel] = await Promise.all([
+    const [history, rewardProgress] = await Promise.all([
       api('/api/workouts/history').catch(() => []),
       fetchRewardsProgress().catch(() => null),
-      fetchMyLevel().catch(() => null),
     ]);
     setWorkouts(Array.isArray(history) ? history : []);
     if (rewardProgress) setProgress(rewardProgress);
-    if (myLevel) setLevel(myLevel);
     refreshActiveWorkout();
   }, []);
 
@@ -208,28 +204,6 @@ export default function HomePage({ user }) {
               </p>
             )}
           </section>
-
-          {level ? (
-            <button
-              type="button"
-              className="glass-card rb-home-next-reward"
-              onClick={() => navigate('/achievements?tab=level')}
-            >
-              <div className="rb-home-next-reward__icon" aria-hidden>
-                <span style={{ fontSize: 28 }}>{level.icon || '🏅'}</span>
-              </div>
-              <div className="rb-home-next-reward__body">
-                <span className="rb-label">Уровень {level.level}</span>
-                <h2 className="font-display">{level.name}</h2>
-                {level.remainingDistance != null ? (
-                  <span className="rb-text-muted">
-                    До Level {level.nextLevel}: {km(level.remainingDistance)} км
-                  </span>
-                ) : null}
-              </div>
-              <Icon name="chevron_right" />
-            </button>
-          ) : null}
 
           <section className="glass-card rb-home-next-reward">
             <div className="rb-home-next-reward__icon" aria-hidden>
