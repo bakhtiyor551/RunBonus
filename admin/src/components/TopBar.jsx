@@ -11,8 +11,6 @@ const TITLES = {
   9: 'Заказы магазина',
   10: 'Способы оплаты',
   rewards: 'Награды',
-  levels: 'Уровни RunBonus',
-  achievements: 'Достижения',
   ads: 'Реклама',
 };
 
