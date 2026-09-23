@@ -179,25 +179,26 @@ export default function HomePage({ user }) {
               <Icon name="directions_run" />
               <span className="rb-label">Ваш прогресс</span>
             </div>
+
             <div className="rb-progress-hero__distance font-display font-tabular">
-              {km(totalDistance)}
-              <span>км</span>
+              <span className="rb-progress-hero__value">{km(totalDistance)}</span>
+              <span className="rb-progress-hero__unit">км</span>
             </div>
 
             {nextDist != null ? (
-              <>
-                <div className="rb-progress-hero__next">
-                  <span className="rb-label">До следующей награды</span>
-                  <strong className="font-display font-tabular">{km(nextDist)} км</strong>
+              <div className="rb-progress-hero__track">
+                <div className="rb-progress-hero__row">
+                  <span>До следующей награды</span>
+                  <strong className="font-tabular">{km(nextDist)} км</strong>
                 </div>
                 <div className="rb-progress-bar" aria-label="Прогресс до следующей награды">
                   <span style={{ width: `${progressPercent}%` }} />
                 </div>
-                <div className="rb-progress-hero__foot">
+                <div className="rb-progress-hero__row rb-progress-hero__row--muted">
                   <span>Осталось</span>
-                  <strong>{km(remainingDistance)} км</strong>
+                  <strong className="font-tabular">{km(remainingDistance)} км</strong>
                 </div>
-              </>
+              </div>
             ) : (
               <p className="rb-text-muted rb-progress-hero__hint">
                 Вы достигли всех контрольных точек
@@ -213,7 +214,7 @@ export default function HomePage({ user }) {
               <span className="rb-label">Следующая награда</span>
               <h2 className="font-display">{nextRewardTitle(progress)}</h2>
             </div>
-            <button type="button" className="rb-btn-pill" onClick={() => navigate('/rewards')}>
+            <button type="button" className="rb-btn-pill rb-btn-pill--sm" onClick={() => navigate('/rewards')}>
               Подробнее
             </button>
           </section>

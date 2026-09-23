@@ -269,7 +269,6 @@ export default function ProfilePage({ user, setUser, onLogout }) {
               <div className="rb-profile-menu">
                 <MenuButton icon="directions_run" label="Моя активность" onClick={() => navigate('/workouts')} />
                 <MenuButton icon="redeem" label="Мои награды" onClick={() => navigate('/my-rewards')} />
-                <MenuButton icon="storefront" label="Магазин" onClick={() => navigate('/shop')} />
                 <MenuButton icon="shopping_bag" label="Мои заказы" onClick={() => navigate('/orders')} />
                 {user.qrActivationAllowed !== false && (
                   <MenuButton icon="qr_code_scanner" label="Активировать QR" onClick={() => navigate('/activate')} />
