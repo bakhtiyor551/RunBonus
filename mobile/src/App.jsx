@@ -10,22 +10,16 @@ import HomePage from './pages/HomePage';
 import SummaryPage from './pages/SummaryPage';
 import WorkoutPage from './pages/WorkoutPage';
 import WalletPage from './pages/WalletPage';
-import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage';
+import ProgressPage from './pages/ProgressPage';
+import MyRewardsPage from './pages/MyRewardsPage';
 import LevelPage from './pages/LevelPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import MyOrdersPage from './pages/MyOrdersPage';
-import NutritionPage from './pages/NutritionPage';
-import NutritionOnboardingPage from './pages/NutritionOnboardingPage';
-import NutritionProfilePage from './pages/NutritionProfilePage';
-import NutritionWeightPage from './pages/NutritionWeightPage';
-import NutritionWaterPage from './pages/NutritionWaterPage';
-import NutritionCoachPage from './pages/NutritionCoachPage';
-import NutritionAchievementsPage from './pages/NutritionAchievementsPage';
 import OfflineModal from './components/OfflineModal';
 import { initWorkoutLifecycle } from './services/workoutLifecycle';
 import {
@@ -176,9 +170,10 @@ function App() {
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
             <Route path="/summary" element={<SummaryPage user={user} setUser={setUser} />} />
             <Route path="/wallet" element={<WalletPage user={user} />} />
-            <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
             <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
+            <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/rewards" element={<MyRewardsPage />} />
             <Route
               path="/activate"
               element={
@@ -199,13 +194,6 @@ function App() {
             <Route path="/shop/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage user={user} />} />
             <Route path="/orders" element={<MyOrdersPage />} />
-            <Route path="/nutrition/onboarding" element={<NutritionOnboardingPage />} />
-            <Route path="/nutrition/profile" element={<NutritionProfilePage />} />
-            <Route path="/nutrition/weight" element={<NutritionWeightPage />} />
-            <Route path="/nutrition/water" element={<NutritionWaterPage />} />
-            <Route path="/nutrition/coach" element={<NutritionCoachPage />} />
-            <Route path="/nutrition/achievements" element={<NutritionAchievementsPage />} />
-            <Route path="/nutrition" element={<NutritionPage user={user} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

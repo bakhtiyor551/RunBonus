@@ -63,17 +63,6 @@ async function sumBonusSpent(start, end) {
   }
 }
 
-async function sumWithdrawals(start, end) {
-  if (!(await tableExists('withdrawal_requests'))) return 0;
-  const { clause, params } = sqlBetween('created_at', start, end);
-  const [rows] = await pool.query(
-    `SELECT COALESCE(SUM(amount), 0) AS t FROM withdrawal_requests
-     WHERE status = 'success' AND ${clause}`,
-    params
-  );
-  return n(rows[0]?.t);
-}
-
 async function sumAdRevenue(start, end) {
   if (!(await tableExists('ad_payments'))) return 0;
   const { clause, params } = sqlBetween('paid_at', start, end);
@@ -110,8 +99,7 @@ export async function getReportsDashboard(query) {
   const adRevenue = await sumAdRevenue(start, end);
   const income = n(shop.revenue + adRevenue);
   const bonusEarned = await sumBonusEarned(start, end);
-  const withdrawn = await sumWithdrawals(start, end);
-  const expense = n(bonusEarned + withdrawn);
+  const expense = bonusEarned;
   const profit = n(income - expense);
 
   const users = await countUsers(30);
@@ -145,7 +133,6 @@ export async function getReportsDashboard(query) {
       shoes_sold_pairs: shop.pairs,
       total_km: n(kmRows[0]?.km),
       bonuses_earned: bonusEarned,
-      withdrawn,
       income,
       expense,
       profit,
@@ -372,58 +359,6 @@ async function bonusByLevels(start, end) {
   return result;
 }
 
-export async function getReportsWithdrawals(query) {
-  const { start, end, preset } = parseReportPeriod(query);
-  if (!(await tableExists('withdrawal_requests'))) {
-    return { period: { preset, start, end }, summary: {}, by_wallet: [], rows: [] };
-  }
-  const { clause, params } = sqlBetween('created_at', start, end);
-
-  const [stats] = await pool.query(
-    `SELECT COUNT(*) AS total,
-            SUM(status = 'success') AS success,
-            SUM(status = 'rejected') AS rejected,
-            SUM(status IN ('pending', 'processing')) AS pending,
-            COALESCE(SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END), 0) AS paid
-     FROM withdrawal_requests WHERE ${clause}`,
-    params
-  );
-
-  const [byWallet] = await pool.query(
-    `SELECT wm.name, wm.code, COUNT(*) AS cnt,
-            COALESCE(SUM(CASE WHEN wr.status = 'success' THEN wr.amount ELSE 0 END), 0) AS paid
-     FROM withdrawal_requests wr
-     JOIN withdrawal_methods wm ON wm.id = wr.method_id
-     WHERE ${clause.replace(/created_at/g, 'wr.created_at')}
-     GROUP BY wm.id ORDER BY paid DESC`,
-    params
-  );
-
-  const [rows] = await pool.query(
-    `SELECT wr.id, wr.created_at, u.name AS client_name, wm.name AS wallet_name,
-            wr.amount, wr.status
-     FROM withdrawal_requests wr
-     JOIN users u ON u.id = wr.user_id
-     JOIN withdrawal_methods wm ON wm.id = wr.method_id
-     WHERE ${clause.replace(/created_at/g, 'wr.created_at')}
-     ORDER BY wr.created_at DESC LIMIT 200`,
-    params
-  );
-
-  return {
-    period: { preset, start, end },
-    summary: {
-      total: Number(stats[0]?.total) || 0,
-      success: Number(stats[0]?.success) || 0,
-      rejected: Number(stats[0]?.rejected) || 0,
-      pending: Number(stats[0]?.pending) || 0,
-      paid_total: n(stats[0]?.paid),
-    },
-    by_wallet: byWallet.map((r) => ({ ...r, paid: n(r.paid) })),
-    rows,
-  };
-}
-
 export async function getReportsClients(query) {
   const { start, end, preset } = parseReportPeriod(query);
   const { clause, params } = sqlBetween('u.created_at', start, end);
@@ -526,11 +461,10 @@ export async function getReportsFinance(query) {
   const shop = await sumShopIncome(start, end);
   const adRevenue = await sumAdRevenue(start, end);
   const bonusExpense = await sumBonusEarned(start, end);
-  const withdrawExpense = await sumWithdrawals(start, end);
   const otherExpense = 0;
 
   const income = n(shop.revenue + adRevenue);
-  const expense = n(bonusExpense + withdrawExpense + otherExpense);
+  const expense = n(bonusExpense + otherExpense);
   const profit = n(income - expense);
 
   const [chart] = await pool.query(
@@ -548,12 +482,11 @@ export async function getReportsFinance(query) {
       ad_revenue: adRevenue,
       income,
       bonus_expense: bonusExpense,
-      withdrawal_expense: withdrawExpense,
       other_expense: otherExpense,
       expense,
       profit,
     },
-    formula: 'Прибыль = Продажи + Реклама − Бонусы − Выводы − Прочие расходы',
+    formula: 'Прибыль = Продажи + Реклама − Бонусы − Прочие расходы',
     charts: {
       sales: chart.map((r) => ({ date: r.d, amount: n(r.sales) })),
     },
@@ -588,7 +521,6 @@ export async function buildDailyTelegramReport() {
     `Тренировок: ${Number(w[0]?.c) || 0}\n` +
     `Километров: ${dash.cards.total_km} км\n` +
     `Начислено бонусов: ${dash.cards.bonuses_earned} сомони\n` +
-    `Вывод средств: ${dash.cards.withdrawn} сомони\n` +
     `Доход: ${dash.cards.income} сомони\n` +
     `Прибыль: ${dash.cards.profit} сомони`
   );

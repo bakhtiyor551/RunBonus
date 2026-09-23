@@ -5,23 +5,19 @@ const NAV = [
   { id: 0, label: 'Клиенты', icon: 'group' },
   { id: 1, label: 'QR / Кроссовки', icon: 'qr_code_2' },
   { id: 2, label: 'Тренировки', icon: 'directions_run' },
-  { id: 3, label: 'Бонусные счета', icon: 'account_balance_wallet' },
-  { id: 4, label: 'Настройки бонусов', icon: 'settings' },
   { id: 7, label: 'Уровни клиентов', icon: 'military_tech' },
-  { id: 5, label: 'Списание бонусов', icon: 'payments' },
-  { id: 6, label: 'Вывод средств', icon: 'south_west' },
   { id: 8, label: 'Магазин', icon: 'storefront' },
   { id: 12, label: 'Склад', icon: 'inventory_2' },
   { id: 11, label: 'Отчёты', icon: 'analytics' },
   { id: 9, label: 'Заказы', icon: 'shopping_bag' },
   { id: 10, label: 'Способы оплаты', icon: 'payments' },
+  { id: 'rewards', label: 'Награды', icon: 'emoji_events' },
   { id: 'ads', label: 'Реклама', icon: 'campaign' },
-  { id: 'nutrition', label: 'Питание', icon: 'restaurant' },
 ];
 
 export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {
   const isActive = (item) =>
-    item.id === 'dashboard' || item.id === 'ads' || item.id === 'nutrition'
+    item.id === 'dashboard' || item.id === 'ads' || item.id === 'rewards'
       ? activeTab === item.id
       : activeTab === item.id;
 

@@ -1,4 +1,6 @@
 import dotenv from 'dotenv';
+import { normalizePhone } from './utils/phone.js';
+
 dotenv.config();
 
 export const config = {
@@ -28,6 +30,16 @@ export const config = {
     server: (process.env.SMS_SERVER || 'https://api.osonsms.com').replace(/\/$/, ''),
     /** Если задано — SMS не отправляется, в ответе API вернётся dev_code (только NODE_ENV !== production) */
     devCode: process.env.SMS_DEV_CODE || '',
+    /** Тестовый номер → фиксированный OTP без SMS (SMS_TEST_PHONE=939104140, SMS_TEST_CODE=100103) */
+    testOtp: (() => {
+      const phoneRaw = process.env.SMS_TEST_PHONE?.trim();
+      const codeRaw = process.env.SMS_TEST_CODE?.trim();
+      if (!phoneRaw || !codeRaw) return null;
+      const phone = normalizePhone(phoneRaw);
+      if (!phone) return null;
+      const code = String(codeRaw).replace(/\D/g, '').slice(0, 6).padStart(6, '0');
+      return { phone, code };
+    })(),
     /** 11-символьный хеш Android для автоподстановки кода (SMS Retriever) */
     appHash: (process.env.SMS_APP_HASH || '').trim(),
   },
@@ -41,8 +53,6 @@ export const config = {
     baseUrl: (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, ''),
     model: process.env.GEMINI_VISION_MODEL || 'gemini-2.0-flash',
   },
-  /** В dev можно включить nutrition без подписки */
-  nutritionDevFree: process.env.NUTRITION_DEV_FREE === '1',
   firebase: {
     /** JSON строка service account (FIREBASE_SERVICE_ACCOUNT_JSON) */
     serviceAccount: (() => {

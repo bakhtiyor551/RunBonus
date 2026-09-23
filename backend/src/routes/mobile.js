@@ -16,7 +16,7 @@ import { listActivePaymentMethods } from '../services/paymentMethodService.js';
 import { listActiveDeliveryMethods } from '../services/deliveryMethodService.js';
 import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
 import { DELIVERY_METHODS } from '../constants/deliveryMethods.js';
-import { getWalletSummary } from '../services/withdrawalService.js';
+import { getWalletSummary } from '../services/accountService.js';
 import { listActiveMobilePaymentAccounts } from '../services/mobilePaymentAccountService.js';
 import { MOBILE_PAYMENT_ACCOUNTS } from '../constants/mobilePaymentAccounts.js';
 

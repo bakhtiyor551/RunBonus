@@ -85,10 +85,6 @@ function ClientProfileCard({ profile, children }) {
             <span className="client-profile-info__label">Потрачено</span>
             <strong>{formatMoney(profile.wallet.total_spent)}</strong>
           </div>
-          <div className="client-profile-info__item">
-            <span className="client-profile-info__label">Выведено</span>
-            <strong>{formatMoney(profile.wallet.total_withdrawn)}</strong>
-          </div>
         </div>
 
         {profile.level_info?.current_level && (
@@ -166,13 +162,6 @@ function ClientProfileCard({ profile, children }) {
             <span className="client-profile-info__label">Всего км</span>
             <strong>{Number(profile.workouts.total_km).toFixed(2)}</strong>
           </div>
-          <div className="client-profile-info__item">
-            <span className="client-profile-info__label">Заявок на вывод</span>
-            <strong>
-              {profile.withdrawals.total}
-              {profile.withdrawals.active > 0 ? ` (${profile.withdrawals.active} актив.)` : ''}
-            </strong>
-          </div>
         </div>
       </details>
 
@@ -196,7 +185,6 @@ export function ClientProfileFromShoe({ shoe }) {
       blocked_balance: 0,
       total_earned: 0,
       total_spent: 0,
-      total_withdrawn: 0,
     },
     shoe: {
       unique_id: shoe.unique_id,
@@ -211,7 +199,6 @@ export function ClientProfileFromShoe({ shoe }) {
       in_progress: 0,
       total_km: 0,
     },
-    withdrawals: { total: 0, active: 0 },
   };
 
   return <ClientProfileCard profile={profile} />;

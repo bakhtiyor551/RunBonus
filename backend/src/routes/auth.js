@@ -6,7 +6,7 @@ import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authUser, authUserToken } from '../middleware/auth.js';
 import { getUserBalance } from '../services/bonusService.js';
-import { getWalletSummary } from '../services/withdrawalService.js';
+import { getWalletSummary } from '../services/accountService.js';
 import { activateShoeForUser } from '../services/shoeActivationService.js';
 import {
   buildDisplayName,

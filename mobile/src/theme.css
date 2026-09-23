@@ -1778,10 +1778,6 @@ html.rb-keyboard-open .rb-shop-fixed-bar {
   display: none !important;
 }
 
-html.rb-keyboard-open .rb-nutrition-action-bar {
-  display: none !important;
-}
-
 html.cap-ios .rb-main {
   padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
@@ -2783,50 +2779,10 @@ html.rb-keyboard-open .rb-main {
   gap: 12px;
 }
 
-.rb-workout-nutrition-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  margin-top: 16px;
-  padding: 16px;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  border: 1px solid rgba(195, 244, 0, 0.2);
-  background: rgba(195, 244, 0, 0.06);
-}
 
-.rb-workout-nutrition-card__icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(195, 244, 0, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--rb-neon);
-  flex-shrink: 0;
-}
 
-.rb-workout-nutrition-card__body {
-  flex: 1;
-  min-width: 0;
-}
 
-.rb-workout-nutrition-card__body strong {
-  display: block;
-  font-size: 28px;
-  color: var(--rb-neon);
-  line-height: 1.1;
-  margin: 4px 0;
-}
 
-.rb-workout-nutrition-card__body p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.4;
-}
 
 .rb-workout-result-card {
   min-height: 118px;
@@ -3347,946 +3303,126 @@ html.rb-keyboard-open .rb-main {
   padding: 16px;
 }
 
-/* —— Питание RunBonus+ —— */
-.rb-nutrition {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding-bottom: calc(68px + 72px + env(safe-area-inset-bottom, 0px));
-}
-
-.rb-nutrition .glass-card:not(.rb-nutrition-stat):not(.rb-water-mini):not(.rb-coach-mini) {
-  padding: var(--rb-card-padding);
-}
-
-.rb-nutrition .glass-card .rb-headline {
-  margin: 0 0 16px;
-  line-height: 1.35;
-}
-
-.rb-nutrition-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.rb-nutrition-hero__text h1 {
-  margin: 0 0 4px;
-  font-size: clamp(22px, 5vw, 28px);
-}
-
-.rb-nutrition-hero__ring-wrap {
-  flex-shrink: 0;
-}
-
-.rb-nutrition-ring {
-  position: relative;
-  width: 140px;
-  height: 140px;
-}
-
-.rb-nutrition-ring__center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
-
-.rb-nutrition-ring__center strong {
-  font-size: 28px;
-  line-height: 1;
-  color: var(--rb-neon);
-}
-
-.rb-nutrition-ring__center span {
-  font-size: 11px;
-}
-
-.rb-nutrition-ring__arc {
-  transition: stroke-dashoffset 0.6s ease;
-}
-
-.rb-nutrition-plus-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--rb-neon);
-  font-weight: 600;
-}
-
-.rb-nutrition-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.rb-nutrition-stat {
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.rb-nutrition-stat__emoji {
-  font-size: 20px;
-}
-
-.rb-nutrition-stat strong {
-  font-size: clamp(22px, 5vw, 28px);
-  line-height: 1.1;
-}
-
-.rb-nutrition-stat--accent strong {
-  color: #ff6b6b;
-}
-
-.rb-nutrition-stat__unit {
-  font-size: 12px;
-}
-
-.rb-nutrition-columns {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.rb-nutrition-balance__row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr;
-  align-items: center;
-  gap: 8px 12px;
-  margin-top: 12px;
-}
-
-.rb-nutrition-balance__item strong {
-  display: block;
-  margin-top: 4px;
-  font-size: clamp(16px, 3.5vw, 20px);
-}
-
-.rb-nutrition-balance__op {
-  font-size: 18px;
-  color: var(--rb-text-muted);
-  text-align: center;
-}
-
-.rb-nutrition-balance--plus {
-  color: #ff9f43;
-}
-
-.rb-nutrition-goal-bar {
-  margin-top: 20px;
-}
-
-.rb-nutrition-goal-bar__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.rb-nutrition-goal-bar__track {
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.rb-nutrition-goal-bar__fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--rb-neon);
-  transition: width 0.5s ease;
-}
-
-.rb-nutrition-goal-bar__fill--over {
-  background: #ff6b6b;
-}
-
-.rb-nutrition-period-row,
-.rb-nutrition-analytics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-.rb-nutrition-period-row strong,
-.rb-nutrition-analytics strong {
-  display: block;
-  margin-top: 4px;
-  font-size: clamp(18px, 4vw, 22px);
-}
-
-.rb-nutrition-macros {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.rb-nutrition-macro__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.rb-nutrition-macro__val {
-  font-size: 13px;
-  color: var(--rb-text-muted);
-}
-
-.rb-nutrition-macro__track {
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.rb-nutrition-macro__fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.5s ease;
-}
-
-.rb-nutrition-meals-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 12px;
-}
-
-.rb-nutrition-meal__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-  font-size: 14px;
-}
-
-.rb-nutrition-meal__track {
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.rb-nutrition-meal__track span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--rb-neon);
-  transition: width 0.5s ease;
-}
-
-.rb-nutrition-chart {
-  margin-top: 16px;
-  position: relative;
-  padding-bottom: 28px;
-}
-
-.rb-nutrition-chart__cols {
-  display: flex;
-  gap: 6px;
-  align-items: flex-end;
-  min-height: 120px;
-}
-
-.rb-nutrition-chart__col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.rb-nutrition-chart__bars {
-  display: flex;
-  gap: 3px;
-  align-items: flex-end;
-  height: clamp(80px, 18vw, 110px);
-  width: 100%;
-}
-
-.rb-nutrition-chart__bar {
-  flex: 1;
-  min-height: 4px;
-  border-radius: 4px 4px 0 0;
-  transition: height 0.4s ease;
-}
-
-.rb-nutrition-chart__bar--eat {
-  background: var(--rb-neon);
-}
-
-.rb-nutrition-chart__bar--burn {
-  background: #00d4ff;
-}
-
-.rb-nutrition-chart__day {
-  font-size: 10px;
-  color: var(--rb-text-muted);
-}
-
-.rb-nutrition-chart__legend {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 16px;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--rb-text-muted);
-}
-
-.rb-nutrition-chart__legend .eat {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  background: var(--rb-neon);
-  border-radius: 2px;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-
-.rb-nutrition-chart__legend .burn {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  background: #00d4ff;
-  border-radius: 2px;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-
-.rb-nutrition-history ul {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-}
-
-.rb-nutrition-history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.rb-nutrition-history__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.rb-nutrition-history__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  margin-bottom: 2px;
-}
-
-.rb-nutrition-history__time {
-  font-size: 12px;
-  color: var(--rb-text-muted);
-}
-
-.rb-nutrition-history__meal {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(195, 244, 0, 0.12);
-  color: var(--rb-neon);
-}
-
-.rb-nutrition-history-item strong {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rb-nutrition-history__kcal {
-  font-size: 13px;
-}
-
-.rb-nutrition-history__del {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: var(--rb-text-muted);
-  padding: 8px;
-  border-radius: 8px;
-  transition: color 0.15s, background 0.15s;
-}
-
-.rb-nutrition-history__actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 4px;
-}
-
-.rb-nutrition-history__edit {
-  background: none;
-  border: none;
-  color: var(--rb-text-muted);
-  padding: 8px;
-  border-radius: 8px;
-}
-
-.rb-nutrition-history__edit:active {
-  background: rgba(195, 244, 0, 0.12);
-  color: var(--rb-neon);
-}
-
-.rb-nutrition-profile-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(195, 244, 0, 0.25);
-  background: rgba(195, 244, 0, 0.08);
-  color: var(--rb-neon);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.rb-nutrition-onboarding {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-height: 60vh;
-}
-
-.rb-nutrition-onboarding__progress {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.rb-nutrition-onboarding__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  transition: background 0.2s, transform 0.2s;
-}
-
-.rb-nutrition-onboarding__dot.active {
-  background: var(--rb-neon);
-  transform: scale(1.2);
-}
-
-.rb-nutrition-onboarding__step {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.rb-nutrition-onboarding__step h1,
-.rb-nutrition-onboarding__step h2 {
-  margin: 0;
-}
-
-.rb-nutrition-onboarding__icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: rgba(195, 244, 0, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-  color: var(--rb-neon);
-  margin-bottom: 8px;
-}
-
-.rb-nutrition-onboarding__choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.rb-nutrition-onboarding__choice {
-  flex: 1;
-  min-width: 120px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--rb-surface-high);
-  color: inherit;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.rb-nutrition-onboarding__choice.active {
-  border-color: var(--rb-neon);
-  background: rgba(195, 244, 0, 0.1);
-  color: var(--rb-neon);
-}
-
-.rb-nutrition-onboarding__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.rb-nutrition-onboarding__list-item {
-  text-align: left;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: var(--rb-surface-high);
-  color: inherit;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.rb-nutrition-onboarding__list-item.active {
-  border-color: var(--rb-neon);
-  background: rgba(195, 244, 0, 0.08);
-}
-
-.rb-nutrition-onboarding__result {
-  text-align: center;
-  padding: 28px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.rb-nutrition-onboarding__result strong {
-  font-size: 48px;
-  color: var(--rb-neon);
-  line-height: 1;
-}
-
-.rb-nutrition-onboarding__hint {
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.rb-nutrition-profile {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.rb-nutrition-profile__form {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.rb-nutrition-profile__goals {
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(195, 244, 0, 0.08);
-}
-
-.rb-nutrition-profile__goals p {
-  margin: 6px 0 0;
-  font-size: 14px;
-}
-
-.rb-nutrition-history__del:active {
-  background: rgba(255, 107, 107, 0.12);
-  color: #ff6b6b;
-}
-
-.rb-nutrition-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 24px 16px;
-  text-align: center;
-  color: var(--rb-text-muted);
-}
-
-.rb-nutrition-empty .material-symbols-outlined {
-  font-size: 40px;
-  opacity: 0.5;
-}
-
-.rb-nutrition-empty p {
-  margin: 0;
-  font-size: 16px;
-  color: var(--rb-on-surface);
-}
-
-.rb-nutrition-action-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  z-index: 49;
-  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
-  padding: 12px var(--rb-container-margin);
-  background: rgba(19, 19, 19, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(68, 73, 51, 0.35);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
-}
-
-.rb-nutrition-action-bar__btn {
-  width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.rb-nutrition-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.rb-nutrition-skeleton__card {
-  height: 96px;
-  animation: rb-nutrition-pulse 1.4s ease-in-out infinite;
-}
-
-.rb-nutrition-skeleton__block {
-  height: 140px;
-  animation: rb-nutrition-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes rb-nutrition-pulse {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 0.85; }
-}
-
-.rb-nutrition-paywall {
-  text-align: center;
-  padding: clamp(24px, 6vw, 48px) 16px;
-  max-width: 420px;
-  margin: 0 auto;
-}
-
-.rb-nutrition-paywall__icon {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 16px;
-  border-radius: 50%;
-  background: rgba(195, 244, 0, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-  color: var(--rb-neon);
-}
-
-.rb-nutrition-paywall__features {
-  list-style: none;
-  padding: 0;
-  margin: 24px 0;
-  text-align: left;
-}
-
-.rb-nutrition-paywall__features li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.rb-nutrition-paywall__cta {
-  width: 100%;
-  margin-bottom: 12px;
-}
-
-.rb-nutrition-add-menu {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-@media (min-width: 480px) {
-  .rb-nutrition-add-menu {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.rb-nutrition-add-opt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 20px 12px;
-  background: var(--rb-surface-high);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  color: inherit;
-}
-
-.rb-nutrition-food-list {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-  max-height: min(280px, 45dvh);
-  overflow-y: auto;
-}
-
-.rb-nutrition-food-item {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-  border: none;
-  background: none;
-  color: inherit;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  text-align: left;
-}
-
-.rb-nutrition-photo-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.rb-nutrition-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: var(--rb-surface-high);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  color: inherit;
-  width: 100%;
-}
-
-.rb-nutrition-photo-preview img {
-  width: 100%;
-  border-radius: 12px;
-  max-height: min(200px, 35dvh);
-  object-fit: cover;
-}
-
-.rb-nutrition-edit-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.rb-nutrition-meals {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 12px 0 16px;
-}
-
-.rb-nutrition-meal-btn {
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: transparent;
-  color: inherit;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.rb-nutrition-meal-btn.active {
-  border-color: var(--rb-neon);
-  background: rgba(195, 244, 0, 0.1);
-}
-
-.rb-nutrition-confidence {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: rgba(195, 244, 0, 0.08);
-  border-radius: 10px;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-
-.rb-nutrition-alt-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 8px 0 16px;
-}
-
-.rb-nutrition-alt-btn {
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: var(--rb-surface-high);
-  color: inherit;
-  font-size: 13px;
-  display: flex;
-  gap: 8px;
-}
-
-.rb-nutrition-tip {
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  margin: 0;
-  font-size: 14px;
-}
-
-.rb-nutrition-streak {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  color: var(--rb-neon);
-  font-size: 14px;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* Адаптив: узкие экраны */
-@media (max-width: 480px) {
-  .rb-nutrition-hero {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .rb-nutrition-hero__ring-wrap {
-    align-self: center;
-  }
-}
-
-@media (max-width: 380px) {
-
-  .rb-nutrition-balance__row {
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-
-  .rb-nutrition-balance__op {
-    display: none;
-  }
-
-  .rb-nutrition-balance__item:last-child {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .rb-nutrition-stat {
-    padding: 12px;
-  }
-
-  .rb-nutrition-add-menu {
-    grid-template-columns: 1fr;
-  }
-
-  .rb-nutrition-edit-grid {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* Адаптив: широкие телефоны */
-@media (min-width: 480px) {
-  .rb-nutrition-stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .rb-nutrition-stat strong {
-    font-size: 24px;
-  }
-}
 
 /* Адаптив: планшеты и десктоп */
-@media (min-width: 600px) {
-  .rb-nutrition-columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
 
-  .rb-nutrition-columns > section {
-    margin: 0;
-  }
 
-  .rb-nutrition-fab {
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    width: min(480px, calc(100% - 48px));
-  }
 
-  .rb-nutrition-chart__bars {
-    height: 120px;
-  }
-
-  .rb-nutrition-analytics {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 768px) {
-  .rb-nutrition {
-    gap: 24px;
-  }
-
-  .rb-nutrition-ring {
-    width: 160px;
-    height: 160px;
-  }
-
-  .rb-nutrition-ring__center strong {
-    font-size: 32px;
-  }
-}
-
-.rb-nutrition-hero__links {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 8px;
-  margin-top: 10px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 2px;
-}
-
-.rb-nutrition-hero__links::-webkit-scrollbar {
-  display: none;
-}
-
-.rb-nutrition-hero__links .rb-nutrition-profile-link {
-  flex-shrink: 0;
-  margin-top: 0;
-}
-
-.rb-nutrition-profile__weight-link {
-  width: 100%;
-  margin-top: 4px;
-  font-size: 14px;
-}
 
 /* —— Трекер веса —— */
 .rb-weight-page {
@@ -4669,52 +3805,11 @@ html.rb-keyboard-open .rb-main {
   color: #00d4ff;
 }
 
-.rb-water-mini {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 16px;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  border: none;
-}
 
-.rb-water-mini__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(0, 212, 255, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #00d4ff;
-  flex-shrink: 0;
-}
 
-.rb-water-mini__body {
-  flex: 1;
-  min-width: 0;
-}
 
-.rb-water-mini__body strong {
-  display: block;
-  margin: 4px 0 8px;
-  font-size: 18px;
-}
 
-.rb-water-mini__bar {
-  height: 6px;
-}
 
-.rb-water-mini__fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: #00d4ff;
-  transition: width 0.5s ease;
-}
 
 @media (max-width: 380px) {
   .rb-water-quick__grid {
@@ -4730,7 +3825,7 @@ html.rb-keyboard-open .rb-main {
   }
 }
 
-.rb-summary-nutrition-cta {
+.rb-summary-cta {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4743,13 +3838,13 @@ html.rb-keyboard-open .rb-main {
   cursor: pointer;
 }
 
-.rb-summary-nutrition-cta__left {
+.rb-summary-cta__left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.rb-summary-nutrition-cta__icon {
+.rb-summary-cta__icon {
   width: 44px;
   height: 44px;
   border-radius: 12px;
@@ -4924,142 +4019,27 @@ html.rb-keyboard-open .rb-main {
   animation: rb-pulse 1.5s ease-in-out infinite;
 }
 
-.rb-coach-mini {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  border: none;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-}
 
-.rb-coach-mini__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(195, 244, 0, 0.12);
-  color: var(--rb-neon);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
 
-.rb-coach-mini__body {
-  flex: 1;
-  min-width: 0;
-}
 
-.rb-coach-mini__body strong {
-  display: block;
-  font-size: 15px;
-}
 
-.rb-coach-mini__summary {
-  margin: 4px 0 0;
-  font-size: 12px;
-  line-height: 1.35;
-  color: var(--rb-text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
 
 @media (max-width: 380px) {
-  .rb-coach-mini__summary {
-    -webkit-line-clamp: 1;
-  }
 }
 
-.rb-nutrition-meals-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 4px;
-}
 
-.rb-nutrition-meals-head .rb-headline {
-  margin: 0;
-}
 
-.rb-nutrition-copy-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 
-.rb-nutrition-copy-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(195, 244, 0, 0.25);
-  background: rgba(195, 244, 0, 0.08);
-  color: var(--rb-neon);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
 
-.rb-nutrition-copy-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
-.rb-nutrition-copy-btn:active:not(:disabled) {
-  background: rgba(195, 244, 0, 0.18);
-}
 
-.rb-nutrition-chart-head {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 8px;
-}
 
-.rb-nutrition-chart-head .rb-headline {
-  margin: 0;
-}
 
-.rb-nutrition-chart-period {
-  flex-wrap: wrap;
-}
 
-.rb-nutrition-barcode {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 
-.rb-nutrition-barcode__manual {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 
-.rb-nutrition-barcode__manual .rb-input {
-  flex: 1;
-  min-width: 140px;
-}
 
-.rb-nutrition-barcode__result {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px;
-}
 
-.rb-nutrition-barcode__fallback {
-  align-self: center;
-  font-size: 13px;
-}
 
 .rb-ach-page {
   display: flex;
@@ -5154,4 +4134,296 @@ html.rb-keyboard-open .rb-main {
 .rb-ach-skeleton {
   min-height: 200px;
   animation: rb-pulse 1.5s ease-in-out infinite;
+}
+
+/* —— Milestone gifts —— */
+.rb-progress-page,
+.rb-rewards-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rb-progress-hero,
+.rb-rewards-hero {
+  padding: var(--rb-card-padding);
+}
+
+.rb-progress-hero__distance {
+  margin: 8px 0 6px;
+  font-size: clamp(44px, 13vw, 64px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--rb-neon);
+}
+
+.rb-progress-hero__distance span {
+  margin-left: 8px;
+  font-size: 20px;
+  color: var(--rb-neon-dim);
+}
+
+.rb-progress-bar {
+  height: 10px;
+  margin-top: 20px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rb-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--rb-neon-dim), var(--rb-neon));
+  box-shadow: 0 0 18px rgba(195, 244, 0, 0.35);
+  transition: width 0.35s ease;
+}
+
+.rb-progress-hero__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-progress-hero__foot strong {
+  color: var(--rb-neon);
+  text-align: right;
+}
+
+.rb-progress-milestones,
+.rb-rewards-list,
+.rb-reward-options,
+.rb-reward-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rb-progress-card,
+.rb-reward-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.rb-progress-card:not(:disabled),
+.rb-reward-option:not(:disabled) {
+  cursor: pointer;
+}
+
+.rb-progress-card:disabled,
+.rb-reward-option:disabled {
+  opacity: 0.72;
+}
+
+.rb-progress-card__icon,
+.rb-rewards-hero__icon,
+.rb-reward-success__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rb-progress-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-progress-card__head,
+.rb-reward-history-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.rb-progress-card__head strong,
+.rb-reward-option strong {
+  display: block;
+  font-size: 16px;
+}
+
+.rb-progress-card p,
+.rb-reward-option p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.rb-progress-card__remaining,
+.rb-reward-option__accent {
+  color: var(--rb-neon);
+  font-weight: 600;
+}
+
+.rb-progress-status {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--rb-on-surface-variant);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rb-progress-status--available,
+.rb-progress-status--choosing,
+.rb-progress-status--delivered {
+  background: rgba(195, 244, 0, 0.15);
+  color: var(--rb-neon);
+}
+
+.rb-progress-status--selected,
+.rb-progress-status--processing,
+.rb-progress-status--ready {
+  background: rgba(100, 181, 246, 0.18);
+  color: #64b5f6;
+}
+
+.rb-progress-status--cancelled {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff8a80;
+}
+
+.rb-progress-card--available,
+.rb-progress-card--choosing,
+.rb-reward-option--active {
+  border-color: rgba(195, 244, 0, 0.35);
+  background: rgba(195, 244, 0, 0.07);
+}
+
+.rb-progress-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-progress-empty .material-symbols-outlined {
+  font-size: 42px;
+  color: var(--rb-neon);
+}
+
+.rb-rewards-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rb-rewards-hero h1 {
+  margin: 4px 0;
+}
+
+.rb-reward-history-card {
+  padding: 18px;
+}
+
+.rb-reward-history-card h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+
+.rb-reward-history-card .rb-btn-pill {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.rb-reward-history-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--rb-on-surface-variant);
+  font-size: 13px;
+}
+
+.rb-reward-history-card__meta .material-symbols-outlined {
+  color: var(--rb-neon);
+}
+
+.rb-reward-modal .rb-detail-sheet__panel {
+  max-width: min(520px, 100%);
+}
+
+.rb-reward-option {
+  justify-content: space-between;
+}
+
+.rb-reward-option--disabled {
+  filter: grayscale(0.35);
+}
+
+.rb-reward-size-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rb-reward-delivery {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rb-reward-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0 20px;
+  text-align: center;
+}
+
+.rb-reward-success h3 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.rb-reward-promo {
+  width: 100%;
+  padding: 18px;
+}
+
+.rb-reward-promo strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 28px;
+  color: var(--rb-neon);
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 380px) {
+  .rb-progress-hero__foot,
+  .rb-progress-card__head,
+  .rb-reward-history-card__head {
+    flex-direction: column;
+  }
+
+  .rb-progress-hero__foot strong {
+    text-align: left;
+  }
 }

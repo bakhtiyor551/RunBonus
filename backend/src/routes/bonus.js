@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { authUser } from '../middleware/auth.js';
 import { getUserBalance } from '../services/bonusService.js';
+import { getWalletSummary } from '../services/accountService.js';
 
 const router = Router();
 
@@ -9,6 +10,16 @@ router.get('/balance', authUser, async (req, res) => {
   try {
     const balance = await getUserBalance(req.userId);
     res.json({ balance });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+router.get('/wallet-summary', authUser, async (req, res) => {
+  try {
+    const wallet = await getWalletSummary(pool, req.userId);
+    res.json(wallet);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка' });

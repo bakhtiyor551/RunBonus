@@ -93,23 +93,23 @@ export default function DashboardTab({ onNavigate }) {
   const [users, setUsers] = useState([]);
   const [workouts, setWorkouts] = useState([]);
   const [shoes, setShoes] = useState([]);
-  const [accounts, setAccounts] = useState([]);
+  const [fund, setFund] = useState({ balance: 0, currency: 'TJS' });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [u, w, s, a] = await Promise.all([
+        const [u, w, s, f] = await Promise.all([
           adminApi('/api/admin/users'),
           adminApi('/api/admin/workouts'),
           adminApi('/api/admin/shoes'),
-          adminApi('/api/admin/accounts'),
+          adminApi('/api/admin/bonus-fund'),
         ]);
         if (!cancelled) {
           setUsers(u);
           setWorkouts(w);
           setShoes(s);
-          setAccounts(a);
+          setFund(f || { balance: 0, currency: 'TJS' });
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -126,9 +126,8 @@ export default function DashboardTab({ onNavigate }) {
     );
   }
 
-  const bonusFund = accounts.find((a) => a.type === 'bonus_fund');
-  const fundBalance = bonusFund?.current_balance ?? 0;
-  const currency = bonusFund?.currency ?? 'TJS';
+  const fundBalance = fund?.balance ?? 0;
+  const currency = fund?.currency ?? 'TJS';
   const activeWorkouts = workouts.filter((w) => w.status === 'in_progress').length;
   const approvedBonus = workouts
     .filter((w) => w.status === 'approved')

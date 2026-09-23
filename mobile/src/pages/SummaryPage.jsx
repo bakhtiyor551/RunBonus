@@ -200,13 +200,10 @@ export default function SummaryPage({ user, setUser }) {
                 <strong>{formatBalance(summary?.total_earned ?? 0)} с.</strong>
               </div>
               <div>
-                <span className="rb-label">Доступно к выводу</span>
-                <strong>{formatBalance(summary?.available_withdraw ?? user.available_balance ?? 0)} с.</strong>
+                <span className="rb-label">Доступно</span>
+                <strong>{formatBalance(summary?.available_balance ?? user.available_balance ?? 0)} с.</strong>
               </div>
             </div>
-            <button type="button" className="rb-btn-pill rb-summary-balance__cta" onClick={() => navigate('/wallet/withdraw')}>
-              Вывести средства
-            </button>
           </section>
 
           <section className="rb-summary-section">
@@ -221,14 +218,14 @@ export default function SummaryPage({ user, setUser }) {
           </section>
 
           <section className="glass-card rb-summary-section">
-            <button type="button" className="rb-summary-nutrition-cta" onClick={() => navigate('/nutrition')}>
-              <div className="rb-summary-nutrition-cta__left">
-                <div className="rb-summary-nutrition-cta__icon">
-                  <Icon name="restaurant" />
+            <button type="button" className="rb-summary-cta" onClick={() => navigate('/progress')}>
+              <div className="rb-summary-cta__left">
+                <div className="rb-summary-cta__icon">
+                  <Icon name="emoji_events" />
                 </div>
                 <div>
-                  <h2 className="rb-headline font-display" style={{ margin: 0 }}>Питание RunBonus+</h2>
-                  <p className="rb-text-muted" style={{ margin: '4px 0 0' }}>Калории, AI-распознавание еды, баланс</p>
+                  <h2 className="rb-headline font-display" style={{ margin: 0 }}>Подарки за километры</h2>
+                  <p className="rb-text-muted" style={{ margin: '4px 0 0' }}>Следите за прогрессом и выбирайте награды</p>
                 </div>
               </div>
               <Icon name="chevron_right" />

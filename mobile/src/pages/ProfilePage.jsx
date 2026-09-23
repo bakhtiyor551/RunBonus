@@ -278,6 +278,22 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                 type="button"
                 className="rb-btn-outline"
                 style={{ width: '100%', marginBottom: 12 }}
+                onClick={() => navigate('/progress')}
+              >
+                <Icon name="emoji_events" /> Мой прогресс
+              </button>
+              <button
+                type="button"
+                className="rb-btn-outline"
+                style={{ width: '100%', marginBottom: 12 }}
+                onClick={() => navigate('/rewards')}
+              >
+                <Icon name="redeem" /> Мои награды
+              </button>
+              <button
+                type="button"
+                className="rb-btn-outline"
+                style={{ width: '100%', marginBottom: 12 }}
                 onClick={() => navigate('/workouts')}
               >
                 <Icon name="history" /> История тренировок
