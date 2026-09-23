@@ -282,8 +282,6 @@ export async function getReportsBonuses(query) {
   const [clients] = await pool.query(`SELECT COUNT(*) AS c FROM users WHERE status != 'blocked'`);
   const clientCount = Number(clients[0]?.c) || 1;
 
-  const levels = await bonusByLevels(start, end);
-
   const [chart] = await pool.query(
     `SELECT DATE(created_at) AS d, COALESCE(SUM(amount), 0) AS earned
      FROM user_bonus_transactions WHERE type = 'earn' AND created_at >= ? AND created_at <= ?
@@ -299,64 +297,9 @@ export async function getReportsBonuses(query) {
       fund_balance: n(fund[0]?.current_balance),
       avg_per_client: n(earned / clientCount),
     },
-    by_level: levels,
+    by_level: [],
     charts: { earned: chart.map((r) => ({ date: r.d, amount: n(r.earned) })) },
   };
-}
-
-async function bonusByLevels(start, end) {
-  const [levels] = await pool.query(
-    `SELECT name, code, from_km, to_km FROM customer_levels WHERE status = 'active' ORDER BY from_km`
-  ).catch(() => [[]]);
-  if (!levels.length) {
-    return [
-      { code: 'bronze', name: 'Bronze', earned: 0 },
-      { code: 'silver', name: 'Silver', earned: 0 },
-      { code: 'gold', name: 'Gold', earned: 0 },
-    ];
-  }
-
-  const { clause, params } = sqlBetween('w.started_at', start, end);
-  const [userKm] = await pool.query(
-    `SELECT w.user_id, COALESCE(SUM(w.distance_km), 0) AS km
-     FROM workouts w WHERE w.status = 'approved' AND ${clause}
-     GROUP BY w.user_id`,
-    params
-  );
-
-  let bonusRows = [];
-  try {
-    const [b] = await pool.query(
-      `SELECT w.user_id, COALESCE(SUM(t.amount), 0) AS bonus
-       FROM user_bonus_transactions t
-       JOIN workouts w ON w.id = t.workout_id
-       WHERE t.type = 'earn' AND w.status = 'approved' AND ${clause}
-       GROUP BY w.user_id`,
-      params
-    );
-    bonusRows = b;
-  } catch {
-    const [b] = await pool.query(
-      `SELECT w.user_id, COALESCE(SUM(w.calculated_bonus), 0) AS bonus
-       FROM workouts w WHERE w.status = 'approved' AND ${clause}
-       GROUP BY w.user_id`,
-      params
-    );
-    bonusRows = b;
-  }
-
-  const bonusByUser = new Map(bonusRows.map((r) => [r.user_id, n(r.bonus)]));
-  const result = levels.map((lv) => ({ code: lv.code, name: lv.name, earned: 0 }));
-
-  for (const row of userKm) {
-    const km = Number(row.km) || 0;
-    const bonus = bonusByUser.get(row.user_id) || 0;
-    const lv =
-      levels.find((l) => km >= Number(l.from_km) && km < Number(l.to_km)) || levels[levels.length - 1];
-    const slot = result.find((r) => r.code === lv.code);
-    if (slot) slot.earned = n(slot.earned + bonus);
-  }
-  return result;
 }
 
 export async function getReportsClients(query) {

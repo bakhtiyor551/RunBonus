@@ -53,14 +53,6 @@ const PAYMENT_STATUSES = {
 };
 
 const CITIES = ['Душанбе', 'Худжанд', 'Бохтар', 'Куляб'];
-const LEVELS = [
-  { id: 'bronze', label: 'Бронза' },
-  { id: 'silver', label: 'Серебро' },
-  { id: 'gold', label: 'Золото' },
-  { id: 'platinum', label: 'Платина' },
-  { id: 'diamond', label: 'Алмаз' },
-  { id: 'legend', label: 'Легенда' },
-];
 
 const emptyAdvertiser = {
   company_name: '',
@@ -167,9 +159,6 @@ function AudienceChip({ label, selected, onToggle }) {
 
 function CampaignCard({ campaign, onEdit, onDelete, onSendPush, sendingPushId }) {
   const cities = (campaign.audience_cities || []).join(', ') || 'Все города';
-  const levels =
-    (campaign.audience_levels || []).map((l) => LEVELS.find((x) => x.id === l)?.label || l).join(', ') ||
-    'Все уровни';
   const budgetLeft = Math.max(0, Number(campaign.budget) - Number(campaign.spent || 0));
 
   return (
@@ -222,7 +211,6 @@ function CampaignCard({ campaign, onEdit, onDelete, onSendPush, sendingPushId })
           <dt>Аудитория</dt>
           <dd>
             <span className="ads-detail-list__sub">Города: {cities}</span>
-            <span className="ads-detail-list__sub">Уровни: {levels}</span>
           </dd>
         </div>
         {campaign.target_url && (
@@ -473,7 +461,7 @@ export default function AdsTab() {
   const sendPushCampaign = async (campaign) => {
     if (
       !confirm(
-        `Отправить push «${campaign.title}»?\n\nАудитория: города и уровни из кампании. Пользователи без разрешения на уведомления не получат сообщение.`
+        `Отправить push «${campaign.title}»?\n\nАудитория: города из кампании. Пользователи без разрешения на уведомления не получат сообщение.`
       )
     ) {
       return;
@@ -1074,44 +1062,6 @@ export default function AdsTab() {
                     className={`ads-selection-summary${(campForm.audience_cities || []).length ? ' ads-selection-summary--active' : ''}`}
                   >
                     {audienceSummaryText(campForm.audience_cities, CITIES.length, (c) => c)}
-                  </p>
-                </div>
-                <div className="ads-chip-block">
-                  <div className="ads-chip-block__head">
-                    <span className="ads-chip-block__label">Уровни клиентов</span>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm"
-                      onClick={() =>
-                        selectAllAudience(
-                          'audience_levels',
-                          LEVELS.map((l) => l.id)
-                        )
-                      }
-                    >
-                      {(campForm.audience_levels || []).length === LEVELS.length ? 'Сбросить' : 'Все уровни'}
-                    </button>
-                  </div>
-                  <div className="ads-chip-group">
-                    {LEVELS.map((l) => (
-                      <AudienceChip
-                        key={l.id}
-                        label={l.label}
-                        selected={(campForm.audience_levels || []).includes(l.id)}
-                        onToggle={() => toggleAudience('audience_levels', l.id)}
-                      />
-                    ))}
-                  </div>
-                  <p
-                    className={`ads-selection-summary${(campForm.audience_levels || []).length ? ' ads-selection-summary--active' : ''}`}
-                  >
-                    {audienceSummaryText(
-                      (campForm.audience_levels || []).map(
-                        (id) => LEVELS.find((l) => l.id === id)?.label || id
-                      ),
-                      LEVELS.length,
-                      (x) => x
-                    )}
                   </p>
                 </div>
               </FormSection>

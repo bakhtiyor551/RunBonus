@@ -191,7 +191,6 @@ function App() {
             <Route path="/summary" element={<Navigate to="/" replace />} />
             <Route path="/wallet" element={<Navigate to="/rewards" replace />} />
             <Route path="/history" element={<Navigate to="/workouts" replace />} />
-            <Route path="/level" element={<Navigate to="/rewards" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

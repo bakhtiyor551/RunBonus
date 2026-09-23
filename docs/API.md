@@ -188,7 +188,6 @@ Authorization: Bearer <admin_jwt>
 
 | Префикс | Назначение |
 |---------|------------|
-| `/api/admin/customer-levels` | Уровни клиентов |
 | `/api/admin/shop` | Магазин, заказы, склад |
 | `/api/admin/reports` | Отчёты |
 | `/api/admin/ads` | Реклама |

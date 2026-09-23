@@ -75,22 +75,15 @@ export async function removePushToken(userId, token = null) {
   await pool.query('DELETE FROM user_push_tokens WHERE user_id = ?', [userId]);
 }
 
-async function resolveTokensForAudience({ cities = [], levels = [] } = {}) {
+async function resolveTokensForAudience({ cities = [] } = {}) {
   if (!(await hasPushTables())) return [];
 
   const cityList = Array.isArray(cities) ? cities.filter(Boolean) : [];
-  const levelList = Array.isArray(levels)
-    ? levels.map((l) => String(l).toLowerCase()).filter(Boolean)
-    : [];
 
   let sql = `
-    SELECT DISTINCT upt.token, upt.user_id, u.city,
-           cl.code AS level_code
+    SELECT DISTINCT upt.token, upt.user_id, u.city
     FROM user_push_tokens upt
     JOIN users u ON u.id = upt.user_id AND u.status = 'active'
-    LEFT JOIN user_active_shoes uas ON uas.user_id = u.id
-    LEFT JOIN user_shoe_progress usp ON usp.user_id = u.id AND usp.shoe_id = uas.shoe_id
-    LEFT JOIN customer_levels cl ON cl.id = usp.current_level_id
   `;
   const params = [];
 
@@ -101,14 +94,7 @@ async function resolveTokensForAudience({ cities = [], levels = [] } = {}) {
 
   const [rows] = await pool.query(sql, params);
 
-  return rows
-    .filter((row) => {
-      if (!levelList.length) return true;
-      if (!row.level_code) return false;
-      return levelList.includes(String(row.level_code).toLowerCase());
-    })
-    .map((row) => row.token)
-    .filter(Boolean);
+  return rows.map((row) => row.token).filter(Boolean);
 }
 
 async function getUserPushTokens(userId) {
@@ -229,7 +215,6 @@ export async function sendCampaignPush(campaign) {
 
   const tokens = await resolveTokensForAudience({
     cities: campaign.audience_cities,
-    levels: campaign.audience_levels,
   });
 
   const title = campaign.title?.trim() || 'RunBonus';

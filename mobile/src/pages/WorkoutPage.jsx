@@ -436,9 +436,6 @@ function CelebrateBlock({ result, units }) {
       <h1 className="rb-celebrate__title font-display">
         {result.title || 'Тренировка завершена!'}
       </h1>
-      {result.level_up?.message && (
-        <p className="rb-headline rb-celebrate__levelup">{result.level_up.message}</p>
-      )}
       <p className="rb-celebrate__summary">
         {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
       </p>

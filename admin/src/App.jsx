@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from './api';
 import WorkoutsTab from './WorkoutsTab';
-import CustomerLevelsTab from './CustomerLevelsTab';
 import QrShoesTab from './QrShoesTab';
 import DashboardTab from './DashboardTab';
 import ClientsTab from './ClientsTab';
@@ -87,11 +86,6 @@ export default function App() {
           {tab === 2 && (
             <div className="page-content">
               <WorkoutsTab />
-            </div>
-          )}
-          {tab === 7 && (
-            <div className="page-content">
-              <CustomerLevelsTab />
             </div>
           )}
           {tab === 8 && (

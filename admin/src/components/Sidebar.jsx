@@ -5,7 +5,6 @@ const NAV = [
   { id: 0, label: 'Клиенты', icon: 'group' },
   { id: 1, label: 'QR / Кроссовки', icon: 'qr_code_2' },
   { id: 2, label: 'Тренировки', icon: 'directions_run' },
-  { id: 7, label: 'Уровни клиентов', icon: 'military_tech' },
   { id: 8, label: 'Магазин', icon: 'storefront' },
   { id: 12, label: 'Склад', icon: 'inventory_2' },
   { id: 11, label: 'Отчёты', icon: 'analytics' },
