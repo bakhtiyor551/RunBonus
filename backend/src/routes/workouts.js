@@ -12,7 +12,14 @@ import {
 import {
   unlockMilestonesForUser,
   notifyUserRewardUnlocked,
+  getConfirmedDistanceKm,
 } from '../services/rewardService.js';
+import {
+  unlockAchievementsForUser,
+  notifyAchievementsUnlocked,
+} from '../services/achievementService.js';
+import { detectLevelUp } from '../services/levelService.js';
+import { sendPushToUser } from '../services/pushNotificationService.js';
 import {
   calcDistanceFromPoints,
   isSameCoordinates,
@@ -442,11 +449,34 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     await conn.commit();
 
     let unlockedRewards = [];
+    let unlockedAchievements = [];
+    let levelUp = null;
     if (finalStatus === 'approved') {
       try {
+        const prevDistance = Math.max(
+          0,
+          (await getConfirmedDistanceKm(userId)) - (Number(validation.distanceKm ?? distanceKm) || 0)
+        );
         const unlock = await unlockMilestonesForUser(userId);
         unlockedRewards = unlock.unlocked || [];
         notifyUserRewardUnlocked(userId, unlockedRewards);
+
+        const ach = await unlockAchievementsForUser(userId);
+        unlockedAchievements = ach.unlocked || [];
+        notifyAchievementsUnlocked(userId, unlockedAchievements);
+
+        levelUp = await detectLevelUp(prevDistance, unlock.totalDistance);
+        if (levelUp) {
+          sendPushToUser(userId, {
+            title: '🎉 Новый уровень!',
+            body: `Вы достигли Level ${levelUp.level} — ${levelUp.name}.`,
+            data: {
+              type: 'level_up',
+              level: String(levelUp.level),
+              path: '/achievements?tab=level',
+            },
+          }).catch(() => {});
+        }
       } catch (rewErr) {
         console.warn('[workout/finish/rewards]', rewErr.message);
       }
@@ -477,6 +507,25 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         message: `Вы достигли ${unlockedRewards[0].distance_km} км! Вам доступна награда`,
         milestoneId: unlockedRewards[0].id,
         distance: Number(unlockedRewards[0].distance_km),
+      };
+    }
+
+    if (unlockedAchievements.length) {
+      client.achievements_unlocked = unlockedAchievements.map((a) => ({
+        id: a.id,
+        code: a.code,
+        name: a.name,
+        type: a.type,
+        icon: a.icon,
+      }));
+    }
+
+    if (levelUp) {
+      client.level_up = {
+        level: levelUp.level,
+        name: levelUp.name,
+        icon: levelUp.icon,
+        message: `Вы достигли Level ${levelUp.level} — ${levelUp.name}`,
       };
     }
 

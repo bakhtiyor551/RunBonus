@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage';
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage';
 import ProgressPage from './pages/ProgressPage';
 import MyRewardsPage from './pages/MyRewardsPage';
+import AchievementsPage from './pages/AchievementsPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
@@ -168,7 +169,9 @@ function App() {
             <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
             <Route path="/rewards" element={<ProgressPage />} />
             <Route path="/my-rewards" element={<MyRewardsPage />} />
+            <Route path="/achievements" element={<AchievementsPage />} />
             <Route path="/progress" element={<Navigate to="/rewards" replace />} />
+            <Route path="/level" element={<Navigate to="/achievements?tab=level" replace />} />
             <Route
               path="/activate"
               element={

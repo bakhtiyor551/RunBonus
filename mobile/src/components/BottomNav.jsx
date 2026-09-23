@@ -6,6 +6,7 @@ import { fetchRewardsProgress } from '../services/rewards';
 const tabs = [
   { to: '/', label: 'Главная', icon: 'home', end: true },
   { to: '/workouts', label: 'Тренировки', icon: 'directions_run' },
+  { to: '/achievements', label: 'Достижения', icon: 'workspace_premium' },
   { to: '/rewards', label: 'Награды', icon: 'redeem', badgeKey: 'rewards' },
   { to: '/profile', label: 'Профиль', icon: 'person' },
 ];
@@ -31,7 +32,7 @@ export default function BottomNav() {
   }, [location.pathname]);
 
   return (
-    <nav className="rb-bottom-nav rb-bottom-nav--4" aria-label="Навигация">
+    <nav className="rb-bottom-nav rb-bottom-nav--5" aria-label="Навигация">
       {tabs.map((tab) => (
         <NavLink
           key={tab.to}

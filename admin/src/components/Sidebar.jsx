@@ -11,12 +11,18 @@ const NAV = [
   { id: 9, label: 'Заказы', icon: 'shopping_bag' },
   { id: 10, label: 'Способы оплаты', icon: 'payments' },
   { id: 'rewards', label: 'Награды', icon: 'emoji_events' },
+  { id: 'levels', label: 'Уровни', icon: 'military_tech' },
+  { id: 'achievements', label: 'Достижения', icon: 'workspace_premium' },
   { id: 'ads', label: 'Реклама', icon: 'campaign' },
 ];
 
 export default function Sidebar({ activeTab, onNavigate, adminLogin, onLogout }) {
   const isActive = (item) =>
-    item.id === 'dashboard' || item.id === 'ads' || item.id === 'rewards'
+    item.id === 'dashboard' ||
+    item.id === 'ads' ||
+    item.id === 'rewards' ||
+    item.id === 'levels' ||
+    item.id === 'achievements'
       ? activeTab === item.id
       : activeTab === item.id;
 

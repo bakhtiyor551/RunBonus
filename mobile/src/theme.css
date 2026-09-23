@@ -4687,3 +4687,198 @@ html.rb-keyboard-open .rb-main {
 .rb-progress-empty .rb-btn-pill {
   margin-top: 8px;
 }
+
+
+/* —— Достижения / Уровни —— */
+.rb-achievements-page {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+.rb-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  margin: 8px 0 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rb-segment__btn {
+  border: 0;
+  background: transparent;
+  color: var(--rb-text-muted, #9aa3b2);
+  padding: 10px 12px;
+  border-radius: 11px;
+  font-weight: 600;
+}
+
+.rb-segment__btn--active {
+  background: rgba(195, 244, 0, 0.16);
+  color: var(--rb-neon, #c3f400);
+}
+
+.rb-filter-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rb-filter-chip {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--rb-text-muted, #9aa3b2);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.rb-filter-chip--active {
+  border-color: rgba(195, 244, 0, 0.45);
+  color: var(--rb-neon, #c3f400);
+  background: rgba(195, 244, 0, 0.1);
+}
+
+.rb-achievements-summary {
+  margin: 0 0 14px;
+}
+
+.rb-medal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.rb-medal-card {
+  padding: 16px 12px;
+  text-align: center;
+  min-height: 140px;
+}
+
+.rb-medal-card--locked {
+  opacity: 0.45;
+  filter: grayscale(0.85);
+}
+
+.rb-medal-card__icon {
+  font-size: 36px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.rb-medal-card__title {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.rb-medal-card__status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--rb-text-muted, #9aa3b2);
+}
+
+.rb-level-hero {
+  padding: 28px 20px 22px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.rb-level-hero__icon {
+  font-size: 48px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.rb-level-hero__name {
+  margin: 0 0 8px;
+  font-size: 26px;
+}
+
+.rb-level-hero__km {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--rb-neon, #c3f400);
+}
+
+.rb-level-progress {
+  margin-top: 20px;
+}
+
+.rb-level-progress__track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.rb-level-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c3f400, #7ddf00);
+}
+
+.rb-level-progress__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.rb-level-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rb-level-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.rb-level-row--current {
+  border: 1px solid rgba(195, 244, 0, 0.45);
+  box-shadow: 0 0 0 1px rgba(195, 244, 0, 0.12);
+}
+
+.rb-level-row--locked {
+  opacity: 0.5;
+}
+
+.rb-level-row__icon {
+  font-size: 28px;
+  width: 36px;
+  text-align: center;
+}
+
+.rb-level-row__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rb-level-row__badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--rb-neon, #c3f400);
+  background: rgba(195, 244, 0, 0.12);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.rb-celebrate__levelup,
+.rb-celebrate__achievements {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(195, 244, 0, 0.12);
+  color: var(--rb-neon, #c3f400);
+}
