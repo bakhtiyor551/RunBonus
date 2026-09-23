@@ -33,8 +33,9 @@ function isClaimed(status) {
 function statusText(milestone) {
   const { status, remainingKm } = milestone;
   if (status === 'DELIVERED') return 'Получено';
+  if (isClaimed(status)) return USER_VISIBLE[status] || 'Получено';
   if (canOpen(status)) return 'Доступно';
-  if (status === 'LOCKED') return `ещё ${km(remainingKm)} км`;
+  if (status === 'LOCKED') return `${km(remainingKm)} км`;
   return USER_VISIBLE[status] || status;
 }
 
