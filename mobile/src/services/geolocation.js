@@ -150,8 +150,8 @@ export async function startBackgroundTracking(onPosition) {
       {
         enableHighAccuracy: true,
         timeout: 30000,
-        maximumAge: isAndroid() ? 5000 : 2000,
-        minimumUpdateInterval: 1000,
+        maximumAge: isAndroid() ? 8000 : 4000,
+        minimumUpdateInterval: 2000,
       },
       (pos, err) => {
         if (err) return;

@@ -14,7 +14,9 @@ import {
   listPromoCodes,
   getRewardsStats,
 } from '../services/rewardAdminService.js';
-import { unlockMilestonesForUser, syncUserTotalDistance } from '../services/rewardService.js';
+import { unlockMilestonesForUser, syncUserTotalDistance, adminGiftReward } from '../services/rewardService.js';
+import { normalizePhone } from '../utils/phone.js';
+import { pool } from '../db.js';
 
 const router = Router();
 
@@ -175,6 +177,51 @@ router.post('/users/:userId/sync', authAdmin, async (req, res) => {
     res.json({ totalDistance: total, ...result });
   } catch (e) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+/** Gift milestone / concrete reward to a user by phone (no km check). */
+router.post('/gift', authAdmin, async (req, res) => {
+  try {
+    const { phone, user_id, milestone_id, reward_id, size, color, comment } = req.body || {};
+    let userId = user_id ? Number(user_id) : null;
+
+    if (!userId) {
+      const phoneNorm = normalizePhone(phone) || String(phone || '').replace(/\D/g, '');
+      if (!phoneNorm) {
+        return res.status(400).json({ error: 'Укажите телефон клиента или user_id' });
+      }
+      const variants = [
+        phoneNorm,
+        phoneNorm.startsWith('992') ? phoneNorm : `992${phoneNorm}`,
+        phoneNorm.startsWith('992') ? phoneNorm.slice(3) : phoneNorm,
+      ];
+      const [rows] = await pool.query(
+        `SELECT id, name, phone FROM users WHERE phone IN (?, ?, ?) LIMIT 1`,
+        variants
+      );
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Клиент с таким телефоном не найден' });
+      }
+      userId = rows[0].id;
+    }
+
+    if (!milestone_id) {
+      return res.status(400).json({ error: 'Укажите контрольную точку (milestone_id)' });
+    }
+
+    const result = await adminGiftReward({
+      userId,
+      milestoneId: Number(milestone_id),
+      rewardId: reward_id ? Number(reward_id) : null,
+      size: size || null,
+      color: color || null,
+      comment: comment || null,
+    });
+    res.status(201).json(result);
+  } catch (e) {
+    console.error('[rewards/gift]', e);
+    res.status(e.code === 'NOT_FOUND' ? 404 : 400).json({ error: e.message });
   }
 });
 

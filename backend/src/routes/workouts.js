@@ -214,23 +214,28 @@ async function getLastWorkoutPoint(workoutId, conn = pool) {
   return rows[0] ? normalizeGpsPoint(rows[0]) : null;
 }
 
-async function insertGpsPoint(conn, workoutId, rawPoint) {
-  const p = normalizeGpsPoint(rawPoint);
-  if (!p) return false;
-
-  await conn.query(
-    `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [
+async function insertGpsPointsBulk(conn, workoutId, points) {
+  const rows = [];
+  for (const raw of points) {
+    const p = normalizeGpsPoint(raw);
+    if (!p) continue;
+    rows.push([
       workoutId,
       p.latitude,
       p.longitude,
       p.speed,
       p.accuracy,
       p.recorded_at ? new Date(p.recorded_at) : new Date(),
-    ]
+    ]);
+  }
+  if (!rows.length) return 0;
+  const placeholders = rows.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
+  await conn.query(
+    `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
+     VALUES ${placeholders}`,
+    rows.flat()
   );
-  return true;
+  return rows.length;
 }
 
 router.post('/point', authUser, async (req, res) => {
@@ -308,12 +313,16 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     if (clientPoints?.length) {
       let last = await getLastWorkoutPoint(workoutId, conn);
       const batch = Array.isArray(clientPoints) ? clientPoints : [clientPoints];
+      const toSave = [];
       for (const raw of batch) {
         const p = normalizeGpsPoint(raw);
         if (!p) continue;
         if (last && isSameCoordinates(last, p)) continue;
-        const saved = await insertGpsPoint(conn, workoutId, p);
-        if (saved) last = p;
+        toSave.push(p);
+        last = p;
+      }
+      if (toSave.length) {
+        await insertGpsPointsBulk(conn, workoutId, toSave);
       }
     }
 

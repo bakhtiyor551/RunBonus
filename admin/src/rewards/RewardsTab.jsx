@@ -3,6 +3,7 @@ import { adminApi } from '../api';
 
 const SECTIONS = [
   { id: 'stats', label: 'Статистика' },
+  { id: 'gift', label: 'Подарить' },
   { id: 'milestones', label: 'Контрольные точки' },
   { id: 'catalog', label: 'Награды' },
   { id: 'stock', label: 'Склад подарков' },
@@ -61,6 +62,15 @@ export default function RewardsTab() {
   const [rewardForm, setRewardForm] = useState(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterQ, setFilterQ] = useState('');
+  const [giftForm, setGiftForm] = useState({
+    phone: '',
+    milestone_id: '',
+    reward_id: '',
+    size: '',
+    comment: '',
+  });
+  const [gifting, setGifting] = useState(false);
+  const [giftResult, setGiftResult] = useState(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -198,6 +208,61 @@ export default function RewardsTab() {
     }
   }
 
+  const giftLinkedRewards = useMemo(() => {
+    const mid = Number(giftForm.milestone_id);
+    if (!mid) return catalog.filter((r) => r.active !== 0 && r.active !== false);
+    const m = milestones.find((x) => Number(x.id) === mid);
+    const linked = (m?.linked_rewards || []).map((r) => Number(r.reward_id));
+    if (!linked.length) return catalog.filter((r) => r.active !== 0 && r.active !== false);
+    return catalog.filter(
+      (r) => linked.includes(Number(r.id)) && r.active !== 0 && r.active !== false
+    );
+  }, [giftForm.milestone_id, milestones, catalog]);
+
+  const selectedGiftReward = useMemo(
+    () => catalog.find((r) => String(r.id) === String(giftForm.reward_id)),
+    [catalog, giftForm.reward_id]
+  );
+
+  const giftSizeOptions = useMemo(() => {
+    if (!selectedGiftReward?.requires_size) return [];
+    try {
+      const raw = selectedGiftReward.size_options;
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'string') return JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    return ['S', 'M', 'L', 'XL', 'XXL'];
+  }, [selectedGiftReward]);
+
+  async function submitGift(e) {
+    e.preventDefault();
+    setGifting(true);
+    setError('');
+    setGiftResult(null);
+    try {
+      const body = {
+        phone: giftForm.phone.trim(),
+        milestone_id: Number(giftForm.milestone_id),
+        reward_id: giftForm.reward_id ? Number(giftForm.reward_id) : null,
+        size: giftForm.size || null,
+        comment: giftForm.comment.trim() || null,
+      };
+      const data = await adminApi('/api/admin/rewards/gift', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      setGiftResult(data);
+      setGiftForm((f) => ({ ...f, reward_id: '', size: '', comment: '' }));
+      await loadAll();
+    } catch (err) {
+      setError(err.message || 'Не удалось подарить награду');
+    } finally {
+      setGifting(false);
+    }
+  }
+
   return (
     <div className="page-content">
       <nav className="reports-subnav" aria-label="Разделы наград">
@@ -260,6 +325,99 @@ export default function RewardsTab() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {section === 'gift' && (
+        <div className="glass-card card">
+          <h3>Подарить награду клиенту</h3>
+          <p className="hint" style={{ marginTop: 4 }}>
+            Без проверки километража. Можно только открыть точку (клиент выберет подарок) или сразу
+            назначить конкретную награду.
+          </p>
+          <form onSubmit={submitGift} className="form-grid" style={{ marginTop: 16, maxWidth: 520 }}>
+            <label>
+              Телефон клиента
+              <input
+                required
+                placeholder="992XXXXXXXXX"
+                value={giftForm.phone}
+                onChange={(e) => setGiftForm({ ...giftForm, phone: e.target.value })}
+              />
+            </label>
+            <label>
+              Контрольная точка
+              <select
+                required
+                value={giftForm.milestone_id}
+                onChange={(e) =>
+                  setGiftForm({ ...giftForm, milestone_id: e.target.value, reward_id: '', size: '' })
+                }
+              >
+                <option value="">Выберите…</option>
+                {milestones.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.distance_km} км)
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Награда (необязательно)
+              <select
+                value={giftForm.reward_id}
+                onChange={(e) => setGiftForm({ ...giftForm, reward_id: e.target.value, size: '' })}
+              >
+                <option value="">Только открыть — клиент выберет сам</option>
+                {giftLinkedRewards.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.type})
+                  </option>
+                ))}
+              </select>
+            </label>
+            {giftSizeOptions.length > 0 && (
+              <label>
+                Размер
+                <select
+                  required
+                  value={giftForm.size}
+                  onChange={(e) => setGiftForm({ ...giftForm, size: e.target.value })}
+                >
+                  <option value="">Выберите размер…</option>
+                  {giftSizeOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label style={{ gridColumn: '1 / -1' }}>
+              Комментарий
+              <input
+                placeholder="Подарок от администратора"
+                value={giftForm.comment}
+                onChange={(e) => setGiftForm({ ...giftForm, comment: e.target.value })}
+              />
+            </label>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <button type="submit" className="btn btn--primary" disabled={gifting}>
+                {gifting ? 'Отправка…' : 'Подарить'}
+              </button>
+            </div>
+          </form>
+          {giftResult && (
+            <div className="glass-card card" style={{ marginTop: 16, padding: 12 }}>
+              <strong>Готово</strong>
+              <p className="hint" style={{ margin: '8px 0 0' }}>
+                {giftResult.userName || 'Клиент'} ({giftResult.phone}) · {giftResult.milestoneName} ·{' '}
+                {STATUS_LABELS[giftResult.status] || giftResult.status}
+                {giftResult.rewardName ? ` · ${giftResult.rewardName}` : ''}
+                {giftResult.promoCode ? ` · промокод ${giftResult.promoCode}` : ''}
+              </p>
+            </div>
+          )}
         </div>
       )}
 

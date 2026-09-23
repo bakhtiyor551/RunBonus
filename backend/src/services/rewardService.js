@@ -344,7 +344,7 @@ export async function selectReward(userId, { milestoneId, rewardId, size, color,
     }
 
     const [[activeShoe]] = await conn.query(
-      `SELECT id FROM user_shoes WHERE user_id = ? AND status = 'active' LIMIT 1`,
+      `SELECT shoe_id AS id FROM user_active_shoes WHERE user_id = ? LIMIT 1`,
       [userId]
     );
     if (!activeShoe) {
@@ -363,23 +363,30 @@ export async function selectReward(userId, { milestoneId, rewardId, size, color,
       err.code = 'NOT_FOUND';
       throw err;
     }
-    if (total < Number(milestone.distance_km)) {
-      const err = new Error('Километраж ещё не достигнут');
-      err.code = 'LOCKED';
-      throw err;
-    }
 
-    // Ensure user_reward row exists
-    await conn.query(
-      `INSERT IGNORE INTO user_rewards (user_id, milestone_id, status)
-       VALUES (?, ?, 'AVAILABLE')`,
-      [userId, milestoneId]
-    );
-
-    const [[ur]] = await conn.query(
+    // Existing unlock (e.g. admin gift) bypasses distance check
+    let [[ur]] = await conn.query(
       `SELECT * FROM user_rewards WHERE user_id = ? AND milestone_id = ? FOR UPDATE`,
       [userId, milestoneId]
     );
+
+    if (!ur) {
+      if (total < Number(milestone.distance_km)) {
+        const err = new Error('Километраж ещё не достигнут');
+        err.code = 'LOCKED';
+        throw err;
+      }
+      await conn.query(
+        `INSERT INTO user_rewards (user_id, milestone_id, status)
+         VALUES (?, ?, 'AVAILABLE')`,
+        [userId, milestoneId]
+      );
+      [[ur]] = await conn.query(
+        `SELECT * FROM user_rewards WHERE user_id = ? AND milestone_id = ? FOR UPDATE`,
+        [userId, milestoneId]
+      );
+    }
+
     if (!ur) {
       const err = new Error('Достижение не найдено');
       err.code = 'NOT_FOUND';
@@ -557,6 +564,235 @@ export async function notifyUserRewardUnlocked(userId, unlocked) {
     `[rewards] user=${userId} unlocked:`,
     unlocked.map((m) => `${m.distance_km}km`).join(', ')
   );
+}
+
+/**
+ * Admin: gift a milestone unlock and optionally a concrete reward (no km check).
+ * @param {{ userId: number, milestoneId: number, rewardId?: number|null, size?: string, color?: string, comment?: string }}
+ */
+export async function adminGiftReward({
+  userId,
+  milestoneId,
+  rewardId = null,
+  size = null,
+  color = null,
+  comment = null,
+}) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [[user]] = await conn.query(
+      `SELECT id, name, phone, status FROM users WHERE id = ? FOR UPDATE`,
+      [userId]
+    );
+    if (!user) {
+      const err = new Error('Пользователь не найден');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+    if (user.status === 'blocked') {
+      const err = new Error('Аккаунт заблокирован');
+      err.code = 'BLOCKED';
+      throw err;
+    }
+
+    const [[milestone]] = await conn.query(
+      `SELECT * FROM reward_milestones WHERE id = ? FOR UPDATE`,
+      [milestoneId]
+    );
+    if (!milestone) {
+      const err = new Error('Контрольная точка не найдена');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+
+    await conn.query(
+      `INSERT INTO user_rewards (user_id, milestone_id, status, admin_comment)
+       VALUES (?, ?, 'AVAILABLE', ?)
+       ON DUPLICATE KEY UPDATE
+         admin_comment = COALESCE(VALUES(admin_comment), admin_comment)`,
+      [userId, milestoneId, comment || 'Подарок от администратора']
+    );
+
+    const [[ur]] = await conn.query(
+      `SELECT * FROM user_rewards WHERE user_id = ? AND milestone_id = ? FOR UPDATE`,
+      [userId, milestoneId]
+    );
+    if (!ur) {
+      const err = new Error('Не удалось создать награду');
+      err.code = 'CREATE_FAILED';
+      throw err;
+    }
+
+    if (['SELECTED', 'PROCESSING', 'READY', 'DELIVERED'].includes(ur.status) && ur.reward_id) {
+      const err = new Error(
+        'У пользователя уже есть выбранная/выданная награда по этой точке. Сначала отмените её.'
+      );
+      err.code = 'ALREADY_SELECTED';
+      throw err;
+    }
+
+    let resultStatus = 'AVAILABLE';
+    let promoCode = null;
+    let reward = null;
+
+    if (!rewardId) {
+      await conn.query(
+        `UPDATE user_rewards
+         SET status = 'AVAILABLE', reward_id = NULL, admin_comment = COALESCE(?, admin_comment)
+         WHERE id = ?`,
+        [comment || 'Подарок от администратора', ur.id]
+      );
+    } else {
+      const [[rewardRow]] = await conn.query(
+        `SELECT * FROM rewards WHERE id = ? AND active = 1 FOR UPDATE`,
+        [rewardId]
+      );
+      if (!rewardRow) {
+        const err = new Error('Награда не найдена или неактивна');
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+      reward = rewardRow;
+
+      const needSize = !!reward.requires_size;
+      const chosenSize = needSize ? String(size || '').toUpperCase() : size || null;
+      if (needSize && !chosenSize) {
+        const err = new Error('Укажите размер');
+        err.code = 'SIZE_REQUIRED';
+        throw err;
+      }
+
+      await reserveStock(conn, reward, chosenSize || '', color || '');
+
+      if (reward.type === 'DISCOUNT') {
+        resultStatus = 'DELIVERED';
+        const days = Number(reward.discount_valid_days) || 30;
+        const promoExpires = new Date(Date.now() + days * 86400000);
+        promoCode = makePromoCode(`GIFT${Number(milestone.distance_km)}`);
+        await conn.query(
+          `UPDATE user_rewards
+           SET reward_id = ?, status = ?, selected_at = NOW(), delivered_at = NOW(),
+               promo_code = ?, admin_comment = ?, processed_at = NOW()
+           WHERE id = ?`,
+          [rewardId, resultStatus, promoCode, comment || 'Подарок от администратора', ur.id]
+        );
+        await conn.query(
+          `INSERT INTO reward_promo_codes
+            (user_reward_id, user_id, reward_id, milestone_id, code, discount_percent,
+             min_amount, max_amount, status, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)`,
+          [
+            ur.id,
+            userId,
+            rewardId,
+            milestoneId,
+            promoCode,
+            reward.discount_percent,
+            reward.discount_min_amount || 0,
+            reward.discount_max_amount,
+            promoExpires,
+          ]
+        );
+      } else {
+        resultStatus = 'PROCESSING';
+        await conn.query(
+          `UPDATE user_rewards
+           SET reward_id = ?, status = ?, selected_at = NOW(), processed_at = NOW(),
+               admin_comment = ?
+           WHERE id = ?`,
+          [rewardId, resultStatus, comment || 'Подарок от администратора', ur.id]
+        );
+        await conn.query(
+          `INSERT INTO reward_delivery
+            (user_reward_id, user_id, reward_id, size, color, phone, delivery_status, admin_comment)
+           VALUES (?, ?, ?, ?, ?, ?, 'processing', ?)
+           ON DUPLICATE KEY UPDATE
+             reward_id = VALUES(reward_id), size = VALUES(size), color = VALUES(color),
+             delivery_status = 'processing', admin_comment = VALUES(admin_comment)`,
+          [
+            ur.id,
+            userId,
+            rewardId,
+            chosenSize,
+            color || null,
+            user.phone,
+            comment || 'Подарок от администратора',
+          ]
+        );
+      }
+    }
+
+    await conn.commit();
+
+    try {
+      const { sendPushToUser } = await import('./pushNotificationService.js');
+      if (!rewardId) {
+        sendPushToUser(userId, {
+          title: '🎁 Новая награда!',
+          body: `Вам открыта награда «${milestone.name}». Выберите подарок.`,
+          data: {
+            type: 'reward_gifted',
+            milestone_id: String(milestoneId),
+            path: `/rewards?milestone=${milestoneId}`,
+          },
+        }).catch(() => {});
+      } else if (reward?.type === 'DISCOUNT') {
+        sendPushToUser(userId, {
+          title: '🎁 Подарок от RunBonus!',
+          body: `Вам подарили «${reward.name}». Промокод в разделе «Мои награды».`,
+          data: {
+            type: 'reward_gifted',
+            milestone_id: String(milestoneId),
+            path: '/my-rewards',
+          },
+        }).catch(() => {});
+      } else {
+        sendPushToUser(userId, {
+          title: '🎁 Подарок от RunBonus!',
+          body: `Вам подарили «${reward.name}».`,
+          data: {
+            type: 'reward_gifted',
+            milestone_id: String(milestoneId),
+            path: '/my-rewards',
+          },
+        }).catch(() => {});
+      }
+    } catch {
+      /* optional */
+    }
+
+    if (reward && reward.type !== 'DISCOUNT') {
+      const text =
+        `🎁 <b>ПОДАРОК ОТ АДМИНА</b>\n\n` +
+        `Пользователь:\n${user.name || '—'}\n\n` +
+        `Телефон:\n${user.phone || '—'}\n\n` +
+        `Точка:\n${milestone.name} (${milestone.distance_km} км)\n\n` +
+        `Награда:\n${reward.name}\n\n` +
+        `Статус:\n${resultStatus}\n` +
+        `ID: #${ur.id}`;
+      sendTelegramMessage(text).catch(() => {});
+    }
+
+    return {
+      userRewardId: ur.id,
+      userId,
+      userName: user.name,
+      phone: user.phone,
+      milestoneId,
+      milestoneName: milestone.name,
+      status: resultStatus,
+      rewardId: rewardId || null,
+      rewardName: reward?.name || null,
+      promoCode,
+    };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
 }
 
 export async function getMyRewards(userId) {
