@@ -1,5 +1,4 @@
 export const PAYMENT_METHODS = [
-  { id: 'bonus', label: 'Оплата бонусами', needsDetails: false },
   { id: 'cash', label: 'Наличные при доставке', needsDetails: false },
   { id: 'delivery', label: 'Доставка', needsDetails: false },
   { id: 'card', label: 'Банковская карта', needsDetails: true, detailsLabel: 'Номер карты или последние 4 цифры' },
@@ -13,10 +12,12 @@ export const PAYMENT_METHODS = [
 ];
 
 export function paymentMethodLabel(id) {
+  if (id === 'bonus') return 'Оплата бонусами (отключено)';
   return PAYMENT_METHODS.find((m) => m.id === id)?.label || id || '—';
 }
 
 export function isValidPaymentMethod(id) {
+  if (id === 'bonus') return false;
   return PAYMENT_METHODS.some((m) => m.id === id);
 }
 

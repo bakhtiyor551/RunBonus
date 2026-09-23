@@ -2,21 +2,34 @@
 
 Стек: **Ionic React 8** + **Vite** + **Capacitor 6**.
 
-## Экраны
+## Экраны (после миграции на награды)
 
 | Путь | Экран |
 |------|-------|
-| `/` | Главная — баланс, CTA тренировки, статистика |
-| `/summary` | Сводка — кольца, недельный график, уровень |
-| `/workout` | Активная тренировка (карта, метрики, пауза) |
+| `/` | Главная — прогресс км, следующая награда, CTA тренировки |
 | `/workouts` | История тренировок |
-| `/wallet` | Кошелёк бонусов |
-| `/shop` | Магазин |
+| `/rewards` | Контрольные точки (50/100/200/300/500 км) |
+| `/my-rewards` | Мои выбранные награды и статусы |
+| `/workout` | Активная тренировка (карта, метрики, пауза) |
+| `/shop` | Магазин (покупка за деньги) |
 | `/cart` | Корзина |
-| `/profile` | Профиль и настройки |
+| `/orders` | Мои заказы |
+| `/profile` | Профиль, кроссовки, настройки |
 | `/activate` | Активация QR кроссовок |
 
-Нижняя навигация: Главная · Сводка · Кошелёк · Магазин · Профиль.
+Нижняя навигация: **Главная · Тренировки · Награды · Профиль**.
+
+Редиректы legacy: `/summary` → `/`, `/wallet` → `/rewards`, `/history` → `/workouts`, `/progress` → `/rewards`.
+
+## Бизнес-логика
+
+1. Активировать кроссовки по QR  
+2. Тренировка → GPS на backend → anti-fraud → **подтверждённые км**  
+3. Milestone открывает награду  
+4. Пользователь выбирает один подарок (размер / цвет / промокод)  
+5. Магазин отдельно — оплата деньгами, не бонусами  
+
+Подробнее: [REWARDS_MIGRATION.md](REWARDS_MIGRATION.md), [API.md](API.md).
 
 ## Переменные окружения
 
@@ -54,6 +67,10 @@ VITE_API_URL=http://192.168.1.100:3001
 - Синхронизация точек на сервер каждые 4 сек
 - iOS Live Activity
 
+### `rewards.js`
+
+Клиент API наград: progress, milestones, select, my.
+
 ### `gpsFilter.js`
 
 Фильтрация GPS-шума:
@@ -78,41 +95,3 @@ VITE_API_URL=http://192.168.1.100:3001
 ### iOS
 
 - `WorkoutTrackingPlugin` — шаги
-- `WorkoutLiveActivity` — Dynamic Island / Live Activity
-- `AppBridgeViewController` — регистрация локальных плагинов
-- После `cap sync`: `node scripts/ios-patch-cap-config.mjs`
-
-## Сборка Android
-
-```bash
-cd mobile
-npm run build:release
-npx cap open android
-```
-
-В Android Studio: выберите устройство → Run.
-
-APK: **Build → Build APK(s)**.
-
-## Сборка iOS
-
-Только на Mac. См. [deploy/IOS.md](../deploy/IOS.md).
-
-```bash
-npm run build:ios
-cd ios/App && pod install
-npx cap open ios
-```
-
-В Xcode выберите схему **App** (не extension).
-
-## Отладка
-
-| Проблема | Решение |
-|----------|---------|
-| API недоступен | `VITE_API_URL` = IP ПК, firewall, backend на `0.0.0.0` |
-| GPS не фиксируется | Разрешения, тест на улице, см. WORKOUTS.md |
-| Live Activity не видна | Плагин зарегистрирован, foreground 2–3 сек до сворачивания |
-| SMS OTP | `SMS_DEV_CODE` в backend `.env` или настройка OsonSMS |
-
-Chrome DevTools для WebView: `chrome://inspect` (Android).

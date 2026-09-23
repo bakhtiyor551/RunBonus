@@ -112,7 +112,12 @@ export async function getUserProgress(userId) {
     }
 
     if (!nextMilestone && status === 'LOCKED') {
-      nextMilestone = dist;
+      nextMilestone = {
+        id: m.id,
+        distance: dist,
+        name: m.name,
+        description: m.description,
+      };
       remainingDistance = roundKm(Math.max(0, dist - totalDistance));
     }
 
@@ -151,7 +156,7 @@ export async function getUserProgress(userId) {
   };
 }
 
-async function getAvailableQty(conn, reward, size = '') {
+async function getAvailableQty(conn, reward, size = '', color = '') {
   if (reward.type === 'DISCOUNT') return Infinity;
   if (reward.requires_size) {
     const [[row]] = await conn.query(
@@ -163,6 +168,15 @@ async function getAvailableQty(conn, reward, size = '') {
     if (!row) return 0;
     return Math.max(0, Number(row.quantity) - Number(row.reserved));
   }
+  if (color) {
+    const [[row]] = await conn.query(
+      `SELECT quantity, reserved FROM reward_stock
+       WHERE reward_id = ? AND size = '' AND color = ?
+       FOR UPDATE`,
+      [reward.id, color]
+    );
+    if (row) return Math.max(0, Number(row.quantity) - Number(row.reserved));
+  }
   const [[row]] = await conn.query(
     `SELECT stock, reserved FROM rewards WHERE id = ? FOR UPDATE`,
     [reward.id]
@@ -170,7 +184,7 @@ async function getAvailableQty(conn, reward, size = '') {
   return Math.max(0, Number(row?.stock || 0) - Number(row?.reserved || 0));
 }
 
-async function reserveStock(conn, reward, size = '') {
+async function reserveStock(conn, reward, size = '', color = '') {
   if (reward.type === 'DISCOUNT') return;
   if (reward.requires_size) {
     const [res] = await conn.query(
@@ -186,6 +200,16 @@ async function reserveStock(conn, reward, size = '') {
       throw err;
     }
     return;
+  }
+  if (color) {
+    const [res] = await conn.query(
+      `UPDATE reward_stock
+       SET reserved = reserved + 1
+       WHERE reward_id = ? AND size = '' AND color = ?
+         AND quantity > reserved`,
+      [reward.id, color]
+    );
+    if (res.affectedRows > 0) return;
   }
   const [res] = await conn.query(
     `UPDATE rewards SET reserved = reserved + 1
@@ -262,6 +286,26 @@ export async function getMilestoneRewardOptions(userId, milestoneIdOrDistance) {
       inStock,
       stockLeft: r.type === 'DISCOUNT' ? null : stockLeft,
       sizes,
+      colors: (() => {
+        try {
+          const raw = r.color_options;
+          if (!raw) return null;
+          const arr = Array.isArray(raw) ? raw : JSON.parse(raw);
+          return Array.isArray(arr) && arr.length ? arr : null;
+        } catch {
+          return null;
+        }
+      })(),
+      hasColors: (() => {
+        try {
+          const raw = r.color_options;
+          if (!raw) return false;
+          const arr = Array.isArray(raw) ? raw : JSON.parse(raw);
+          return Array.isArray(arr) && arr.length > 0;
+        } catch {
+          return false;
+        }
+      })(),
       unavailableReason: inStock ? null : 'Временно нет в наличии',
     });
   }
@@ -381,14 +425,14 @@ export async function selectReward(userId, { milestoneId, rewardId, size, color,
       }
     }
 
-    const qty = await getAvailableQty(conn, reward, chosenSize || '');
+    const qty = await getAvailableQty(conn, reward, chosenSize || '', color || '');
     if (qty <= 0) {
       const err = new Error('Нет в наличии');
       err.code = 'OUT_OF_STOCK';
       throw err;
     }
 
-    await reserveStock(conn, reward, chosenSize || '');
+    await reserveStock(conn, reward, chosenSize || '', color || '');
 
     let status = 'SELECTED';
     let promoCode = null;
@@ -455,15 +499,31 @@ export async function selectReward(userId, { milestoneId, rewardId, size, color,
     // Telegram (outside tx)
     if (reward.type !== 'DISCOUNT') {
       const sizeLine = chosenSize ? `\n👕 Размер: <b>${chosenSize}</b>` : '';
+      const colorLine = color ? `\n🎨 Цвет: <b>${color}</b>` : '';
       const text =
         `🎁 <b>НОВАЯ НАГРАДА</b>\n\n` +
         `Пользователь:\n${user.name || '—'}\n\n` +
         `Телефон:\n${user.phone || '—'}\n\n` +
         `Достижение:\n${milestone.name} (${milestone.distance_km} км)\n\n` +
-        `Награда:\n${reward.name}${sizeLine}\n\n` +
+        `Награда:\n${reward.name}${sizeLine}${colorLine}\n\n` +
         `Статус:\nНовая заявка\n` +
         `ID: #${ur.id}`;
       sendTelegramMessage(text).catch(() => {});
+    }
+
+    try {
+      const { sendPushToUser } = await import('./pushNotificationService.js');
+      sendPushToUser(userId, {
+        title: '🎁 Награда выбрана',
+        body: 'Ваша награда принята и отправлена на обработку.',
+        data: {
+          type: 'reward_selected',
+          milestone_id: String(milestoneId),
+          path: '/my-rewards',
+        },
+      }).catch(() => {});
+    } catch {
+      /* optional */
     }
 
     return getMilestoneRewardOptions(userId, milestoneId);
@@ -476,10 +536,57 @@ export async function selectReward(userId, { milestoneId, rewardId, size, color,
 }
 
 export async function notifyUserRewardUnlocked(userId, unlocked) {
-  // Push/in-app notifications can be wired later; log for now
   if (!unlocked?.length) return;
+  const { sendPushToUser } = await import('./pushNotificationService.js');
+  for (const m of unlocked) {
+    const km = Number(m.distance_km);
+    const title = '🎉 Новая награда!';
+    const body = `Вы достигли ${km} км. Вам доступна новая награда!`;
+    sendPushToUser(userId, {
+      title,
+      body,
+      data: {
+        type: 'reward_unlocked',
+        milestone_id: String(m.id),
+        distance: String(km),
+        path: `/rewards?milestone=${m.id}`,
+      },
+    }).catch(() => {});
+  }
   console.log(
     `[rewards] user=${userId} unlocked:`,
     unlocked.map((m) => `${m.distance_km}km`).join(', ')
   );
+}
+
+export async function getMyRewards(userId) {
+  const progress = await getUserProgress(userId);
+  return progress.milestones
+    .filter((m) => m.status && m.status !== 'LOCKED')
+    .map((m) => ({
+      id: m.id,
+      milestone_id: m.id,
+      name: m.name,
+      distance: m.distance,
+      status: m.status,
+      reward: m.reward,
+      promoCode: m.reward?.promoCode || null,
+      selectedAt: m.selectedAt,
+      deliveredAt: m.deliveredAt,
+    }));
+}
+
+export async function listActiveMilestones() {
+  const [rows] = await pool.query(
+    `SELECT id, name, distance_km, description, sort_order
+     FROM reward_milestones
+     WHERE status = 'active'
+     ORDER BY distance_km ASC, sort_order ASC`
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    distance: Number(r.distance_km),
+    description: r.description,
+  }));
 }

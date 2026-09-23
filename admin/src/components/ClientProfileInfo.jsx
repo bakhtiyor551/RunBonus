@@ -39,9 +39,9 @@ function ClientProfileCard({ profile, children }) {
       </div>
 
       <div className="client-profile-card__balance entity-card__highlight">
-        <span className="entity-card__highlight-label">Баланс</span>
+        <span className="entity-card__highlight-label">Подтверждённые км</span>
         <span className="entity-card__highlight-value">
-          {formatMoney(profile.wallet.balance)}
+          {Number(profile.workouts?.total_km || profile.total_distance_km || 0).toFixed(2)} км
         </span>
       </div>
 
@@ -65,25 +65,25 @@ function ClientProfileCard({ profile, children }) {
       </div>
 
       <details className="client-profile-card__more">
-        <summary>Подробнее: кошелёк и статистика</summary>
+        <summary>Подробнее: статистика и архив кошелька</summary>
 
-        <h4 className="client-profile-info__section">Кошелёк</h4>
+        <h4 className="client-profile-info__section">Архив кошелька (deprecated)</h4>
         <div className="client-profile-info__grid client-profile-info__grid--wallet">
           <div className="client-profile-info__item">
+            <span className="client-profile-info__label">Бывший баланс</span>
+            <strong>{formatMoney(profile.wallet?.balance)}</strong>
+          </div>
+          <div className="client-profile-info__item">
             <span className="client-profile-info__label">Доступно</span>
-            <strong>{formatMoney(profile.wallet.available_balance)}</strong>
+            <strong>{formatMoney(profile.wallet?.available_balance)}</strong>
           </div>
           <div className="client-profile-info__item">
-            <span className="client-profile-info__label">Заблокировано</span>
-            <strong>{formatMoney(profile.wallet.blocked_balance)}</strong>
-          </div>
-          <div className="client-profile-info__item">
-            <span className="client-profile-info__label">Заработано</span>
-            <strong>{formatMoney(profile.wallet.total_earned)}</strong>
+            <span className="client-profile-info__label">Заработано ранее</span>
+            <strong>{formatMoney(profile.wallet?.total_earned)}</strong>
           </div>
           <div className="client-profile-info__item">
             <span className="client-profile-info__label">Потрачено</span>
-            <strong>{formatMoney(profile.wallet.total_spent)}</strong>
+            <strong>{formatMoney(profile.wallet?.total_spent)}</strong>
           </div>
         </div>
 
@@ -96,12 +96,12 @@ function ClientProfileCard({ profile, children }) {
                 <strong>{profile.level_info.current_level}</strong>
               </div>
               <div className="client-profile-info__item">
-                <span className="client-profile-info__label">Км по паре</span>
+                <span className="client-profile-info__label">Км по уровню</span>
                 <strong>{Number(profile.level_info.total_km).toFixed(1)}</strong>
               </div>
               <div className="client-profile-info__item">
-                <span className="client-profile-info__label">Бонус по паре</span>
-                <strong>{formatMoney(profile.level_info.total_bonus)}</strong>
+                <span className="client-profile-info__label">Уровень</span>
+                <strong>{profile.level_info.current_level}</strong>
               </div>
               <div className="client-profile-info__item">
                 <span className="client-profile-info__label">Следующий</span>
@@ -262,8 +262,8 @@ export function ClientProfileDetail({
               disabled={blocked}
               onClick={() => onTopup?.(profile)}
             >
-              <Icon name="add_card" />
-              Пополнить баланс
+              <Icon name="sync" />
+              Sync награды
             </button>
             <button
               type="button"

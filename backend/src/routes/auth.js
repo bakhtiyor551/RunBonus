@@ -5,8 +5,6 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authUser, authUserToken } from '../middleware/auth.js';
-import { getUserBalance } from '../services/bonusService.js';
-import { getWalletSummary } from '../services/accountService.js';
 import { activateShoeForUser } from '../services/shoeActivationService.js';
 import {
   buildDisplayName,
@@ -372,12 +370,12 @@ async function buildUserProfile(userId, requestDeviceId = null) {
     [userId]
   );
 
-  const balance = await getUserBalance(userId);
-  let walletSummary = { balance, blocked_balance: 0, available_balance: balance };
+  let totalDistance = 0;
   try {
-    walletSummary = await getWalletSummary(pool, userId);
+    const { getConfirmedDistanceKm } = await import('../services/rewardService.js');
+    totalDistance = await getConfirmedDistanceKm(userId);
   } catch {
-    /* migration not applied yet */
+    /* rewards tables may be missing before migration */
   }
 
   let subscription = { is_premium: false };
@@ -389,9 +387,12 @@ async function buildUserProfile(userId, requestDeviceId = null) {
 
   return {
     ...base,
-    balance: walletSummary.balance,
-    blocked_balance: walletSummary.blocked_balance,
-    available_balance: walletSummary.available_balance,
+    // Legacy wallet fields kept for API compat; money accrual is disabled.
+    balance: 0,
+    blocked_balance: 0,
+    available_balance: 0,
+    total_confirmed_distance: totalDistance,
+    total_distance_km: totalDistance,
     is_premium: subscription.is_premium,
     premium_expires_at: subscription.expires_at || null,
     activeShoe: activeShoe[0]

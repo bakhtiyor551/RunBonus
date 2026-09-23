@@ -4,6 +4,8 @@ import {
   getUserProgress,
   getMilestoneRewardOptions,
   selectReward,
+  getMyRewards,
+  listActiveMilestones,
 } from '../services/rewardService.js';
 
 const router = Router();
@@ -18,6 +20,21 @@ router.get('/progress', authUser, requireActiveUser, async (req, res) => {
   }
 });
 
+router.get('/milestones', authUser, requireActiveUser, async (req, res) => {
+  try {
+    const progress = await getUserProgress(req.userId);
+    res.json(progress.milestones);
+  } catch (e) {
+    console.error('[rewards/milestones]', e);
+    try {
+      const list = await listActiveMilestones();
+      res.json(list);
+    } catch (err) {
+      res.status(500).json({ error: 'Не удалось загрузить контрольные точки' });
+    }
+  }
+});
+
 router.get('/milestones/:id', authUser, requireActiveUser, async (req, res) => {
   try {
     const data = await getMilestoneRewardOptions(req.userId, req.params.id);
@@ -25,6 +42,16 @@ router.get('/milestones/:id', authUser, requireActiveUser, async (req, res) => {
   } catch (e) {
     const code = e.code === 'NOT_FOUND' ? 404 : 400;
     res.status(code).json({ error: e.message });
+  }
+});
+
+router.get('/my', authUser, requireActiveUser, async (req, res) => {
+  try {
+    const items = await getMyRewards(req.userId);
+    res.json(items);
+  } catch (e) {
+    console.error('[rewards/my]', e);
+    res.status(500).json({ error: 'Не удалось загрузить награды' });
   }
 });
 

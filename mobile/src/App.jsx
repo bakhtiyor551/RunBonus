@@ -7,15 +7,11 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
-import SummaryPage from './pages/SummaryPage';
 import WorkoutPage from './pages/WorkoutPage';
-import WalletPage from './pages/WalletPage';
 import ProfilePage from './pages/ProfilePage';
-import HistoryPage from './pages/HistoryPage';
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage';
 import ProgressPage from './pages/ProgressPage';
 import MyRewardsPage from './pages/MyRewardsPage';
-import LevelPage from './pages/LevelPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
@@ -168,12 +164,11 @@ function App() {
           <PushNavigationBridge />
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
-            <Route path="/summary" element={<SummaryPage user={user} setUser={setUser} />} />
-            <Route path="/wallet" element={<WalletPage user={user} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
             <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
-            <Route path="/progress" element={<ProgressPage />} />
-            <Route path="/rewards" element={<MyRewardsPage />} />
+            <Route path="/rewards" element={<ProgressPage />} />
+            <Route path="/my-rewards" element={<MyRewardsPage />} />
+            <Route path="/progress" element={<Navigate to="/rewards" replace />} />
             <Route
               path="/activate"
               element={
@@ -187,13 +182,16 @@ function App() {
                 />
               }
             />
-            <Route path="/history" element={<HistoryPage />} />
             <Route path="/workouts" element={<WorkoutHistoryPage />} />
-            <Route path="/level" element={<LevelPage />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
             <Route path="/shop/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage user={user} />} />
             <Route path="/orders" element={<MyOrdersPage />} />
+            {/* Legacy money screens removed */}
+            <Route path="/summary" element={<Navigate to="/" replace />} />
+            <Route path="/wallet" element={<Navigate to="/rewards" replace />} />
+            <Route path="/history" element={<Navigate to="/workouts" replace />} />
+            <Route path="/level" element={<Navigate to="/rewards" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

@@ -118,19 +118,19 @@ export default function MobileTransferModal({ open, totalAmount, onClose, onConf
       onClose={onClose}
     >
       <p className="rb-text-muted" style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.5 }}>
-        Переведите <strong style={{ color: 'var(--rb-neon)' }}>{totalAmount} сомони</strong>. Выберите наш
-        кошелёк — откроется номер для перевода. Затем укажите свой кошелёк и прикрепите чек.
+        Переведите <strong style={{ color: 'var(--rb-neon)' }}>{totalAmount} сомони</strong>. Выберите
+        счёт RunBonus — откроется номер для перевода. Затем укажите свой номер и прикрепите чек.
       </p>
 
       <p className="rb-label" style={{ marginBottom: 10 }}>
-        Кошелёк RunBonus
+        Счёт RunBonus для перевода
       </p>
-      <div className="withdraw-methods" style={{ marginBottom: 12 }}>
+      <div className="rb-reward-options" style={{ marginBottom: 12 }}>
         {accounts.map((acc) => (
           <button
             key={acc.id}
             type="button"
-            className={`withdraw-method-btn${recipientId === acc.id ? ' withdraw-method-btn--active' : ''}`}
+            className={`rb-reward-option glass-card${recipientId === acc.id ? ' rb-reward-option--active' : ''}`}
             onClick={() => setRecipientId(acc.id)}
           >
             {acc.provider}

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import Icon from './Icon';
 
-/** Карточка привязки кроссовок — бонусы за бег только после активации QR. */
+/** Карточка привязки кроссовок — километры и награды только после активации QR. */
 export default function ShoeBindBanner({ user }) {
   const navigate = useNavigate();
   const needsBind = user?.needsActivation || !user?.activeShoe;
@@ -14,11 +14,11 @@ export default function ShoeBindBanner({ user }) {
         <Icon name="directions_run" filled style={{ fontSize: 28, color: 'var(--rb-neon)', flexShrink: 0 }} />
         <div>
           <h2 className="font-display" style={{ margin: '0 0 8px', fontSize: 18, lineHeight: 1.3 }}>
-            Привяжите кроссовки RunBonus для начисления бонусов
+            Привяжите кроссовки RunBonus
           </h2>
           <p className="rb-text-muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.45 }}>
-            Войти в приложение, смотреть магазин и оформлять заказ можно сразу. Бонусы за бег начисляются только после
-            привязки оригинальных кроссовок по QR.
+            Магазин доступен сразу. Чтобы накапливать километры и открывать подарки, активируйте оригинальные
+            кроссовки по QR.
           </p>
         </div>
       </div>

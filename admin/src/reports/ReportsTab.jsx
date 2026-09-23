@@ -8,7 +8,7 @@ const SECTIONS = [
   { id: 'dashboard', label: 'Общий отчёт', path: 'dashboard' },
   { id: 'sales', label: 'Продажи', path: 'sales' },
   { id: 'workouts', label: 'Тренировки', path: 'workouts' },
-  { id: 'bonuses', label: 'Бонусы', path: 'bonuses' },
+  { id: 'rewards', label: 'Награды', path: 'rewards' },
   { id: 'clients', label: 'Клиенты', path: 'clients' },
   { id: 'shoes', label: 'Кроссовки', path: 'shoes' },
   { id: 'finance', label: 'Финансы', path: 'finance' },
@@ -37,8 +37,13 @@ export default function ReportsTab() {
     setLoading(true);
     const sec = SECTIONS.find((s) => s.id === section);
     try {
-      const json = await adminApi(`/api/admin/reports/${sec.path}?${periodQuery(period)}`);
-      setData(json);
+      if (section === 'rewards') {
+        const json = await adminApi('/api/admin/rewards/stats');
+        setData(json);
+      } else {
+        const json = await adminApi(`/api/admin/reports/${sec.path}?${periodQuery(period)}`);
+        setData(json);
+      }
     } catch {
       setData(null);
     } finally {
@@ -81,8 +86,8 @@ export default function ReportsTab() {
               { label: 'Активных', value: formatNumber(c.active_clients) },
               { label: 'Продано пар', value: formatNumber(c.shoes_sold_pairs) },
               { label: 'Километров', value: `${formatNumber(c.total_km)} км` },
-              { label: 'Начислено бонусов', value: formatMoney(c.bonuses_earned) },
-              { label: 'Доход', value: formatMoney(c.income) },
+              { label: 'Тренировок', value: formatNumber(c.total_workouts || c.approved_workouts || 0) },
+              { label: 'Доход магазина', value: formatMoney(c.income) },
               { label: 'Расход', value: formatMoney(c.expense) },
               { label: 'Прибыль', value: formatMoney(c.profit) },
             ]}
@@ -161,39 +166,29 @@ export default function ReportsTab() {
                 ))}
               </ul>
             </div>
-            <div className="glass-card card">
-              <h4>Топ по бонусам</h4>
-              <ul className="ranking-list">
-                {(data.top_by_bonus || []).map((u) => (
-                  <li key={u.id}>
-                    {u.name || u.phone} — {formatMoney(u.bonus)}
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
         </>
       );
     }
 
-    if (section === 'bonuses') {
-      const s = data.summary || {};
+    if (section === 'rewards') {
       return (
         <>
           <StatGrid
             items={[
-              { label: 'Начислено', value: formatMoney(s.earned) },
-              { label: 'Списано', value: formatMoney(s.spent) },
-              { label: 'Бонусный фонд', value: formatMoney(s.fund_balance) },
-              { label: 'Средний на клиента', value: formatMoney(s.avg_per_client) },
+              { label: 'Пользователей', value: formatNumber(data.totalUsers) },
+              { label: 'Выбрано наград', value: formatNumber(data.selectedCount) },
+              { label: 'Выдано', value: formatNumber(data.deliveredCount) },
+              { label: 'Активные промо', value: formatNumber(data.activePromoCount) },
+              { label: 'Стоимость подарков', value: formatMoney(data.giftCostTotal) },
             ]}
           />
           <div className="glass-card card">
-            <h4>По уровням</h4>
+            <h4>Достигли контрольных точек</h4>
             <ul className="ranking-list">
-              {(data.by_level || []).map((l) => (
-                <li key={l.code}>
-                  {l.name}: {formatMoney(l.earned)}
+              {(data.milestones || []).map((m) => (
+                <li key={m.id}>
+                  {m.name} ({m.distanceKm} км): {formatNumber(m.reached)}
                 </li>
               ))}
             </ul>
@@ -275,7 +270,7 @@ export default function ReportsTab() {
               { label: 'Продажи магазина', value: formatMoney(b.shop_sales) },
               { label: 'Доход от рекламы', value: formatMoney(b.ad_revenue) },
               { label: 'Доход всего', value: formatMoney(b.income) },
-              { label: 'Расход на бонусы', value: formatMoney(b.bonus_expense) },
+              { label: 'Стоимость подарков', value: formatMoney(b.gift_cost || b.bonus_expense || 0) },
               { label: 'Чистая прибыль', value: formatMoney(b.profit) },
             ]}
           />

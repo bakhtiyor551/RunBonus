@@ -49,6 +49,19 @@ function handleNotificationAction(action) {
     navigateHandler?.('/orders');
     return;
   }
+  if (
+    data.type === 'reward_unlocked' ||
+    data.type === 'reward_selected' ||
+    data.type === 'reward_status'
+  ) {
+    const path = typeof data.path === 'string' && data.path.startsWith('/') ? data.path : '/rewards';
+    navigateHandler?.(path);
+    return;
+  }
+  if (typeof data.path === 'string' && data.path.startsWith('/')) {
+    navigateHandler?.(data.path);
+    return;
+  }
   const url = data.url;
   if (url && typeof url === 'string' && /^https?:\/\//i.test(url)) {
     window.open(url, '_system');

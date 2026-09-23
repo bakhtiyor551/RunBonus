@@ -6,7 +6,7 @@ const EMPTY = {
   code: '',
   from_km: 0,
   to_km: 50,
-  price_per_km: 2.5,
+  price_per_km: 0,
   color: '#CD7F32',
   icon: 'military_tech',
   status: 'active',
@@ -44,7 +44,7 @@ export default function CustomerLevelsTab() {
       code: row.code,
       from_km: row.from_km,
       to_km: row.to_km,
-      price_per_km: row.price_per_km,
+      price_per_km: 0,
       color: row.color || '',
       icon: row.icon || '',
       status: row.status,
@@ -96,7 +96,7 @@ export default function CustomerLevelsTab() {
           <div>
             <h2>Уровни клиентов</h2>
             <p className="hint">
-              Новая цена применяется только к новым тренировкам. Прогресс считается по активной паре кроссовок.
+              Уровни активности по километрам. Денежный тариф за км отключён — награды выдаются через milestones.
             </p>
           </div>
           <button type="button" className="btn btn--primary" onClick={openCreate}>
@@ -111,8 +111,8 @@ export default function CustomerLevelsTab() {
             <thead>
               <tr>
                 <th>Название</th>
-                <th>Км от–до</th>
-                <th>Цена/км</th>
+                <th>От</th>
+                <th>До</th>
                 <th>Цвет</th>
                 <th>Статус</th>
                 <th />
@@ -125,10 +125,8 @@ export default function CustomerLevelsTab() {
                     <strong>{l.name}</strong>
                     <div className="hint">{l.code}</div>
                   </td>
-                  <td>
-                    {Number(l.from_km)} – {Number(l.to_km)} км
-                  </td>
-                  <td>{Number(l.price_per_km).toFixed(2)} сомони</td>
+                  <td>{Number(l.from_km)} км</td>
+                  <td>{Number(l.to_km)} км</td>
                   <td>
                     <span
                       style={{
@@ -191,15 +189,7 @@ export default function CustomerLevelsTab() {
                 onChange={(e) => setForm({ ...form, to_km: e.target.value })}
               />
             </label>
-            <label>
-              Цена за 1 км
-              <input
-                type="number"
-                step="0.01"
-                value={form.price_per_km}
-                onChange={(e) => setForm({ ...form, price_per_km: e.target.value })}
-              />
-            </label>
+            <p className="hint">Тариф за км отключён — уровни только для прогресса активности.</p>
             <label>
               Цвет
               <input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />

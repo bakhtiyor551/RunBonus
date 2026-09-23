@@ -561,7 +561,24 @@ router.get('/history', authUser, async (req, res) => {
     const [rows] = await pool.query(
       `SELECT id, distance_km, duration_seconds, avg_speed, max_speed,
               steps_count, moving_seconds, pause_seconds,
-              started_at, finished_at, status, calculated_bonus, reject_reason
+              started_at, finished_at, status, reject_reason
+       FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT 50`,
+      [req.userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки истории' });
+  }
+});
+
+/** Alias per TZ: GET /api/workouts */
+router.get('/', authUser, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, distance_km, duration_seconds, avg_speed, max_speed,
+              steps_count, moving_seconds, pause_seconds,
+              started_at, finished_at, status, reject_reason
        FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT 50`,
       [req.userId]
     );

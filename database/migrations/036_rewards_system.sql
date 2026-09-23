@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS rewards (
   discount_usage_limit INT NOT NULL DEFAULT 1,
   requires_size TINYINT(1) NOT NULL DEFAULT 0,
   size_options JSON NULL,
+  color_options JSON NULL,
   cost_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   active TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

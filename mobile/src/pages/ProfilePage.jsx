@@ -7,7 +7,6 @@ import BottomNav from '../components/BottomNav';
 import ShoeBindBanner from '../components/ShoeBindBanner';
 import Icon from '../components/Icon';
 import CityPicker from '../components/CityPicker';
-import { formatBalance } from '../utils/format';
 import { formatPhoneDisplay } from '../utils/phone';
 import { compressImageFile, resolveAvatarUrl } from '../utils/avatar';
 import { getDistanceUnits, setDistanceUnits } from '../services/units';
@@ -16,6 +15,21 @@ function profileCity(raw) {
   const s = String(raw || '').trim();
   if (!s || s === 'Не указан') return '';
   return s;
+}
+
+function MenuButton({ icon, label, onClick, danger }) {
+  return (
+    <button
+      type="button"
+      className="rb-profile-menu-item glass-card"
+      onClick={onClick}
+      style={danger ? { color: 'var(--rb-error)', borderColor: 'var(--rb-error)' } : undefined}
+    >
+      <Icon name={icon} />
+      <span>{label}</span>
+      {!danger && <Icon name="chevron_right" />}
+    </button>
+  );
 }
 
 export default function ProfilePage({ user, setUser, onLogout }) {
@@ -33,6 +47,7 @@ export default function ProfilePage({ user, setUser, onLogout }) {
   const [error, setError] = useState('');
   const [avatarCacheKey, setAvatarCacheKey] = useState(0);
   const [distanceUnits, setDistanceUnitsState] = useState(() => getDistanceUnits());
+  const [showSettings, setShowSettings] = useState(false);
 
   const displayAvatar =
     avatarPreview || resolveAvatarUrl(user.avatar_url, avatarCacheKey || undefined);
@@ -200,15 +215,18 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                   {user.name || 'Пользователь'}
                 </h2>
                 <p className="rb-text-muted">{formatPhoneDisplay(user.phone)}</p>
+                {user.email && <p className="rb-text-muted" style={{ marginTop: 4 }}>{user.email}</p>}
                 {profileCity(user.city) && (
                   <p className="rb-text-muted" style={{ marginTop: 4 }}>
                     {profileCity(user.city)}
                   </p>
                 )}
-                <p className="rb-label" style={{ marginTop: 8 }}>
-                  {formatBalance(user.balance)} сомони
-                </p>
-                <button type="button" className="rb-link" style={{ marginTop: 16, display: 'block', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }} onClick={startEdit}>
+                <button
+                  type="button"
+                  className="rb-link"
+                  style={{ marginTop: 16, display: 'block', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                  onClick={startEdit}
+                >
                   Редактировать профиль
                 </button>
               </>
@@ -217,34 +235,8 @@ export default function ProfilePage({ user, setUser, onLogout }) {
 
           {!editing && (
             <>
-              <section style={{ marginBottom: 24 }}>
-                <p className="rb-label" style={{ marginBottom: 12 }}>Единицы измерения</p>
-                <div className="glass-panel rb-units-toggle">
-                  <button
-                    type="button"
-                    className={distanceUnits === 'metric' ? 'active' : undefined}
-                    onClick={() => {
-                      setDistanceUnits('metric');
-                      setDistanceUnitsState('metric');
-                    }}
-                  >
-                    км / км·ч
-                  </button>
-                  <button
-                    type="button"
-                    className={distanceUnits === 'imperial' ? 'active' : undefined}
-                    onClick={() => {
-                      setDistanceUnits('imperial');
-                      setDistanceUnitsState('imperial');
-                    }}
-                  >
-                    мили / mph
-                  </button>
-                </div>
-              </section>
-
-              <section style={{ marginBottom: 24 }}>
-                <p className="rb-label" style={{ marginBottom: 12 }}>Подключённая обувь</p>
+              <section style={{ marginBottom: 16 }}>
+                <p className="rb-label" style={{ marginBottom: 12 }}>👟 Мои кроссовки</p>
                 <div className="glass-panel" style={{ padding: 'var(--rb-card-padding)' }}>
                   {shoe ? (
                     <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -274,52 +266,61 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                 </div>
               </section>
 
-              <button
-                type="button"
-                className="rb-btn-outline"
-                style={{ width: '100%', marginBottom: 12 }}
-                onClick={() => navigate('/progress')}
-              >
-                <Icon name="emoji_events" /> Мой прогресс
-              </button>
-              <button
-                type="button"
-                className="rb-btn-outline"
-                style={{ width: '100%', marginBottom: 12 }}
-                onClick={() => navigate('/rewards')}
-              >
-                <Icon name="redeem" /> Мои награды
-              </button>
-              <button
-                type="button"
-                className="rb-btn-outline"
-                style={{ width: '100%', marginBottom: 12 }}
-                onClick={() => navigate('/workouts')}
-              >
-                <Icon name="history" /> История тренировок
-              </button>
-              {user.qrActivationAllowed === false ? (
-                <p className="rb-text-muted" style={{ marginBottom: 12, fontSize: 13, textAlign: 'center' }}>
-                  Активация QR доступна только на основном устройстве.
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  className="rb-btn-outline"
-                  style={{ width: '100%', marginBottom: 12 }}
-                  onClick={() => navigate('/activate')}
-                >
-                  <Icon name="qr_code_scanner" /> Активировать QR
-                </button>
+              <div className="rb-profile-menu">
+                <MenuButton icon="directions_run" label="Моя активность" onClick={() => navigate('/workouts')} />
+                <MenuButton icon="redeem" label="Мои награды" onClick={() => navigate('/my-rewards')} />
+                <MenuButton icon="storefront" label="Магазин" onClick={() => navigate('/shop')} />
+                <MenuButton icon="shopping_bag" label="Мои заказы" onClick={() => navigate('/orders')} />
+                {user.qrActivationAllowed !== false && (
+                  <MenuButton icon="qr_code_scanner" label="Активировать QR" onClick={() => navigate('/activate')} />
+                )}
+                <MenuButton
+                  icon="settings"
+                  label="Настройки"
+                  onClick={() => setShowSettings((v) => !v)}
+                />
+              </div>
+
+              {showSettings && (
+                <section style={{ margin: '16px 0 24px' }}>
+                  <p className="rb-label" style={{ marginBottom: 12 }}>Единицы измерения</p>
+                  <div className="glass-panel rb-units-toggle">
+                    <button
+                      type="button"
+                      className={distanceUnits === 'metric' ? 'active' : undefined}
+                      onClick={() => {
+                        setDistanceUnits('metric');
+                        setDistanceUnitsState('metric');
+                      }}
+                    >
+                      км / км·ч
+                    </button>
+                    <button
+                      type="button"
+                      className={distanceUnits === 'imperial' ? 'active' : undefined}
+                      onClick={() => {
+                        setDistanceUnits('imperial');
+                        setDistanceUnitsState('imperial');
+                      }}
+                    >
+                      мили / mph
+                    </button>
+                  </div>
+                  <a
+                    className="rb-profile-menu-item glass-card"
+                    href="https://runbonus.online/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ marginTop: 12, textDecoration: 'none' }}
+                  >
+                    <Icon name="policy" />
+                    <span>Политика конфиденциальности</span>
+                    <Icon name="open_in_new" />
+                  </a>
+                </section>
               )}
-              <button
-                type="button"
-                className="rb-btn-outline"
-                style={{ width: '100%', color: 'var(--rb-error)', borderColor: 'var(--rb-error)' }}
-                onClick={onLogout}
-              >
-                Выйти
-              </button>
+
+              <MenuButton icon="logout" label="Выйти" onClick={onLogout} danger />
             </>
           )}
         </main>

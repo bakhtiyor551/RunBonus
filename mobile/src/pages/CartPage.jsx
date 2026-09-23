@@ -14,7 +14,7 @@ import MobileTransferModal from '../components/MobileTransferModal';
 import CityPicker from '../components/CityPicker';
 import PhoneInput from '../components/PhoneInput';
 import { showToast } from '../utils/toast';
-import { PAYMENT_METHODS_FALLBACK } from '../utils/paymentMethods';
+import { PAYMENT_METHODS_FALLBACK, filterShopPaymentMethods } from '../utils/paymentMethods';
 import { DELIVERY_METHODS_FALLBACK, deliveryRequiresAddress } from '../utils/deliveryMethods';
 
 export default function CartPage({ user }) {
@@ -23,7 +23,6 @@ export default function CartPage({ user }) {
   const [items, setItems] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS_FALLBACK);
   const [deliveryMethods, setDeliveryMethods] = useState(DELIVERY_METHODS_FALLBACK);
-  const [availableBonus, setAvailableBonus] = useState(user?.available_balance ?? user?.balance ?? 0);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [mobileModalOpen, setMobileModalOpen] = useState(false);
@@ -37,13 +36,12 @@ export default function CartPage({ user }) {
     Promise.all([api('/api/mobile/payment-methods'), api('/api/mobile/delivery-methods')])
       .then(([payData, delivList]) => {
         const list = Array.isArray(payData) ? payData : payData?.methods || PAYMENT_METHODS_FALLBACK;
-        const normalized = list.map((m) =>
-          m.id === 'mobile' ? { ...m, needsDetails: false, usesTransferModal: true } : m
+        const normalized = filterShopPaymentMethods(
+          list.map((m) =>
+            m.id === 'mobile' ? { ...m, needsDetails: false, usesTransferModal: true } : m
+          )
         );
         setPaymentMethods(normalized.length ? normalized : PAYMENT_METHODS_FALLBACK);
-        if (!Array.isArray(payData) && payData?.available_bonus != null) {
-          setAvailableBonus(Number(payData.available_bonus));
-        }
         const dList = Array.isArray(delivList) ? delivList : DELIVERY_METHODS_FALLBACK;
         setDeliveryMethods(dList.length ? dList : DELIVERY_METHODS_FALLBACK);
       })
@@ -127,7 +125,6 @@ export default function CartPage({ user }) {
     }
     const formErr = validateOrderForm(form, paymentMethods, deliveryMethods, {
       cartTotal: total,
-      availableBonus,
     });
     if (formErr) {
       await showToast(formErr);
@@ -155,9 +152,7 @@ export default function CartPage({ user }) {
               Заказ оформлен
             </h2>
             <p className="rb-text-muted">
-              {form.payment_method === 'bonus'
-                ? 'Оплачено бонусами. Мы свяжемся с вами для доставки.'
-                : 'Мы свяжемся с вами для подтверждения и оплаты.'}
+              Мы свяжемся с вами для подтверждения и оплаты.
             </p>
             <button type="button" className="rb-btn-pill" style={{ marginTop: 24 }} onClick={() => navigate('/orders')}>
               Мои заказы
@@ -302,8 +297,6 @@ export default function CartPage({ user }) {
                   }
                   details={form.payment_details}
                   onDetailsChange={(v) => setForm({ ...form, payment_details: v })}
-                  availableBonus={availableBonus}
-                  cartTotal={total}
                 />
 
                 <div style={{ marginBottom: 12 }}>

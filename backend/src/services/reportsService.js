@@ -514,14 +514,27 @@ export async function buildDailyTelegramReport() {
     [start, end]
   );
 
+  const [rewardStats] = await pool.query(
+    `SELECT
+       SUM(CASE WHEN status IN ('SELECTED','PROCESSING','READY') THEN 1 ELSE 0 END) AS pending,
+       SUM(CASE WHEN status = 'DELIVERED' THEN 1 ELSE 0 END) AS delivered,
+       SUM(CASE WHEN status = 'AVAILABLE' THEN 1 ELSE 0 END) AS available
+     FROM user_rewards
+     WHERE created_at >= ? AND created_at <= ?`,
+    [start, end]
+  );
+
   return (
     `📊 <b>RunBonus Отчёт</b>\n\n` +
     `Новых клиентов: ${Number(newU[0]?.c) || 0}\n` +
     `Продано кроссовок: ${dash.cards.shoes_sold_pairs}\n` +
     `Тренировок: ${Number(w[0]?.c) || 0}\n` +
     `Километров: ${dash.cards.total_km} км\n` +
-    `Начислено бонусов: ${dash.cards.bonuses_earned} сомони\n` +
-    `Доход: ${dash.cards.income} сомони\n` +
+    `Награды (вчера):\n` +
+    `· доступно к выбору: ${Number(rewardStats[0]?.available) || 0}\n` +
+    `· в обработке: ${Number(rewardStats[0]?.pending) || 0}\n` +
+    `· выдано: ${Number(rewardStats[0]?.delivered) || 0}\n` +
+    `Доход магазина: ${dash.cards.income} сомони\n` +
     `Прибыль: ${dash.cards.profit} сомони`
   );
 }
