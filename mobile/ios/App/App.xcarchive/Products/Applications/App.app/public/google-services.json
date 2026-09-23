@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "248429713864",
+    "project_id": "runbnus",
+    "storage_bucket": "runbnus.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248429713864:android:2e6fc38ec29380039508fd",
+        "android_client_info": {
+          "package_name": "com.runbonus.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDajWSKv8_HLJ4NBi1K1-OjQmqrUXe6HNQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

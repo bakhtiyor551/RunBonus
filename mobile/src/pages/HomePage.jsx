@@ -149,7 +149,7 @@ export default function HomePage({ user }) {
               RunBonus
             </p>
             <h1 className="rb-headline font-display" style={{ margin: '6px 0 0' }}>
-              {greetingName ? `Привет, ${greetingName}` : 'Добро пожаловать'}
+              {greetingName ? `Привет, ${greetingName}!` : 'Добро пожаловать!'}
             </h1>
           </section>
 
@@ -186,9 +186,10 @@ export default function HomePage({ user }) {
 
             {nextDist != null ? (
               <>
-                <p className="rb-text-muted rb-progress-hero__hint">
-                  До следующей награды · {km(nextDist)} км
-                </p>
+                <div className="rb-progress-hero__next">
+                  <span className="rb-label">До следующей награды</span>
+                  <strong className="font-display font-tabular">{km(nextDist)} км</strong>
+                </div>
                 <div className="rb-progress-bar" aria-label="Прогресс до следующей награды">
                   <span style={{ width: `${progressPercent}%` }} />
                 </div>

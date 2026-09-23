@@ -1,0 +1,50 @@
+{
+	"appId": "com.runbonus.app",
+	"appName": "RunBonus",
+	"webDir": "dist",
+	"backgroundColor": "#131313",
+	"server": {
+		"androidScheme": "http",
+		"iosScheme": "capacitor"
+	},
+	"android": {
+		"allowMixedContent": true
+	},
+	"ios": {
+		"backgroundColor": "#131313",
+		"contentInset": "never",
+		"allowsLinkPreview": false,
+		"scrollEnabled": true
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		},
+		"Geolocation": {
+			"permissions": [
+				"location",
+				"coarseLocation"
+			]
+		},
+		"Keyboard": {
+			"resize": "ionic",
+			"style": "dark"
+		},
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	},
+	"packageClassList": [
+		"AdMobPlugin",
+		"AppPlugin",
+		"GeolocationPlugin",
+		"KeyboardPlugin",
+		"CAPNetworkPlugin",
+		"PushNotificationsPlugin",
+		"StatusBarPlugin"
+	]
+}

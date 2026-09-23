@@ -4270,6 +4270,18 @@ html.rb-keyboard-open .rb-main {
   color: var(--rb-on-surface-variant);
 }
 
+.rb-progress-hero__next {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 8px;
+}
+
+.rb-progress-hero__next strong {
+  font-size: 1.25rem;
+  color: var(--rb-on-surface);
+}
+
 .rb-progress-hero__foot strong {
   color: var(--rb-neon);
   text-align: right;
