@@ -48,17 +48,22 @@ import {
   sendWorkoutPoints,
 } from './workoutSocket';
 
-const SYNC_INTERVAL_MS = 4000;
-const PAUSED_SYNC_INTERVAL_MS = 8000;
+const SYNC_INTERVAL_MS = 5000;
+const PAUSED_SYNC_INTERVAL_MS = 10000;
 const BATCH_SIZE = 50;
-const BACKGROUND_POLL_MS = 5000;
-const BACKGROUND_POLL_SLOW_MS = 10000;
-const GPS_ACQUIRE_POLL_MS = 2000;
+const BACKGROUND_POLL_MS = 15000;
+const BACKGROUND_POLL_SLOW_MS = 25000;
+const GPS_ACQUIRE_POLL_MS = 3000;
 const AUTO_PAUSE_GRACE_MS = 45000;
+const UI_EMIT_MIN_MS = 1000;
+const PERSIST_MIN_MS = 10000;
 
 let session = null;
 const listeners = new Set();
 const commandListeners = new Set();
+let lastUiEmitAt = 0;
+let lastPersistAt = 0;
+let persistTimer = null;
 
 function emitCommand(cmd) {
   commandListeners.forEach((fn) => fn(cmd));
@@ -189,8 +194,11 @@ function isTrackingFrozen() {
   return session?.paused || session?.autoPaused;
 }
 
-function emit() {
+function emit(force = false) {
   if (!session) return;
+  const now = Date.now();
+  if (!force && now - lastUiEmitAt < UI_EMIT_MIN_MS) return;
+  lastUiEmitAt = now;
   syncElapsedSeconds();
   const snapshot = {
     workoutId: session.workoutId,
@@ -207,11 +215,46 @@ function emit() {
     autoPaused: session.autoPaused,
     gpsReady: session.gpsReady,
     gpsError: session.gpsError,
-    points: session.points,
+    points:
+      session.points.length > 400
+        ? sampleTrackForUi(session.points, 400)
+        : session.points,
     livePosition: session.livePosition,
+    pointsCount: session.points.length,
   };
   listeners.forEach((fn) => fn(snapshot));
   syncWorkoutLiveActivity(snapshot);
+}
+
+function sampleTrackForUi(points, maxPoints) {
+  if (!points?.length || points.length <= maxPoints) return points;
+  const out = [];
+  const step = (points.length - 1) / (maxPoints - 1);
+  for (let i = 0; i < maxPoints - 1; i++) {
+    out.push(points[Math.round(i * step)]);
+  }
+  out.push(points[points.length - 1]);
+  return out;
+}
+
+function schedulePersist(force = false) {
+  if (!session) return;
+  const now = Date.now();
+  if (force || now - lastPersistAt >= PERSIST_MIN_MS) {
+    lastPersistAt = now;
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    persistWorkoutSession();
+    return;
+  }
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    lastPersistAt = Date.now();
+    persistWorkoutSession();
+  }, PERSIST_MIN_MS - (now - lastPersistAt));
 }
 
 function attachLiveActivityHandlers() {
@@ -365,6 +408,8 @@ function markGpsSignal() {
 function onGpsPosition(pos) {
   if (!session || !pos || session.finishing) return;
 
+  const prevPaused = session.paused || session.autoPaused;
+  const prevSpeed = session.currentSpeed;
   session.livePosition = pos;
   markGpsSignal();
   ensureAnchorBuffered().catch(() => {});
@@ -377,7 +422,10 @@ function onGpsPosition(pos) {
   }
 
   if (isTrackingFrozen()) {
-    emit();
+    const pauseChanged = prevPaused !== (session.paused || session.autoPaused);
+    if (pauseChanged || Math.abs((prevSpeed || 0) - (session.currentSpeed || 0)) > 0.3) {
+      emit();
+    }
     return;
   }
 
@@ -385,7 +433,7 @@ function onGpsPosition(pos) {
   const { record, segmentMeters } = shouldRecordGpsPoint(last, pos);
 
   if (!record) {
-    emit();
+    if (Math.abs((prevSpeed || 0) - (session.currentSpeed || 0)) > 0.5) emit();
     return;
   }
 
@@ -394,8 +442,8 @@ function onGpsPosition(pos) {
   session.distance = Math.round((session.distanceMeters / 1000) * 1000) / 1000;
   session.gpsError = '';
   bufferGpsPoint(session.workoutId, pos).catch(() => {});
-  persistWorkoutSession();
-  emit();
+  schedulePersist();
+  emit(true);
 }
 
 async function pollPositionOnce() {
@@ -518,7 +566,7 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
   session.timerId = setInterval(() => {
     if (!session || session.workoutId !== id) return;
     if (!isTrackingFrozen()) syncElapsedSeconds();
-    persistWorkoutSession();
+    schedulePersist();
     emit();
   }, 1000);
 
@@ -654,6 +702,10 @@ export async function resumeWorkoutSession() {
 
 export function stopWorkoutSession() {
   if (!session) return;
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
   clearInterval(session.timerId);
   clearInterval(session.syncId);
   clearInterval(session.backgroundPollId);
