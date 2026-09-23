@@ -368,12 +368,14 @@ select {
   max-width: 96px;
 }
 
+.rb-bottom-nav--4 a,
 .rb-bottom-nav--5 a,
 .rb-bottom-nav--6 a {
   padding: 6px 4px;
-  max-width: 72px;
+  max-width: 88px;
 }
 
+.rb-bottom-nav--4 .rb-bottom-nav__label,
 .rb-bottom-nav--5 .rb-bottom-nav__label,
 .rb-bottom-nav--6 .rb-bottom-nav__label {
   font-size: 10px;
@@ -4144,9 +4146,88 @@ html.rb-keyboard-open .rb-main {
   gap: 20px;
 }
 
-.rb-progress-hero,
-.rb-rewards-hero {
+.rb-home-welcome {
+  margin-bottom: 8px;
+}
+
+.rb-progress-hero__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rb-home-next-reward {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   padding: var(--rb-card-padding);
+  margin-bottom: 24px;
+}
+
+.rb-home-next-reward__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(171, 214, 0, 0.12);
+  color: var(--rb-neon);
+}
+
+.rb-rewards-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.rb-profile-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.rb-profile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  border: none;
+  background: var(--rb-surface);
+  color: inherit;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.rb-profile-menu-item span {
+  flex: 1;
+}
+
+.rb-reward-delivery {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.rb-reward-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rb-reward-locked {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  margin-bottom: 12px;
 }
 
 .rb-progress-hero__distance {
@@ -4426,4 +4507,343 @@ html.rb-keyboard-open .rb-main {
   .rb-progress-hero__foot strong {
     text-align: left;
   }
+}
+
+/* —— Rewards UI polish —— */
+.rb-home-progress {
+  gap: 20px;
+}
+
+.rb-home-claim {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-color: rgba(195, 244, 0, 0.4);
+  background: linear-gradient(120deg, rgba(195, 244, 0, 0.14), rgba(195, 244, 0, 0.04));
+  animation: rb-claim-pulse 2.4s ease-in-out infinite;
+}
+
+.rb-home-claim__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(195, 244, 0, 0.2);
+  color: var(--rb-neon);
+  flex-shrink: 0;
+}
+
+.rb-home-claim__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rb-home-claim__body strong {
+  font-size: 16px;
+}
+
+.rb-home-claim__body span {
+  font-size: 13px;
+  color: var(--rb-on-surface-variant);
+}
+
+@keyframes rb-claim-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(195, 244, 0, 0.12); }
+  50% { box-shadow: 0 0 22px 0 rgba(195, 244, 0, 0.22); }
+}
+
+.rb-home-next-reward__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-home-next-reward__body h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.rb-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.rb-section-head .rb-headline {
+  margin: 0;
+}
+
+.rb-section-head__link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.rb-activity-card__text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.rb-activity-card__text h3,
+.rb-activity-card__title-row h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.rb-activity-card__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rb-activity-card__meta {
+  margin: 4px 0 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rb-profile-menu-item {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  background: var(--rb-surface-low);
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+}
+
+.rb-profile-menu-item:active {
+  transform: scale(0.98);
+  background: var(--rb-surface-high);
+  border-color: rgba(195, 244, 0, 0.25);
+}
+
+.rb-profile-menu-item .material-symbols-outlined:first-child {
+  color: var(--rb-neon);
+}
+
+.rb-progress-card__icon--locked {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--rb-on-surface-variant);
+}
+
+.rb-progress-card__icon--available,
+.rb-progress-card__icon--choosing {
+  background: rgba(195, 244, 0, 0.22);
+}
+
+.rb-progress-card__icon--delivered,
+.rb-progress-card__icon--selected,
+.rb-progress-card__icon--processing,
+.rb-progress-card__icon--ready {
+  background: rgba(100, 181, 246, 0.16);
+  color: #64b5f6;
+}
+
+.rb-progress-card__cta {
+  margin-top: 6px !important;
+  color: var(--rb-neon) !important;
+  font-weight: 600;
+  font-size: 12px !important;
+}
+
+.rb-progress-status--locked {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.rb-progress-card:not(:disabled):active,
+.rb-reward-option:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+.rb-progress-bar span {
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.rb-reward-promo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.rb-reward-promo-code {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(195, 244, 0, 0.1);
+  color: var(--rb-neon);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.rb-btn-pill--sm {
+  width: auto !important;
+  margin-top: 0 !important;
+  padding: 8px 14px;
+  font-size: 12px;
+}
+
+.rb-reward-locked .material-symbols-outlined {
+  color: var(--rb-neon);
+}
+
+.rb-size-chip {
+  min-width: 44px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--rb-surface-high);
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rb-size-chip--active {
+  border-color: var(--rb-neon);
+  background: rgba(195, 244, 0, 0.16);
+  color: var(--rb-neon);
+}
+
+.rb-size-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 380px) {
+  .rb-home-next-reward {
+    flex-wrap: wrap;
+  }
+  .rb-home-next-reward .rb-btn-pill {
+    width: 100%;
+  }
+  .rb-rewards-page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* —— Confirm sheet + workouts polish —— */
+.rb-reward-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+}
+
+.rb-reward-confirm__card {
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.rb-reward-confirm__card h3 {
+  margin: 4px 0;
+  font-size: 20px;
+}
+
+.rb-reward-confirm__actions {
+  display: flex;
+  gap: 12px;
+}
+
+.rb-reward-confirm__actions > button {
+  flex: 1;
+}
+
+.rb-progress-claim-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-color: rgba(195, 244, 0, 0.28);
+  background: rgba(195, 244, 0, 0.08);
+}
+
+.rb-progress-claim-hint .material-symbols-outlined {
+  color: var(--rb-neon);
+  flex-shrink: 0;
+}
+
+.rb-progress-claim-hint p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--rb-on-surface);
+}
+
+.rb-workouts-page__head {
+  margin-bottom: 20px;
+}
+
+.rb-workouts-page__head h1 {
+  margin: 0;
+}
+
+.rb-workouts-page__head .rb-text-muted {
+  margin: 8px 0 0;
+}
+
+.rb-workouts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rb-workout-result-unlock {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-color: rgba(195, 244, 0, 0.3);
+  background: rgba(195, 244, 0, 0.08);
+}
+
+.rb-workout-result-unlock__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(195, 244, 0, 0.18);
+  color: var(--rb-neon);
+  flex-shrink: 0;
+}
+
+.rb-workout-result-unlock__names {
+  margin: 6px 0 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.rb-bottom-nav a.active .rb-bottom-nav__label {
+  color: var(--rb-neon);
+}
+
+.rb-progress-empty .rb-btn-pill {
+  margin-top: 8px;
 }

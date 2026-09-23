@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
@@ -7,37 +7,39 @@ import Icon from '../components/Icon';
 import RewardSelectModal from '../components/RewardSelectModal';
 import { fetchRewardsProgress } from '../services/rewards';
 
-const STATUS_LABELS = {
+const USER_VISIBLE = {
   LOCKED: 'Закрыто',
   AVAILABLE: 'Доступно',
-  CHOOSING: 'Выберите подарок',
+  CHOOSING: 'Выберите',
   SELECTED: 'Выбрано',
-  PROCESSING: 'В обработке',
+  PROCESSING: 'Обработка',
   READY: 'Готово',
-  DELIVERED: 'Доставлено',
+  DELIVERED: 'Получено',
   CANCELLED: 'Отменено',
 };
 
 function km(value) {
-  const n = Number(value) || 0;
-  return n.toLocaleString('ru', { maximumFractionDigits: 1 });
-}
-
-function rewardLabel(reward) {
-  if (!reward) return 'Подарок RunBonus';
-  if (typeof reward === 'string') return reward;
-  return reward.name || reward.title || reward.description || 'Подарок RunBonus';
-}
-
-function statusLabel(status) {
-  return STATUS_LABELS[status] || status || 'Статус';
+  return (Number(value) || 0).toLocaleString('ru', { maximumFractionDigits: 2 });
 }
 
 function canOpen(status) {
   return status === 'AVAILABLE' || status === 'CHOOSING';
 }
 
+function isClaimed(status) {
+  return ['SELECTED', 'PROCESSING', 'READY', 'DELIVERED'].includes(status);
+}
+
+function statusText(milestone) {
+  const { status, remainingKm } = milestone;
+  if (status === 'DELIVERED') return 'Получено';
+  if (canOpen(status)) return 'Доступно';
+  if (status === 'LOCKED') return `ещё ${km(remainingKm)} км`;
+  return USER_VISIBLE[status] || status;
+}
+
 export default function ProgressPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,7 @@ export default function ProgressPage() {
         }
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || 'Не удалось загрузить прогресс');
+        if (!cancelled) setError(err.message || 'Не удалось загрузить награды');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -74,13 +76,9 @@ export default function ProgressPage() {
     };
   }, [loadProgress, searchParams]);
 
-  const nextDistance = Number(progress?.nextMilestone?.distance ?? progress?.nextMilestone ?? 0);
   const totalDistance = Number(progress?.totalDistance ?? 0);
-  const remainingDistance = Number(progress?.remainingDistance ?? 0);
-  const progressPercent = useMemo(() => {
-    if (!nextDistance) return 100;
-    return Math.max(0, Math.min(100, Math.round((totalDistance / nextDistance) * 100)));
-  }, [nextDistance, totalDistance]);
+  const milestones = useMemo(() => progress?.milestones || [], [progress]);
+  const claimableCount = milestones.filter((m) => canOpen(m.status)).length;
 
   const closeModal = () => {
     setSelectedMilestoneId(null);
@@ -102,74 +100,77 @@ export default function ProgressPage() {
         </IonRefresher>
 
         <main className="rb-main rb-progress-page">
-          <section className="glass-card neon-glow rb-progress-hero">
-            <span className="rb-label">Мой прогресс</span>
-            <div className="rb-progress-hero__distance font-display font-tabular">
-              {km(totalDistance)}
-              <span>км</span>
+          <section className="rb-rewards-page-head">
+            <div>
+              <h1 className="rb-headline font-display" style={{ margin: 0 }}>
+                Награды
+              </h1>
+              <p className="rb-text-muted" style={{ margin: '8px 0 0' }}>
+                {km(totalDistance)} км · {claimableCount > 0 ? `${claimableCount} доступно` : 'накопите км для подарков'}
+              </p>
             </div>
-            <p className="rb-text-muted">
-              Уже открыто наград: {progress?.earnedCount ?? 0}
-            </p>
-            <div className="rb-progress-bar" aria-label="Прогресс до следующей награды">
-              <span style={{ width: `${progressPercent}%` }} />
-            </div>
-            <div className="rb-progress-hero__foot">
-              <span>{progressPercent}% до следующего подарка</span>
-              <strong>{remainingDistance > 0 ? `Осталось ${km(remainingDistance)} км` : 'Награда доступна'}</strong>
-            </div>
+            <button type="button" className="rb-btn-pill" onClick={() => navigate('/my-rewards')}>
+              Мои
+            </button>
           </section>
 
-          <section className="rb-progress-section">
-            <div className="rb-summary-section__head">
-              <h1 className="rb-headline font-display">Milestone-подарки</h1>
+          {claimableCount > 0 && (
+            <div className="glass-card rb-progress-claim-hint">
+              <Icon name="redeem" />
+              <p>
+                {claimableCount === 1
+                  ? 'Есть доступная награда — нажмите карточку, чтобы выбрать подарок'
+                  : `${claimableCount} награды ждут выбора`}
+              </p>
             </div>
+          )}
 
-            {loading && <p className="rb-text-muted">Загрузка milestone…</p>}
-            {error && <p className="rb-text-error">{error}</p>}
-            {!loading && !error && !progress?.milestones?.length && (
-              <div className="glass-card rb-progress-empty">
-                <Icon name="redeem" />
-                <p>Milestone пока не настроены.</p>
-              </div>
-            )}
+          {loading && <p className="rb-text-muted">Загрузка…</p>}
+          {error && <p className="rb-text-error">{error}</p>}
 
-            <div className="rb-progress-milestones">
-              {(progress?.milestones || []).map((milestone) => {
-                const openable = canOpen(milestone.status);
-                return (
-                  <button
-                    key={milestone.id}
-                    type="button"
-                    className={`glass-card rb-progress-card rb-progress-card--${String(milestone.status || '').toLowerCase()}`}
-                    onClick={() => openable && setSelectedMilestoneId(milestone.id)}
-                    disabled={!openable}
-                  >
-                    <div className="rb-progress-card__icon" aria-hidden>
-                      <Icon name={milestone.status === 'LOCKED' ? 'lock' : 'redeem'} />
-                    </div>
-                    <div className="rb-progress-card__body">
-                      <div className="rb-progress-card__head">
-                        <strong>{milestone.name}</strong>
-                        <span className={`rb-progress-status rb-progress-status--${String(milestone.status || '').toLowerCase()}`}>
-                          {statusLabel(milestone.status)}
-                        </span>
-                      </div>
-                      <p className="rb-text-muted">
-                        {km(milestone.distance)} км · {rewardLabel(milestone.reward)}
-                      </p>
-                      {milestone.remainingKm > 0 && (
-                        <p className="rb-progress-card__remaining">
-                          Осталось {km(milestone.remainingKm)} км
-                        </p>
-                      )}
-                    </div>
-                    {openable && <Icon name="chevron_right" />}
-                  </button>
-                );
-              })}
+          {!loading && !error && !milestones.length && (
+            <div className="glass-card rb-progress-empty">
+              <Icon name="redeem" />
+              <p>Контрольные точки пока не настроены.</p>
             </div>
-          </section>
+          )}
+
+          <div className="rb-progress-milestones">
+            {milestones.map((milestone) => {
+              const openable = canOpen(milestone.status);
+              const claimed = isClaimed(milestone.status);
+              const statusKey = String(milestone.status || '').toLowerCase();
+              return (
+                <button
+                  key={milestone.id}
+                  type="button"
+                  className={`glass-card rb-progress-card rb-progress-card--${statusKey}`}
+                  onClick={() => openable && setSelectedMilestoneId(milestone.id)}
+                  disabled={!openable}
+                >
+                  <div className={`rb-progress-card__icon rb-progress-card__icon--${statusKey}`} aria-hidden>
+                    <Icon name={milestone.status === 'LOCKED' ? 'lock' : claimed ? 'check_circle' : 'redeem'} />
+                  </div>
+                  <div className="rb-progress-card__body">
+                    <div className="rb-progress-card__head">
+                      <strong className="font-display">{km(milestone.distance)} км</strong>
+                      <span className={`rb-progress-status rb-progress-status--${statusKey}`}>
+                        {statusText(milestone)}
+                      </span>
+                    </div>
+                    <p className="rb-text-muted">{milestone.name}</p>
+                    {milestone.reward?.name && (
+                      <p className="rb-progress-card__remaining">{milestone.reward.name}</p>
+                    )}
+                    {openable && (
+                      <p className="rb-progress-card__cta">Нажмите, чтобы выбрать</p>
+                    )}
+                  </div>
+                  {openable && <Icon name="chevron_right" />}
+                </button>
+              );
+            })}
+          </div>
         </main>
       </IonContent>
       <BottomNav />

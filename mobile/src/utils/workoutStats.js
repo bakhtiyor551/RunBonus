@@ -6,10 +6,12 @@ export function countFinishedWorkouts(workouts) {
 
 export function formatWorkoutStatus(status) {
   const labels = {
-    approved: 'Зачтена',
-    rejected: 'Отклонена',
-    rejected_no_fund: 'Без начисления',
+    approved: 'Засчитано',
+    rejected: 'Не засчитано',
+    rejected_no_fund: 'Не засчитано',
+    suspicious: 'На проверке',
     in_progress: 'В процессе',
+    pending: 'Обрабатывается',
   };
   return labels[status] || status || '—';
 }
@@ -58,7 +60,6 @@ export function getWorkoutsDetailStats(workouts) {
   const approved = workouts.filter((w) => w.status === 'approved').length;
   const rejected = workouts.filter((w) => w.status === 'rejected' || w.status === 'rejected_no_fund').length;
   const inProgress = workouts.filter((w) => w.status === 'in_progress').length;
-  const totalBonus = workouts.reduce((s, w) => s + (Number(w.calculated_bonus) || 0), 0);
   const goal = runsGoal(totalRuns);
 
   const withDuration = workouts.filter((w) => w.duration_seconds > 0);
@@ -76,7 +77,6 @@ export function getWorkoutsDetailStats(workouts) {
     approved,
     rejected,
     inProgress,
-    totalBonus,
     avgDuration: avgDurationSec > 0 ? formatDuration(Math.round(avgDurationSec)) : '—',
     avgKm,
   };

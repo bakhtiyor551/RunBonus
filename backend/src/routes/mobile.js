@@ -16,7 +16,6 @@ import { listActivePaymentMethods } from '../services/paymentMethodService.js';
 import { listActiveDeliveryMethods } from '../services/deliveryMethodService.js';
 import { PAYMENT_METHODS } from '../constants/paymentMethods.js';
 import { DELIVERY_METHODS } from '../constants/deliveryMethods.js';
-import { getWalletSummary } from '../services/accountService.js';
 import { listActiveMobilePaymentAccounts } from '../services/mobilePaymentAccountService.js';
 import { MOBILE_PAYMENT_ACCOUNTS } from '../constants/mobilePaymentAccounts.js';
 
@@ -103,18 +102,16 @@ router.get('/products/:id', async (req, res) => {
   }
 });
 
-router.get('/payment-methods', authUser, async (req, res) => {
+router.get('/payment-methods', authUser, async (_req, res) => {
   try {
-    const summary = await getWalletSummary(pool, req.userId);
-    const available_bonus = summary.available_balance;
-    const methods = await listActivePaymentMethods({
-      hideBonusIfNoBalance: true,
-      availableBonus: available_bonus,
-    });
-    res.json({ methods, available_bonus });
+    const methods = (await listActivePaymentMethods()).filter((m) => m.id !== 'bonus');
+    res.json({ methods, available_bonus: 0 });
   } catch (err) {
     console.error(err);
-    res.json({ methods: PAYMENT_METHODS, available_bonus: 0 });
+    res.json({
+      methods: PAYMENT_METHODS.filter((m) => m.id !== 'bonus'),
+      available_bonus: 0,
+    });
   }
 });
 

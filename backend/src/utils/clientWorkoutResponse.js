@@ -1,4 +1,4 @@
-/** Ответ для клиента без лимитов и внутренних причин. */
+/** Ответ для клиента: километры и статус проверки, без денежной модели. */
 export function buildClientFinishResponse({
   finalStatus,
   bonusAmount,
@@ -8,25 +8,25 @@ export function buildClientFinishResponse({
   rejectReason,
   levelUp,
 }) {
-  const credited = finalStatus === 'approved' && bonusAmount > 0;
+  const approved = finalStatus === 'approved';
 
   let message;
-  if (credited) {
+  if (approved) {
     message = undefined;
   } else if (rejectReason) {
     message = rejectReason;
   } else {
-    message = 'Бонус не начислен по правилам программы';
+    message = 'Дистанция на проверке';
   }
 
   return {
-    title: 'Тренировка завершена',
+    title: 'Тренировка завершена!',
     status: finalStatus,
     distance_km: Number(distanceKm) || 0,
     duration_seconds: Number(durationSeconds) || 0,
-    bonus_credited: credited,
-    bonus_earned: credited ? bonusAmount : 0,
-    balance_after: balanceAfter != null ? balanceAfter : undefined,
+    bonus_credited: false,
+    bonus_earned: 0,
+    balance_after: undefined,
     reject_reason: rejectReason || undefined,
     message,
     level_up: levelUp || undefined,

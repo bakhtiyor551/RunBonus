@@ -46,8 +46,15 @@ export async function listRewards() {
         r.size_options = [];
       }
     }
+    if (typeof r.color_options === 'string') {
+      try {
+        r.color_options = JSON.parse(r.color_options);
+      } catch {
+        r.color_options = [];
+      }
+    }
     const [stock] = await pool.query(
-      `SELECT * FROM reward_stock WHERE reward_id = ? ORDER BY size`,
+      `SELECT * FROM reward_stock WHERE reward_id = ? ORDER BY size, color`,
       [r.id]
     );
     r.stock_variants = stock;
@@ -59,6 +66,9 @@ export async function listRewards() {
 export async function saveReward(data, id = null) {
   const sizeOptions = data.size_options
     ? JSON.stringify(data.size_options)
+    : null;
+  const colorOptions = data.color_options
+    ? JSON.stringify(data.color_options)
     : null;
   const payload = [
     data.name,
@@ -73,6 +83,7 @@ export async function saveReward(data, id = null) {
     data.discount_usage_limit ?? 1,
     data.requires_size ? 1 : 0,
     sizeOptions,
+    colorOptions,
     data.cost_amount ?? 0,
     data.active == null ? 1 : data.active ? 1 : 0,
   ];
@@ -82,7 +93,7 @@ export async function saveReward(data, id = null) {
         name=?, type=?, description=?, image=?, stock=?,
         discount_percent=?, discount_min_amount=?, discount_max_amount=?,
         discount_valid_days=?, discount_usage_limit=?,
-        requires_size=?, size_options=?, cost_amount=?, active=?
+        requires_size=?, size_options=?, color_options=?, cost_amount=?, active=?
        WHERE id=?`,
       [...payload, id]
     );
@@ -92,8 +103,8 @@ export async function saveReward(data, id = null) {
     `INSERT INTO rewards
       (name, type, description, image, stock, discount_percent, discount_min_amount,
        discount_max_amount, discount_valid_days, discount_usage_limit,
-       requires_size, size_options, cost_amount, active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       requires_size, size_options, color_options, cost_amount, active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload
   );
   return res.insertId;
@@ -262,6 +273,36 @@ export async function updateUserRewardStatus(id, status, { adminComment, trackin
     }
 
     await conn.commit();
+
+    // Push user on status change
+    try {
+      const { sendPushToUser } = await import('./pushNotificationService.js');
+      let title = '🎁 Статус награды';
+      let body = 'Статус вашей награды обновлён';
+      if (status === 'PROCESSING') {
+        title = '🎁 Награда в обработке';
+        body = 'Ваша награда принята и отправлена на обработку.';
+      } else if (status === 'READY') {
+        title = '✅ Награда готова';
+        body = 'Ваша награда готова к получению.';
+      } else if (status === 'DELIVERED') {
+        title = '✅ Награда получена';
+        body = 'Ваша награда отмечена как полученная.';
+      }
+      sendPushToUser(ur.user_id, {
+        title,
+        body,
+        data: {
+          type: 'reward_status',
+          user_reward_id: String(id),
+          status: String(status),
+          path: '/my-rewards',
+        },
+      }).catch(() => {});
+    } catch {
+      /* optional */
+    }
+
     return listUserRewards({}).then((rows) => rows.find((r) => r.id === id));
   } catch (e) {
     await conn.rollback();

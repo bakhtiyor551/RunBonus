@@ -549,37 +549,60 @@ export default function RewardsTab() {
           <h3>Склад подарков</h3>
           {catalog
             .filter((r) => r.type !== 'DISCOUNT')
-            .map((r) => (
+            .map((r) => {
+              const available = Number(r.available ?? r.stock - r.reserved) || 0;
+              const variants = r.stock_variants || [];
+              return (
               <div key={r.id} className="glass-card card" style={{ marginTop: 12 }}>
                 <strong>
-                  {r.name} — доступно {r.available ?? r.stock - r.reserved} / {r.stock}
+                  {r.name} — доступно {available} / {r.stock}
+                  {available <= 0 ? ' · ❌ Нет в наличии' : ''}
                 </strong>
-                {r.requires_size ? (
+                {variants.length > 0 ? (
                   <table className="data-table" style={{ marginTop: 8 }}>
                     <thead>
                       <tr>
                         <th>Размер</th>
+                        <th>Цвет</th>
                         <th>Кол-во</th>
                         <th>Резерв</th>
+                        <th>Статус</th>
                         <th />
                       </tr>
                     </thead>
                     <tbody>
-                      {(r.stock_variants || []).map((v) => (
-                        <tr key={`${r.id}-${v.size}`}>
+                      {variants.map((v) => {
+                        const left = Math.max(0, Number(v.quantity) - Number(v.reserved));
+                        return (
+                        <tr key={`${r.id}-${v.size}-${v.color}`}>
                           <td>{v.size || '—'}</td>
+                          <td>{v.color || '—'}</td>
                           <td>
                             <input
                               type="number"
                               defaultValue={v.quantity}
                               style={{ width: 80 }}
-                              onBlur={(e) => updateStock(r.id, v.size, e.target.value)}
+                              onBlur={(e) =>
+                                adminApi('/api/admin/rewards/stock', {
+                                  method: 'PUT',
+                                  body: JSON.stringify({
+                                    reward_id: r.id,
+                                    size: v.size || '',
+                                    color: v.color || '',
+                                    quantity: Number(e.target.value) || 0,
+                                  }),
+                                })
+                                  .then(loadAll)
+                                  .catch((err) => alert(err.message))
+                              }
                             />
                           </td>
                           <td>{v.reserved}</td>
+                          <td>{left <= 0 ? '❌ Нет в наличии' : `${left} шт.`}</td>
                           <td className="muted">blur = сохранить</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 ) : (
@@ -598,10 +621,14 @@ export default function RewardsTab() {
                           .catch((err) => alert(err.message))
                       }
                     />
+                    {available <= 0 && (
+                      <span className="muted" style={{ marginLeft: 8 }}>❌ Нет в наличии</span>
+                    )}
                   </label>
                 )}
               </div>
-            ))}
+              );
+            })}
         </div>
       )}
 

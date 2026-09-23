@@ -2,7 +2,6 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { pool } from '../db.js';
 import { assertMatchingDevice } from './deviceBinding.js';
-import { getActiveBonusFund } from './accountService.js';
 import {
   forceStopWorkout,
   saveWorkoutPoints,
@@ -40,20 +39,8 @@ export function sendWorkoutCommand(userId, type, data = {}) {
 }
 
 async function checkBonusFundAndNotify(ws) {
-  if (ws.fundWarningSent) return;
-  try {
-    const fund = await getActiveBonusFund(pool);
-    const balance = fund ? Number(fund.current_balance) : 0;
-    if (balance <= 0) {
-      ws.fundWarningSent = true;
-      sendJson(ws, {
-        type: 'fund_exhausted',
-        message: 'Бонусный фонд пуст, начисление временно приостановлено',
-      });
-    }
-  } catch (err) {
-    console.error('[workout-ws] fund check', err.message);
-  }
+  // Money accrual disabled — rewards mode does not depend on bonus fund.
+  ws.fundWarningSent = true;
 }
 
 async function authenticateUpgrade(req, url) {

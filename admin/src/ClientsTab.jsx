@@ -3,7 +3,6 @@ import { adminApi } from './api';
 import Icon from './components/Icon';
 import { ClientProfileDetail } from './components/ClientProfileInfo';
 import { ClientDeviceInfo } from './components/ClientDeviceInfo';
-import { formatMoney } from './utils/format';
 
 function ClientCard({ user, selected, onOpen, onTopup, onBlock, onResetDevice, resetLoadingId }) {
   const blocked = user.status === 'blocked';
@@ -31,8 +30,10 @@ function ClientCard({ user, selected, onOpen, onTopup, onBlock, onResetDevice, r
         {user.phone}
       </p>
       <div className="entity-card__highlight">
-        <span className="entity-card__highlight-label">Баланс</span>
-        <span className="entity-card__highlight-value">{formatMoney(user.balance)}</span>
+        <span className="entity-card__highlight-label">Километры</span>
+        <span className="entity-card__highlight-value">
+          {(Number(user.total_distance_km) || Number(user.total_km) || 0).toFixed(1)} км
+        </span>
       </div>
       <p className="entity-card__meta">
         <Icon name="steps" />
@@ -51,10 +52,10 @@ function ClientCard({ user, selected, onOpen, onTopup, onBlock, onResetDevice, r
           className="btn btn--primary btn--sm"
           onClick={() => onTopup(user)}
           disabled={blocked}
-          title={blocked ? 'Клиент заблокирован' : 'Пополнить баланс'}
+          title={blocked ? 'Клиент заблокирован' : 'Синхронизировать награды'}
         >
-          <Icon name="add_card" />
-          Пополнить
+          <Icon name="sync" />
+          Sync награды
         </button>
         <button
           type="button"
@@ -72,14 +73,13 @@ function ClientCard({ user, selected, onOpen, onTopup, onBlock, onResetDevice, r
   );
 }
 
-export default function ClientsTab({ onFundChange }) {
+export default function ClientsTab() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [topupLoading, setTopupLoading] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
   const [resetLoadingId, setResetLoadingId] = useState(null);
-  const [topupForm, setTopupForm] = useState({ phone: '', amount: '', comment: '' });
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -147,43 +147,27 @@ export default function ClientsTab({ onFundChange }) {
     }
   };
 
-  const selectForTopup = (user) => {
-    setTopupForm((f) => ({ ...f, phone: user.phone }));
-    document.querySelector('.clients-page__topup')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const topupFromProfile = (profile) => {
-    setSelectedUserId(null);
-    setTopupForm((f) => ({ ...f, phone: profile.phone }));
-    requestAnimationFrame(() => {
-      document.querySelector('.clients-page__topup')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
-  const topupBalance = async (e) => {
-    e.preventDefault();
+  const selectForTopup = async (user) => {
     setTopupLoading(true);
     setError('');
     try {
-      const data = await adminApi('/api/admin/bonus/topup', {
+      const data = await adminApi(`/api/admin/rewards/users/${user.id}/sync`, {
         method: 'POST',
-        body: JSON.stringify({
-          phone: topupForm.phone.trim(),
-          amount: Number(topupForm.amount),
-          comment: topupForm.comment.trim() || undefined,
-        }),
+        body: '{}',
       });
       alert(
-        `Баланс пополнен.\n${data.name || data.phone}: ${formatMoney(data.balance_after)}\nОстаток фонда: ${formatMoney(data.fund_after)}`
+        `Прогресс синхронизирован.\n${user.name || user.phone}: ${Number(data.totalDistance || 0).toFixed(2)} км\nОткрыто наград: ${(data.unlocked || []).length}`
       );
-      setTopupForm({ phone: '', amount: '', comment: '' });
       await loadUsers();
-      onFundChange?.();
     } catch (err) {
       setError(err.message);
     } finally {
       setTopupLoading(false);
     }
+  };
+
+  const topupFromProfile = (profile) => {
+    selectForTopup({ id: profile.id, name: profile.name, phone: profile.phone });
   };
 
   if (selectedUserId) {
@@ -204,47 +188,7 @@ export default function ClientsTab({ onFundChange }) {
 
   return (
     <div className="entity-page">
-      <div className="glass-card card clients-page__topup">
-        <h2>Пополнение баланса клиента</h2>
-        <p className="hint">
-          Сумма списывается с бонусного фонда компании и зачисляется на кошелёк клиента.
-        </p>
-        <form className="settings-form" onSubmit={topupBalance}>
-          <label>
-            Телефон клиента
-            <input
-              placeholder="+992…"
-              value={topupForm.phone}
-              onChange={(e) => setTopupForm({ ...topupForm, phone: e.target.value })}
-              required
-            />
-          </label>
-          <label>
-            Сумма (сомони)
-            <input
-              type="number"
-              min={0.01}
-              step={0.01}
-              placeholder="0"
-              value={topupForm.amount}
-              onChange={(e) => setTopupForm({ ...topupForm, amount: e.target.value })}
-              required
-            />
-          </label>
-          <label>
-            Комментарий
-            <input
-              placeholder="Необязательно"
-              value={topupForm.comment}
-              onChange={(e) => setTopupForm({ ...topupForm, comment: e.target.value })}
-            />
-          </label>
-          <button className="btn btn--primary" type="submit" disabled={topupLoading}>
-            {topupLoading ? 'Пополнение…' : 'Пополнить баланс'}
-          </button>
-        </form>
-        {error && <p className="error-text">{error}</p>}
-      </div>
+      {error && <p className="error-text">{error}</p>}
 
       <div className="glass-card card">
         <div className="entity-page__header">
@@ -254,6 +198,7 @@ export default function ClientsTab({ onFundChange }) {
               {searchQuery.trim()
                 ? `${filteredUsers.length} из ${users.length}`
                 : `${users.length} зарегистрировано`}
+              {' · '}программа лояльности (км → награды)
             </p>
           </div>
           <button type="button" className="btn btn--ghost btn--sm" onClick={loadUsers}>

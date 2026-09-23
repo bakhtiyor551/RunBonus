@@ -1,85 +1,51 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { IonPage, IonContent } from '@ionic/react';
-import { api, cacheUser } from '../api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
+import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import ShoeBindBanner from '../components/ShoeBindBanner';
-import ProgressRing from '../components/ProgressRing';
-import StatsDetailModal from '../components/StatsDetailModal';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
-import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
-import { countFinishedWorkouts } from '../utils/workoutStats';
-import { formatBalance, formatWorkoutDate } from '../utils/format';
+import { formatWorkoutDate } from '../utils/format';
+import { formatDuration } from '../services/geolocation';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
-import {
-  startDailyStepsPolling,
-  stopDailyStepsPolling,
-  subscribeDailySteps,
-  getDailyStepGoal,
-} from '../services/dailySteps';
+import { fetchRewardsProgress } from '../services/rewards';
 import { PageAdSlots } from '../components/MobileAdSlot';
 
-function DailyStepsCard({ steps, goal, progress }) {
-  return (
-    <div className="glass-card rb-daily-steps">
-      <div className="rb-daily-steps__head">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon name="directions_walk" />
-          <span className="rb-label">Шаги сегодня</span>
-        </div>
-        <span className="rb-text-muted" style={{ fontSize: 12 }}>
-          цель {goal.toLocaleString('ru')}
-        </span>
-      </div>
-      <div className="rb-daily-steps__body">
-        <span className="rb-display font-display font-tabular">{steps.toLocaleString('ru')}</span>
-        <div className="rb-daily-steps__bar" aria-hidden="true">
-          <span style={{ width: `${progress}%` }} />
-        </div>
-      </div>
-    </div>
-  );
+function km(value) {
+  return (Number(value) || 0).toLocaleString('ru', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
-function ActivityRow({ workout, onPress }) {
-  const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
-  return (
-    <button type="button" className="glass-card rb-activity-card" onClick={() => onPress(workout)}>
-      <div className="rb-activity-card__icon">
-        <Icon name="directions_run" />
-      </div>
-      <div style={{ flex: 1 }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Тренировка</h3>
-        <p className="rb-label" style={{ margin: '4px 0 0', textTransform: 'none', letterSpacing: 0 }}>
-          {formatWorkoutDate(workout.started_at)}
-          {workout.distance_km != null ? ` • ${Number(workout.distance_km).toFixed(1)} км` : ''}
-        </p>
-      </div>
-      {bonus != null && bonus > 0 && (
-        <div style={{ textAlign: 'right' }}>
-          <span className="rb-headline font-display" style={{ color: 'var(--rb-neon)', fontSize: 20 }}>+{bonus.toFixed(0)}</span>
-          <span className="rb-label" style={{ display: 'block' }}>сомони</span>
-        </div>
-      )}
-    </button>
-  );
+function nextRewardTitle(progress) {
+  const next = progress?.nextMilestone;
+  if (!next) return 'Все награды открыты';
+  if (typeof next === 'object') {
+    return next.name || next.rewardName || `Награда за ${km(next.distance)} км`;
+  }
+  return `Награда за ${km(next)} км`;
 }
 
-export default function HomePage({ user, setUser }) {
+function nextRewardDistance(progress) {
+  const next = progress?.nextMilestone;
+  if (!next) return null;
+  if (typeof next === 'object') return Number(next.distance) || null;
+  return Number(next) || null;
+}
+
+export default function HomePage({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [starting, setStarting] = useState(false);
   const [workouts, setWorkouts] = useState([]);
-  const [statsModal, setStatsModal] = useState(null);
+  const [progress, setProgress] = useState(null);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
-  const [dailySteps, setDailySteps] = useState(0);
-  const dailyGoal = getDailyStepGoal();
-  const dailyProgress = Math.min(100, (dailySteps / dailyGoal) * 100);
 
   const refreshActiveWorkout = () => {
     syncActiveWorkoutWithServer()
@@ -95,28 +61,43 @@ export default function HomePage({ user, setUser }) {
       });
   };
 
-  useEffect(() => {
-    api('/api/workouts/history').then(setWorkouts).catch(() => {});
+  const loadHome = useCallback(async () => {
+    const [history, rewardProgress] = await Promise.all([
+      api('/api/workouts/history').catch(() => []),
+      fetchRewardsProgress().catch(() => null),
+    ]);
+    setWorkouts(Array.isArray(history) ? history : []);
+    if (rewardProgress) setProgress(rewardProgress);
     refreshActiveWorkout();
-    startDailyStepsPolling();
-    const unsub = subscribeDailySteps(setDailySteps);
-    return () => {
-      unsub();
-      stopDailyStepsPolling();
-    };
   }, []);
 
   useEffect(() => {
-    if (location.pathname === '/') {
-      api('/api/workouts/history').then(setWorkouts).catch(() => {});
-      refreshActiveWorkout();
-    }
-  }, [location.pathname]);
+    loadHome().catch(() => {});
+  }, [loadHome]);
 
-  const totalKm = workouts.reduce((s, w) => s + (Number(w.distance_km) || 0), 0);
-  const totalRuns = countFinishedWorkouts(workouts);
-  const kmGoal = Math.max(100, Math.ceil(totalKm / 50) * 50);
-  const runsGoal = Math.max(10, Math.ceil(totalRuns / 5) * 5);
+  useEffect(() => {
+    if (location.pathname === '/') loadHome().catch(() => {});
+  }, [location.pathname, loadHome]);
+
+  const totalDistance = Number(progress?.totalDistance ?? 0);
+  const remainingDistance = Number(progress?.remainingDistance ?? 0);
+  const nextDist = nextRewardDistance(progress);
+  const progressPercent = useMemo(() => {
+    if (!nextDist) return 100;
+    return Math.max(0, Math.min(100, Math.round((totalDistance / nextDist) * 100)));
+  }, [nextDist, totalDistance]);
+
+  const claimable = useMemo(
+    () =>
+      (progress?.milestones || []).filter(
+        (m) => m.status === 'AVAILABLE' || m.status === 'CHOOSING'
+      ),
+    [progress]
+  );
+
+  const lastWorkout = useMemo(() => {
+    return (workouts || []).find((w) => w.status !== 'in_progress') || null;
+  }, [workouts]);
 
   const startWorkout = async () => {
     if (starting) return;
@@ -127,7 +108,7 @@ export default function HomePage({ user, setUser }) {
         return;
       }
       if (!user.activeShoe || user.needsActivation) {
-        alert('Привяжите кроссовки RunBonus по QR, чтобы получать бонусы за бег.');
+        alert('Привяжите кроссовки RunBonus по QR, чтобы накапливать километры.');
         navigate('/activate');
         return;
       }
@@ -144,33 +125,96 @@ export default function HomePage({ user, setUser }) {
     }
   };
 
-  const refresh = async () => {
-    const profile = await api('/api/auth/me');
-    cacheUser(profile);
-    setUser(profile);
-  };
+  const greetingName = (user?.first_name || user?.name || '').split(' ')[0];
 
   return (
     <IonPage>
       <AppHeader />
       <IonContent>
-        <main className="rb-main">
+        <IonRefresher
+          slot="fixed"
+          onIonRefresh={async (e) => {
+            await loadHome().catch(() => {});
+            e.detail.complete();
+          }}
+        >
+          <IonRefresherContent />
+        </IonRefresher>
+
+        <main className="rb-main rb-home-progress">
           <ShoeBindBanner user={user} />
 
-          <section style={{ marginBottom: 32 }}>
-            <div className="glass-card" style={{ padding: 'var(--rb-card-padding)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BoltIcon size="sm" glow />
-                <span className="rb-label">Баланс бонусов</span>
+          <section className="rb-home-welcome">
+            <p className="rb-label" style={{ margin: 0 }}>
+              RunBonus
+            </p>
+            <h1 className="rb-headline font-display" style={{ margin: '6px 0 0' }}>
+              {greetingName ? `Привет, ${greetingName}` : 'Добро пожаловать'}
+            </h1>
+          </section>
+
+          {claimable.length > 0 && (
+            <button
+              type="button"
+              className="glass-card rb-home-claim"
+              onClick={() =>
+                navigate(`/rewards?milestone=${claimable[0].id}`)
+              }
+            >
+              <div className="rb-home-claim__icon" aria-hidden>
+                <Icon name="redeem" filled />
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-                <span className="rb-display font-display">{formatBalance(user.balance)}</span>
-                <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, color: 'var(--rb-neon-dim)' }}>сомони</span>
+              <div className="rb-home-claim__body">
+                <strong>Награда доступна</strong>
+                <span>
+                  {claimable[0].name || `${km(claimable[0].distance)} км`} — выберите подарок
+                </span>
               </div>
-              <button type="button" className="rb-link" style={{ marginTop: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={refresh}>
-                Обновить
-              </button>
+              <Icon name="chevron_right" />
+            </button>
+          )}
+
+          <section className="glass-card neon-glow rb-progress-hero">
+            <div className="rb-progress-hero__head">
+              <Icon name="directions_run" />
+              <span className="rb-label">Ваш прогресс</span>
             </div>
+            <div className="rb-progress-hero__distance font-display font-tabular">
+              {km(totalDistance)}
+              <span>км</span>
+            </div>
+
+            {nextDist != null ? (
+              <>
+                <p className="rb-text-muted rb-progress-hero__hint">
+                  До следующей награды · {km(nextDist)} км
+                </p>
+                <div className="rb-progress-bar" aria-label="Прогресс до следующей награды">
+                  <span style={{ width: `${progressPercent}%` }} />
+                </div>
+                <div className="rb-progress-hero__foot">
+                  <span>Осталось</span>
+                  <strong>{km(remainingDistance)} км</strong>
+                </div>
+              </>
+            ) : (
+              <p className="rb-text-muted rb-progress-hero__hint">
+                Вы достигли всех контрольных точек
+              </p>
+            )}
+          </section>
+
+          <section className="glass-card rb-home-next-reward">
+            <div className="rb-home-next-reward__icon" aria-hidden>
+              <Icon name="card_giftcard" />
+            </div>
+            <div className="rb-home-next-reward__body">
+              <span className="rb-label">Следующая награда</span>
+              <h2 className="font-display">{nextRewardTitle(progress)}</h2>
+            </div>
+            <button type="button" className="rb-btn-pill" onClick={() => navigate('/rewards')}>
+              Подробнее
+            </button>
           </section>
 
           <PageAdSlots
@@ -181,7 +225,7 @@ export default function HomePage({ user, setUser }) {
             style={{ marginBottom: 24 }}
           />
 
-          <section style={{ marginBottom: 40 }}>
+          <section className="rb-home-cta">
             {activeWorkoutId ? (
               <button
                 type="button"
@@ -199,49 +243,44 @@ export default function HomePage({ user, setUser }) {
             )}
           </section>
 
-          <section style={{ marginBottom: 40 }}>
-            <h2 className="rb-headline font-display" style={{ marginBottom: 24 }}>Статистика</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <button
-                type="button"
-                className="glass-card rb-stat-card"
-                onClick={() => setStatsModal('km')}
-                aria-label="Подробная статистика по километрам"
-              >
-                <ProgressRing value={totalKm} max={kmGoal} label="Всего км" />
-              </button>
-              <button
-                type="button"
-                className="glass-card rb-stat-card"
-                onClick={() => setStatsModal('workouts')}
-                aria-label="Подробная статистика по тренировкам"
-              >
-                <ProgressRing value={totalRuns} max={runsGoal} label="Тренировок" />
-              </button>
-            </div>
-            <div style={{ marginTop: 16 }}>
-              <DailyStepsCard steps={dailySteps} goal={dailyGoal} progress={dailyProgress} />
-            </div>
-          </section>
-
-          <section>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h2 className="rb-headline font-display">Недавние</h2>
-              <button type="button" className="rb-link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }} onClick={() => navigate('/workouts')}>
+          <section className="rb-home-last">
+            <div className="rb-section-head">
+              <h2 className="rb-headline font-display">Последняя тренировка</h2>
+              <button type="button" className="rb-link rb-section-head__link" onClick={() => navigate('/workouts')}>
                 Все
               </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {workouts.slice(0, 5).map((w) => (
-                <ActivityRow key={w.id} workout={w} onPress={setSelectedWorkout} />
-              ))}
-              {!workouts.length && <p className="rb-text-muted">Пока нет тренировок</p>}
-            </div>
+
+            {lastWorkout ? (
+              <button
+                type="button"
+                className="glass-card rb-activity-card"
+                onClick={() => setSelectedWorkout(lastWorkout)}
+              >
+                <div className="rb-activity-card__icon">
+                  <Icon name="directions_run" />
+                </div>
+                <div className="rb-activity-card__text">
+                  <h3>Бег</h3>
+                  <p className="rb-label rb-activity-card__meta">
+                    {formatWorkoutDate(lastWorkout.started_at)}
+                    {lastWorkout.distance_km != null
+                      ? ` · ${Number(lastWorkout.distance_km).toFixed(2)} км`
+                      : ''}
+                    {lastWorkout.duration_seconds
+                      ? ` · ${formatDuration(Number(lastWorkout.duration_seconds) || 0)}`
+                      : ''}
+                  </p>
+                </div>
+                <Icon name="chevron_right" />
+              </button>
+            ) : (
+              <p className="rb-text-muted">Пока нет тренировок</p>
+            )}
           </section>
         </main>
       </IonContent>
       <BottomNav />
-      <StatsDetailModal type={statsModal} workouts={workouts} onClose={() => setStatsModal(null)} />
       <WorkoutDetailModal workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
     </IonPage>
   );

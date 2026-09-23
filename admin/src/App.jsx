@@ -21,22 +21,22 @@ export default function App() {
   const [token, setToken] = useState(localStorage.getItem('adminToken'));
   const [adminLogin, setAdminLogin] = useState(localStorage.getItem('adminLogin') || '');
   const [tab, setTab] = useState('dashboard');
-  const [fundBalance, setFundBalance] = useState(null);
-  const [fundCurrency, setFundCurrency] = useState('TJS');
+  const [pendingRewards, setPendingRewards] = useState(null);
 
-  const loadFundBalance = useCallback(async () => {
+  const loadPendingRewards = useCallback(async () => {
     try {
-      const fund = await adminApi('/api/admin/bonus-fund');
-      setFundBalance(fund?.balance ?? null);
-      setFundCurrency(fund?.currency ?? 'TJS');
+      const stats = await adminApi('/api/admin/rewards/stats');
+      const pending =
+        Number(stats?.selectedCount || 0) - Number(stats?.deliveredCount || 0);
+      setPendingRewards(Math.max(0, pending));
     } catch {
-      setFundBalance(null);
+      setPendingRewards(null);
     }
   }, []);
 
   useEffect(() => {
-    if (token) loadFundBalance();
-  }, [token, loadFundBalance]);
+    if (token) loadPendingRewards();
+  }, [token, loadPendingRewards]);
 
   const onLoginSuccess = (data) => {
     localStorage.setItem('adminToken', data.token);
@@ -55,7 +55,7 @@ export default function App() {
 
   const navigate = (index) => {
     setTab(index);
-    if (index === 'dashboard') loadFundBalance();
+    if (index === 'dashboard' || index === 'rewards') loadPendingRewards();
   };
 
   if (!token) {
@@ -71,12 +71,12 @@ export default function App() {
         onLogout={logout}
       />
       <main className="main-canvas custom-scrollbar">
-        <TopBar activeTab={tab} fundBalance={fundBalance} currency={fundCurrency} />
+        <TopBar activeTab={tab} pendingRewards={pendingRewards} />
         <div className="tab-stack">
           {tab === 'dashboard' && <DashboardTab onNavigate={navigate} />}
           {tab === 0 && (
             <div className="page-content">
-              <ClientsTab onFundChange={loadFundBalance} />
+              <ClientsTab />
             </div>
           )}
           {tab === 1 && (

@@ -1,93 +1,28 @@
 import { Router } from 'express';
-import { pool } from '../db.js';
 import { authUser } from '../middleware/auth.js';
-import { getUserBalance } from '../services/bonusService.js';
-import { getWalletSummary } from '../services/accountService.js';
 
 const router = Router();
 
-router.get('/balance', authUser, async (req, res) => {
-  try {
-    const balance = await getUserBalance(req.userId);
-    res.json({ balance });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка' });
-  }
+const GONE = {
+  error: 'Денежный кошелёк отключён. Используйте систему наград: /api/rewards/*',
+  code: 'WALLET_DEPRECATED',
+};
+
+/** Legacy money endpoints — disabled for the rewards loyalty model. */
+router.get('/balance', authUser, (_req, res) => {
+  res.status(410).json(GONE);
 });
 
-router.get('/wallet-summary', authUser, async (req, res) => {
-  try {
-    const wallet = await getWalletSummary(pool, req.userId);
-    res.json(wallet);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка' });
-  }
+router.get('/wallet-summary', authUser, (_req, res) => {
+  res.status(410).json(GONE);
 });
 
-router.get('/history', authUser, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT t.id, t.type, t.amount, t.balance_after, t.comment, t.created_at,
-              w.distance_km, w.status AS workout_status, w.reject_reason
-       FROM user_bonus_transactions t
-       LEFT JOIN workouts w ON w.id = t.workout_id
-       WHERE t.user_id = ?
-       ORDER BY t.created_at DESC
-       LIMIT 100`,
-      [req.userId]
-    );
-
-    let history = rows.map((r) => mapHistoryRow(r));
-
-    if (!history.length) {
-      const [legacy] = await pool.query(
-        `SELECT b.id, b.type, b.amount, b.balance_after, b.comment, b.created_at,
-                w.distance_km, w.status AS workout_status, w.reject_reason
-         FROM bonuses b
-         LEFT JOIN workouts w ON w.id = b.workout_id
-         WHERE b.user_id = ?
-         ORDER BY b.created_at DESC
-         LIMIT 100`,
-        [req.userId]
-      );
-      history = legacy.map((r) => mapHistoryRow(r));
-    }
-
-    res.json(history);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка загрузки истории' });
-  }
+router.get('/history', authUser, (_req, res) => {
+  res.status(410).json(GONE);
 });
 
-function mapHistoryRow(r) {
-  let status = 'операция';
-  if (r.type === 'earn') {
-    status = r.workout_status === 'approved' ? 'начислено' : 'без начисления';
-  } else if (r.type === 'spend') {
-    status = 'списано';
-  } else if (r.type === 'withdraw_hold') {
-    status = 'заморозка на вывод';
-  } else if (r.type === 'withdraw_success') {
-    status = 'вывод выполнен';
-  } else if (r.type === 'withdraw_reject') {
-    status = 'вывод отклонён';
-  }
-
-  return {
-    id: r.id,
-    date: r.created_at,
-    type: r.type,
-    amount: Number(r.amount),
-    balance_after: r.balance_after != null ? Number(r.balance_after) : null,
-    km: r.distance_km ? Number(r.distance_km) : null,
-    status,
-    comment: r.comment || null,
-    reject_reason: r.reject_reason || null,
-    workout_status: r.workout_status || null,
-  };
-}
+router.post('/withdraw', authUser, (_req, res) => {
+  res.status(410).json(GONE);
+});
 
 export default router;

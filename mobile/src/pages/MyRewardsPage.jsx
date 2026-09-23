@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import Icon from '../components/Icon';
 import RewardSelectModal from '../components/RewardSelectModal';
-import { fetchRewardsProgress } from '../services/rewards';
+import { fetchMyRewards, fetchRewardsProgress } from '../services/rewards';
 
 const STATUS_LABELS = {
   AVAILABLE: 'Можно выбрать',
   CHOOSING: 'Выберите подарок',
   SELECTED: 'Выбрано',
-  PROCESSING: 'В обработке',
-  READY: 'Готово к выдаче',
-  DELIVERED: 'Доставлено',
+  PROCESSING: 'Обрабатывается',
+  READY: 'Готово',
+  DELIVERED: 'Получена',
   CANCELLED: 'Отменено',
+  LOCKED: 'Недоступно',
 };
 
 function km(value) {
@@ -26,31 +28,33 @@ function rewardLabel(reward) {
   return reward.name || reward.title || reward.description || 'Подарок RunBonus';
 }
 
-function statusLabel(status) {
-  return STATUS_LABELS[status] || status || 'Статус';
-}
-
 function canChoose(status) {
   return status === 'AVAILABLE' || status === 'CHOOSING';
 }
 
 export default function MyRewardsPage() {
-  const [progress, setProgress] = useState(null);
+  const navigate = useNavigate();
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedMilestoneId, setSelectedMilestoneId] = useState(null);
 
-  const loadProgress = useCallback(async () => {
+  const load = useCallback(async () => {
     setError('');
-    const data = await fetchRewardsProgress();
-    setProgress(data);
-    return data;
+    try {
+      const mine = await fetchMyRewards();
+      setItems(Array.isArray(mine) ? mine : mine?.items || []);
+    } catch {
+      const data = await fetchRewardsProgress();
+      const list = (data.milestones || []).filter((item) => item.status && item.status !== 'LOCKED');
+      setItems(list);
+    }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    loadProgress()
+    load()
       .catch((err) => {
         if (!cancelled) setError(err.message || 'Не удалось загрузить награды');
       })
@@ -60,21 +64,18 @@ export default function MyRewardsPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadProgress]);
+  }, [load]);
 
-  const rewards = useMemo(
-    () => (progress?.milestones || []).filter((item) => item.status && item.status !== 'LOCKED'),
-    [progress?.milestones]
-  );
+  const rewards = useMemo(() => items, [items]);
 
   return (
     <IonPage>
-      <AppHeader showAvatar={false} />
+      <AppHeader onBack={() => navigate(-1)} showAvatar={false} />
       <IonContent>
         <IonRefresher
           slot="fixed"
           onIonRefresh={async (e) => {
-            await loadProgress().catch(() => {});
+            await load().catch(() => {});
             e.detail.complete();
           }}
         >
@@ -88,9 +89,11 @@ export default function MyRewardsPage() {
             </div>
             <div>
               <span className="rb-label">Мои награды</span>
-              <h1 className="rb-headline font-display">История milestone-подарков</h1>
+              <h1 className="rb-headline font-display">История подарков</h1>
               <p className="rb-text-muted">
-                Получено и доступно: {progress?.earnedCount ?? rewards.length}
+                {rewards.length
+                  ? `${rewards.length} ${rewards.length === 1 ? 'запись' : 'записей'}`
+                  : 'Пока пусто — бегайте и открывайте контрольные точки'}
               </p>
             </div>
           </section>
@@ -100,42 +103,62 @@ export default function MyRewardsPage() {
 
           {!loading && !error && rewards.length === 0 && (
             <section className="glass-card rb-progress-empty">
-              <Icon name="emoji_events" />
-              <p>Пока нет открытых наград. Продолжайте бегать, и первый подарок появится здесь.</p>
+              <Icon name="redeem" />
+              <p>Пока нет открытых наград. Продолжайте бегать — первый подарок появится здесь.</p>
+              <button type="button" className="rb-btn-pill" onClick={() => navigate('/rewards')}>
+                К наградам
+              </button>
             </section>
           )}
 
           <section className="rb-rewards-list">
-            {rewards.map((milestone) => (
-              <article key={milestone.id} className="glass-card rb-reward-history-card">
-                <div className="rb-reward-history-card__head">
-                  <div>
-                    <span className="rb-label">{km(milestone.distance)} км</span>
-                    <h2 className="font-display">{milestone.name}</h2>
-                  </div>
-                  <span className={`rb-progress-status rb-progress-status--${String(milestone.status || '').toLowerCase()}`}>
-                    {statusLabel(milestone.status)}
-                  </span>
-                </div>
-                <p className="rb-text-muted">{rewardLabel(milestone.reward)}</p>
-                {canChoose(milestone.status) ? (
-                  <button type="button" className="rb-btn-pill" onClick={() => setSelectedMilestoneId(milestone.id)}>
-                    Выбрать подарок
-                  </button>
-                ) : (
-                  <div className="rb-reward-history-card__meta">
-                    <Icon name={milestone.status === 'DELIVERED' ? 'check_circle' : 'local_shipping'} />
-                    <span>
-                      {milestone.status === 'DELIVERED'
-                        ? 'Подарок доставлен'
-                        : milestone.status === 'READY'
-                          ? 'Готово к выдаче'
-                          : 'Следите за статусом обработки'}
+            {rewards.map((item) => {
+              const distance = item.distance ?? item.distance_km ?? item.milestone?.distance;
+              const name = item.name || item.milestone_name || item.milestone?.name;
+              const status = item.status;
+              const reward = item.reward || item.reward_name;
+              const promo = item.promoCode || item.promo_code || item.reward?.promoCode;
+              return (
+                <article key={item.id || `${distance}-${status}`} className="glass-card rb-reward-history-card">
+                  <div className="rb-reward-history-card__head">
+                    <div>
+                      <span className="rb-label">{km(distance)} км</span>
+                      <h2 className="font-display">{name}</h2>
+                    </div>
+                    <span className={`rb-progress-status rb-progress-status--${String(status || '').toLowerCase()}`}>
+                      {STATUS_LABELS[status] || status}
                     </span>
                   </div>
-                )}
-              </article>
-            ))}
+                  <p className="rb-text-muted">{rewardLabel(reward)}</p>
+                  {promo ? (
+                    <div className="rb-reward-promo-row">
+                      <code className="rb-reward-promo-code">{promo}</code>
+                      <button
+                        type="button"
+                        className="rb-btn-pill rb-btn-pill--sm"
+                        onClick={() => navigator.clipboard?.writeText(String(promo))}
+                      >
+                        Копировать
+                      </button>
+                    </div>
+                  ) : null}
+                  {canChoose(status) ? (
+                    <button
+                      type="button"
+                      className="rb-btn-pill"
+                      onClick={() => setSelectedMilestoneId(item.milestone_id || item.id)}
+                    >
+                      Выбрать подарок
+                    </button>
+                  ) : (
+                    <div className="rb-reward-history-card__meta">
+                      <Icon name={status === 'DELIVERED' ? 'check_circle' : 'local_shipping'} />
+                      <span>{STATUS_LABELS[status] || 'В обработке'}</span>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </section>
         </main>
       </IonContent>
@@ -143,7 +166,7 @@ export default function MyRewardsPage() {
       <RewardSelectModal
         milestoneId={selectedMilestoneId}
         onClose={() => setSelectedMilestoneId(null)}
-        onSelected={() => loadProgress().catch(() => {})}
+        onSelected={() => load().catch(() => {})}
       />
     </IonPage>
   );

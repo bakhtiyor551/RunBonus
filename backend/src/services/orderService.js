@@ -87,12 +87,10 @@ export async function createOrder(data, userId = null) {
     throw err;
   }
   if (payment_method === 'bonus') {
-    if (!userId) {
-      const err = new Error('Для оплаты бонусами войдите в аккаунт');
-      err.status = 401;
-      throw err;
-    }
-    return createOrderPaidWithBonus(data, userId);
+    const err = new Error('Оплата бонусами отключена. Выберите другой способ оплаты.');
+    err.status = 400;
+    err.code = 'BONUS_PAYMENT_DISABLED';
+    throw err;
   }
 
   const usesTransfer = await paymentMethodUsesTransferModal(payment_method);

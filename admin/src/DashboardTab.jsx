@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from './api';
 import Icon from './components/Icon';
-import { formatMoney, formatNumber, timeAgo } from './utils/format';
+import { formatNumber, timeAgo } from './utils/format';
 
 function StatCard({ icon, label, value, badge, live, wide, highlight }) {
   return (
@@ -93,29 +93,31 @@ export default function DashboardTab({ onNavigate }) {
   const [users, setUsers] = useState([]);
   const [workouts, setWorkouts] = useState([]);
   const [shoes, setShoes] = useState([]);
-  const [fund, setFund] = useState({ balance: 0, currency: 'TJS' });
+  const [rewardStats, setRewardStats] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [u, w, s, f] = await Promise.all([
+        const [u, w, s, rs] = await Promise.all([
           adminApi('/api/admin/users'),
           adminApi('/api/admin/workouts'),
           adminApi('/api/admin/shoes'),
-          adminApi('/api/admin/bonus-fund'),
+          adminApi('/api/admin/rewards/stats').catch(() => null),
         ]);
         if (!cancelled) {
           setUsers(u);
           setWorkouts(w);
           setShoes(s);
-          setFund(f || { balance: 0, currency: 'TJS' });
+          setRewardStats(rs);
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
@@ -126,21 +128,19 @@ export default function DashboardTab({ onNavigate }) {
     );
   }
 
-  const fundBalance = fund?.balance ?? 0;
-  const currency = fund?.currency ?? 'TJS';
   const activeWorkouts = workouts.filter((w) => w.status === 'in_progress').length;
-  const approvedBonus = workouts
+  const approvedKm = workouts
     .filter((w) => w.status === 'approved')
-    .reduce((s, w) => s + (w.bonus || 0), 0);
+    .reduce((s, w) => s + (Number(w.distance_km) || 0), 0);
   const activatedShoes = shoes.filter((s) => s.status === 'activated').length;
   const shoePct = shoes.length ? Math.round((activatedShoes / shoes.length) * 100) : 0;
 
-  const recentPayouts = workouts
-    .filter((w) => w.bonus > 0 && w.status === 'approved')
+  const recentApproved = workouts
+    .filter((w) => w.status === 'approved')
     .slice(0, 5);
 
   const topRunners = [...users]
-    .sort((a, b) => (b.balance || 0) - (a.balance || 0))
+    .sort((a, b) => (Number(b.total_km) || Number(b.total_distance_km) || 0) - (Number(a.total_km) || Number(a.total_distance_km) || 0))
     .slice(0, 3);
 
   const models = shoes.reduce((acc, s) => {
@@ -163,16 +163,16 @@ export default function DashboardTab({ onNavigate }) {
           live
         />
         <StatCard
-          icon="account_balance_wallet"
-          label="Баланс бонусного фонда"
-          value={formatMoney(fundBalance, currency)}
+          icon="straighten"
+          label="Подтверждённые км"
+          value={`${approvedKm.toFixed(1)} км`}
           wide
           highlight
         />
         <StatCard
-          icon="payments"
-          label="Начислено бонусов"
-          value={formatMoney(approvedBonus, currency)}
+          icon="redeem"
+          label="Выбрано наград"
+          value={formatNumber(rewardStats?.selectedCount || 0)}
         />
         <StatCard icon="qr_code_2" label="Кодов кроссовок" value={formatNumber(shoes.length)} />
       </section>
@@ -181,24 +181,24 @@ export default function DashboardTab({ onNavigate }) {
         <GrowthChart users={users} workouts={workouts} />
         <div className="glass-card payouts-card">
           <div className="payouts-card__header">
-            <h4 className="chart-card__title">Последние начисления</h4>
+            <h4 className="chart-card__title">Последние тренировки</h4>
             <Icon name="more_horiz" className="text-muted" />
           </div>
           <div className="payouts-card__list custom-scrollbar">
-            {recentPayouts.length === 0 && <p className="hint">Пока нет начислений</p>}
-            {recentPayouts.map((w) => (
+            {recentApproved.length === 0 && <p className="hint">Пока нет одобренных тренировок</p>}
+            {recentApproved.map((w) => (
               <div key={w.id} className="payout-item">
                 <div className="payout-item__icon">
-                  <Icon name="celebration" />
+                  <Icon name="directions_run" />
                 </div>
                 <div className="payout-item__body">
                   <p className="payout-item__name">{w.client_name}</p>
                   <p className="payout-item__meta">
-                    {w.distance_km} км · {w.phone}
+                    {w.phone}
                   </p>
                 </div>
                 <div className="payout-item__amount">
-                  <p>+{formatMoney(w.bonus, currency)}</p>
+                  <p>{Number(w.distance_km || 0).toFixed(2)} км</p>
                   <p className="payout-item__time">{timeAgo(w.started_at)}</p>
                 </div>
               </div>
@@ -207,8 +207,31 @@ export default function DashboardTab({ onNavigate }) {
           <button type="button" className="btn btn--outline btn--block" onClick={() => onNavigate(2)}>
             Все тренировки
           </button>
+          <button
+            type="button"
+            className="btn btn--primary btn--block"
+            style={{ marginTop: 8 }}
+            onClick={() => onNavigate('rewards')}
+          >
+            Награды
+          </button>
         </div>
       </section>
+
+      {(rewardStats?.milestones || []).length > 0 && (
+        <section className="glass-card card" style={{ marginBottom: 16 }}>
+          <h5 className="section-label">Достижения milestones</h5>
+          <div className="entity-cards-grid" style={{ marginTop: 12 }}>
+            {rewardStats.milestones.map((m) => (
+              <div key={m.id} className="glass-card card">
+                <div className="muted">{m.name}</div>
+                <div style={{ fontSize: 24, fontWeight: 700 }}>{m.reached}</div>
+                <div className="muted">{m.distanceKm} км</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="bento-grid bento-grid--bottom">
         <div className="glass-card">
@@ -251,7 +274,7 @@ export default function DashboardTab({ onNavigate }) {
 
         <div className="glass-card ranking-card">
           <div className="ranking-card__header">
-            <h5 className="section-label">Топ по балансу</h5>
+            <h5 className="section-label">Топ по километрам</h5>
             <button type="button" className="chip chip--pill" onClick={() => onNavigate(0)}>
               Клиенты
             </button>
@@ -270,7 +293,7 @@ export default function DashboardTab({ onNavigate }) {
                     i === 0 ? 'ranking-item__score ranking-item__score--accent' : 'ranking-item__score'
                   }
                 >
-                  {formatMoney(u.balance, currency)}
+                  {(Number(u.total_km) || Number(u.total_distance_km) || 0).toFixed(1)} км
                 </span>
               </div>
             ))}

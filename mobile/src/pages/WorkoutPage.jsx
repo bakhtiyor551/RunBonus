@@ -116,7 +116,8 @@ export default function WorkoutPage({ user, setUser }) {
     if (syncing || !workoutId) return undefined;
     return subscribeWorkoutCommands((cmd) => {
       if (cmd.type === 'fund_exhausted') {
-        alert(cmd.message || 'Бонусный фонд пуст, начисление временно приостановлено');
+        // Legacy signal from old money mode — ignore in rewards loyalty model
+        return;
       }
       if (cmd.type === 'workout_force_stop') {
         alert(cmd.message || 'Пробежка аннулирована');
@@ -195,18 +196,19 @@ export default function WorkoutPage({ user, setUser }) {
       clearWorkoutLocal(workoutId);
       await clearWorkoutGpsBuffer(workoutId);
       setActiveWorkoutId(null);
-      if (setUser && data.balance_after != null) {
-        setUser({ ...user, balance: data.balance_after });
-      } else if (setUser) {
-        const profile = await api('/api/auth/me');
-        setUser(profile);
+      if (setUser) {
+        try {
+          const profile = await api('/api/auth/me');
+          setUser(profile);
+        } catch {
+          /* ignore */
+        }
       }
-      if (data.reward_popup) {
+      if (data.rewards_unlocked?.length || data.reward_popup) {
+        const first = data.reward_popup || data.rewards_unlocked[0];
         const milestoneId =
-          data.reward_popup.milestoneId ||
-          data.reward_popup.milestone_id ||
-          data.reward_popup.id;
-        navigate(milestoneId ? `/progress?milestone=${milestoneId}` : '/progress', { replace: true });
+          first?.milestoneId || first?.milestone_id || first?.id;
+        navigate(milestoneId ? `/rewards?milestone=${milestoneId}` : '/rewards', { replace: true });
         return;
       }
       setResult(data);
@@ -445,10 +447,18 @@ function CelebrateBlock({ result, units }) {
 }
 
 function ResultCards({ result, units }) {
-  const credited = Boolean(result.bonus_credited);
-  const bonusValue = credited ? `+${Number(result.bonus_earned).toFixed(1)}` : null;
-  const bonusNote =
-    result.reject_reason || result.message || 'Бонус не начислен по правилам программы';
+  const approved = result.status === 'approved';
+  const pending = !result.status || result.status === 'pending' || result.status === 'processing';
+  const checkLabel = approved
+    ? 'Засчитано'
+    : pending
+      ? 'Обрабатывается'
+      : result.reject_reason || result.message || 'Не засчитано';
+  const durationSec = Number(result.duration_seconds) || 0;
+  const avgSpeed =
+    durationSec > 0 && result.distance_km != null
+      ? (Number(result.distance_km) / durationSec) * 3600
+      : null;
 
   return (
     <div className="rb-workout-result-cards">
@@ -460,35 +470,68 @@ function ResultCards({ result, units }) {
           <span className="rb-workout-metric__value font-display font-tabular">
             {formatDistance(result.distance_km, units)}
           </span>
-          <span className="rb-workout-metric__label">Дистанция</span>
+          <span className="rb-workout-metric__label">Расстояние</span>
         </div>
       </div>
+
+      <div className="rb-workout-metric glass-card rb-workout-metric--neon rb-workout-result-card">
+        <div className="rb-workout-metric__icon" aria-hidden>
+          <Icon name="timer" />
+        </div>
+        <div className="rb-workout-metric__body">
+          <span className="rb-workout-metric__value font-display font-tabular">
+            {formatDuration(durationSec)}
+          </span>
+          <span className="rb-workout-metric__label">Время</span>
+        </div>
+      </div>
+
+      {avgSpeed != null && avgSpeed > 0 && (
+        <div className="rb-workout-metric glass-card rb-workout-result-card">
+          <div className="rb-workout-metric__icon" aria-hidden>
+            <Icon name="speed" />
+          </div>
+          <div className="rb-workout-metric__body">
+            <span className="rb-workout-metric__value font-display font-tabular">
+              {avgSpeed.toFixed(1)}
+            </span>
+            <span className="rb-workout-metric__label">км/ч средняя</span>
+          </div>
+        </div>
+      )}
 
       <div
         className={[
           'rb-workout-metric',
           'glass-card',
-          'rb-workout-metric--neon',
           'rb-workout-result-card',
-          credited ? '' : 'rb-workout-result-card--muted',
+          approved ? '' : 'rb-workout-result-card--muted',
         ]
           .filter(Boolean)
           .join(' ')}
       >
         <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name="stars" filled />
+          <Icon name={approved ? 'verified' : 'hourglass_top'} />
         </div>
         <div className="rb-workout-metric__body">
-          {bonusValue ? (
-            <span className="rb-workout-metric__value font-display font-tabular rb-workout-result-card__bonus">
-              {bonusValue}
-            </span>
-          ) : (
-            <span className="rb-workout-result-card__note">{bonusNote}</span>
-          )}
-          <span className="rb-workout-metric__label">Бонус</span>
+          <span className="rb-workout-result-card__note">{checkLabel}</span>
+          <span className="rb-workout-metric__label">Проверка</span>
         </div>
       </div>
+
+      {Array.isArray(result.rewards_unlocked) && result.rewards_unlocked.length > 0 && (
+        <div className="glass-card rb-workout-result-unlock">
+          <div className="rb-workout-result-unlock__icon" aria-hidden>
+            <Icon name="redeem" />
+          </div>
+          <div>
+            <p className="rb-label" style={{ margin: 0 }}>Новые награды</p>
+            <p className="rb-workout-result-unlock__names">
+              {result.rewards_unlocked.map((r) => r.name || `${r.distance} км`).join(', ')}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -18,7 +18,7 @@ npm run seed        # тестовые данные
 database/
 ├── schema.sql              Базовая схема
 ├── setup-local.sql         Создание БД и пользователя
-└── migrations/             Инкрементальные миграции (001–026)
+└── migrations/             Инкрементальные миграции (001–040)
 ```
 
 `backend/src/setupDb.js` применяет `schema.sql`, затем все файлы из `migrations/` по порядку.
@@ -27,17 +27,23 @@ database/
 
 | Таблица | Назначение |
 |---------|------------|
-| `users` | Клиенты (телефон, профиль, device_id) |
+| `users` | Клиенты (+ `total_distance_km`) |
 | `admin_users` | Администраторы |
 | `shoes` | Кроссовки с QR |
 | `user_active_shoes` | Активная пара клиента |
-| `workouts` | Тренировки (статус, дистанция, бонус) |
+| `workouts` | Тренировки (статус, подтверждённая дистанция) |
 | `workout_points` | GPS-точки маршрута |
-| `user_bonus_wallets` | Кошелёк бонусов клиента |
-| `user_bonus_transactions` | Операции по кошельку |
-| `accounts` | Счета компании (bonus_fund) |
-| `account_transactions` | Движения по счетам |
-| `bonus_settings` | Настройки программы лояльности |
+| `reward_milestones` | Контрольные точки (50/100/200/300/500 км) |
+| `rewards` | Каталог подарков/скидок |
+| `milestone_rewards` | Связь milestone ↔ награды |
+| `reward_stock` | Склад по размеру/цвету |
+| `user_rewards` | Выбранные награды пользователя |
+| `reward_delivery` | Доставка физических подарков |
+| `reward_promo_codes` | Промокоды скидок |
+| `user_bonus_wallets` | **Deprecated** — архив старого кошелька |
+| `user_bonus_transactions` | **Deprecated** — архив операций |
+| `accounts` | Счета компании (магазин/реклама; bonus_fund deprecated) |
+| `bonus_settings` | Лимиты тренировок (`price_per_km = 0`) |
 | `customer_levels` | Уровни по километражу |
 | `withdrawal_requests` | Legacy: заявки на вывод (модуль отключён) |
 | `products`, `orders` | Магазин |
@@ -52,7 +58,7 @@ database/
 | Статус | Описание |
 |--------|----------|
 | `in_progress` | Активная |
-| `approved` | Одобрена, бонус начислен |
+| `approved` | Одобрена, км добавлены к прогрессу |
 | `rejected` | Отклонена (правила) |
 | `suspicious` | Подозрительная |
 | `rejected_no_fund` | Нет средств на фонде |
