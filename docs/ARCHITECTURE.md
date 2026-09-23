@@ -45,7 +45,7 @@ backend/src/
 - `accountService.js` — бонусный фонд и кошельки клиентов
 - `workoutValidation.js` — проверка тренировки перед бонусом
 - `summaryService.js` — экран «Сводка» в приложении
-- `customerLevelService.js` — уровни клиентов по километражу
+- `shoeProgressService.js` — км-прогресс по паре кроссовок
 - `telegramService.js` — уведомления в Telegram
 
 ## Mobile

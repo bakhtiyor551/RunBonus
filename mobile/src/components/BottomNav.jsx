@@ -6,9 +6,9 @@ import { cartCount } from '../services/cart';
 
 const tabs = [
   { to: '/', label: 'Главная', icon: 'home', end: true },
-  { to: '/workouts', label: 'Тренировки', icon: 'directions_run', match: ['/workouts', '/workout'] },
-  { to: '/shop', label: 'Магазин', icon: 'storefront', badgeKey: 'cart', match: ['/shop', '/cart', '/orders'] },
-  { to: '/rewards', label: 'Награды', icon: 'redeem', badgeKey: 'rewards', match: ['/rewards', '/my-rewards'] },
+  { to: '/workouts', label: 'Тренировки', icon: 'directions_run' },
+  { to: '/achievements', label: 'Достижения', icon: 'workspace_premium' },
+  { to: '/rewards', label: 'Награды', icon: 'redeem', badgeKey: 'rewards' },
   { to: '/profile', label: 'Профиль', icon: 'person' },
 ];
 

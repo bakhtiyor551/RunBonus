@@ -6,7 +6,6 @@ export function buildClientFinishResponse({
   durationSeconds,
   balanceAfter,
   rejectReason,
-  levelUp,
 }) {
   const approved = finalStatus === 'approved';
 
@@ -29,7 +28,6 @@ export function buildClientFinishResponse({
     balance_after: undefined,
     reject_reason: rejectReason || undefined,
     message,
-    level_up: levelUp || undefined,
   };
 }
 

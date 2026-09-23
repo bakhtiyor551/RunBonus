@@ -44,7 +44,7 @@ database/
 | `user_bonus_transactions` | **Deprecated** — архив операций |
 | `accounts` | Счета компании (магазин/реклама; bonus_fund deprecated) |
 | `bonus_settings` | Лимиты тренировок (`price_per_km = 0`) |
-| `customer_levels` | Уровни по километражу |
+| `customer_levels` | **Deprecated** — бывшие уровни по км |
 | `withdrawal_requests` | Legacy: заявки на вывод (модуль отключён) |
 | `products`, `orders` | Магазин |
 | `warehouse_stock` | Склад |

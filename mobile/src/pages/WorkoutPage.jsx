@@ -439,6 +439,11 @@ function CelebrateBlock({ result, units }) {
       {result.level_up?.message && (
         <p className="rb-headline rb-celebrate__levelup">{result.level_up.message}</p>
       )}
+      {result.achievements_unlocked?.length > 0 && (
+        <p className="rb-headline rb-celebrate__achievements">
+          🏆 {result.achievements_unlocked.map((a) => a.name).join(', ')}
+        </p>
+      )}
       <p className="rb-celebrate__summary">
         {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
       </p>

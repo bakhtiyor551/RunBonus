@@ -6,11 +6,9 @@ import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authAdmin } from '../middleware/auth.js';
 import { formatDeviceAdminInfo, resetUserDevice } from '../services/deviceBinding.js';
-import adminCustomerLevelsRoutes from './adminCustomerLevels.js';
 import adminPaymentMethodsRoutes from './adminPaymentMethods.js';
 import adminDeliveryMethodsRoutes from './adminDeliveryMethods.js';
 import adminMobileWalletsRoutes from './adminMobileWallets.js';
-import { getAdminClientLevelInfo } from '../services/customerLevelService.js';
 import { buildLiveSnapshot } from '../services/liveTrackingService.js';
 
 const router = Router();
@@ -325,7 +323,6 @@ router.get('/users/:id', authAdmin, async (req, res) => {
         total_bonus_calc: Number(st.total_bonus_calc),
       },
       device: formatDeviceAdminInfo(u.device_id, u.device_bound_at),
-      level_info: await getAdminClientLevelInfo(userId),
     });
   } catch (err) {
     console.error(err);
@@ -402,7 +399,6 @@ router.get('/bonus-fund', authAdmin, (_req, res) => {
   });
 });
 
-router.use(adminCustomerLevelsRoutes);
 router.use(adminPaymentMethodsRoutes);
 router.use(adminDeliveryMethodsRoutes);
 router.use(adminMobileWalletsRoutes);

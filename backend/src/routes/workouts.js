@@ -3,12 +3,7 @@ import { pool } from '../db.js';
 import { authUser, requireActiveUser } from '../middleware/auth.js';
 import { requireActiveShoe } from '../middleware/requireActiveShoe.js';
 import { validateWorkout } from '../services/workoutValidation.js';
-import {
-  getActiveCustomerLevels,
-  ensureShoeProgress,
-  applyWorkoutProgress,
-  getLevelForKm,
-} from '../services/customerLevelService.js';
+import { ensureShoeProgress, applyWorkoutProgress } from '../services/shoeProgressService.js';
 import { getActiveBonusSettings } from '../services/bonusSettingsService.js';
 import {
   buildClientFinishResponse,
@@ -17,7 +12,14 @@ import {
 import {
   unlockMilestonesForUser,
   notifyUserRewardUnlocked,
+  getConfirmedDistanceKm,
 } from '../services/rewardService.js';
+import {
+  unlockAchievementsForUser,
+  notifyAchievementsUnlocked,
+} from '../services/achievementService.js';
+import { detectLevelUp } from '../services/levelService.js';
+import { sendPushToUser } from '../services/pushNotificationService.js';
 import {
   calcDistanceFromPoints,
   isSameCoordinates,
@@ -389,12 +391,10 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         };
       }
     }
-    const customerLevels = await getActiveCustomerLevels(conn);
     let pricePerKm = 0;
     let rawCalculatedBonus = 0;
     let bonusBreakdown = null;
     let levelSnapshot = null;
-    let levelUp = null;
     let progressKm = 0;
 
     // Rewards mode: no money-per-km. Approve on GPS OK; progress feeds milestones.
@@ -409,17 +409,7 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       } else {
         finalStatus = 'approved';
         progressKm = distanceKm;
-        if (customerLevels.length) {
-          const progress = await ensureShoeProgress(conn, userId, workout.shoe_id);
-          const kmBefore = Number(progress.total_km) || 0;
-          const { level } = getLevelForKm(kmBefore, customerLevels);
-          levelSnapshot = {
-            km_before: kmBefore,
-            km_after: kmBefore + distanceKm,
-            current_level: level?.name ?? null,
-            current_level_code: level?.code ?? null,
-          };
-        }
+        await ensureShoeProgress(conn, userId, workout.shoe_id);
       }
     }
 
@@ -451,35 +441,7 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     );
 
     if (validation.ok && finalStatus === 'approved' && progressKm > 0) {
-      if (customerLevels.length) {
-        const progressResult = await applyWorkoutProgress(
-          conn,
-          userId,
-          workout.shoe_id,
-          progressKm,
-          0
-        );
-        if (progressResult.newLevels?.length) {
-          const top = progressResult.newLevels[progressResult.newLevels.length - 1];
-          levelUp = {
-            level: top.name,
-            message: `Поздравляем! Вы перешли на уровень ${top.name}`,
-          };
-        } else if (progressResult.completed) {
-          levelUp = {
-            level: 'completed',
-            message: 'Вы достигли максимального километража по этой паре кроссовок',
-          };
-        }
-      } else {
-        await ensureShoeProgress(conn, userId, workout.shoe_id);
-        await conn.query(
-          `UPDATE user_shoe_progress
-           SET total_km = total_km + ?
-           WHERE user_id = ? AND shoe_id = ?`,
-          [progressKm, userId, workout.shoe_id]
-        );
-      }
+      await applyWorkoutProgress(conn, userId, workout.shoe_id, progressKm, 0);
     }
 
     const balanceAfter = null;
@@ -487,11 +449,34 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     await conn.commit();
 
     let unlockedRewards = [];
+    let unlockedAchievements = [];
+    let levelUp = null;
     if (finalStatus === 'approved') {
       try {
+        const prevDistance = Math.max(
+          0,
+          (await getConfirmedDistanceKm(userId)) - (Number(validation.distanceKm ?? distanceKm) || 0)
+        );
         const unlock = await unlockMilestonesForUser(userId);
         unlockedRewards = unlock.unlocked || [];
         notifyUserRewardUnlocked(userId, unlockedRewards);
+
+        const ach = await unlockAchievementsForUser(userId);
+        unlockedAchievements = ach.unlocked || [];
+        notifyAchievementsUnlocked(userId, unlockedAchievements);
+
+        levelUp = await detectLevelUp(prevDistance, unlock.totalDistance);
+        if (levelUp) {
+          sendPushToUser(userId, {
+            title: '🎉 Новый уровень!',
+            body: `Вы достигли Level ${levelUp.level} — ${levelUp.name}.`,
+            data: {
+              type: 'level_up',
+              level: String(levelUp.level),
+              path: '/achievements?tab=level',
+            },
+          }).catch(() => {});
+        }
       } catch (rewErr) {
         console.warn('[workout/finish/rewards]', rewErr.message);
       }
@@ -509,7 +494,6 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       durationSeconds,
       balanceAfter,
       rejectReason,
-      levelUp,
     });
 
     if (unlockedRewards.length) {
@@ -523,6 +507,25 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         message: `Вы достигли ${unlockedRewards[0].distance_km} км! Вам доступна награда`,
         milestoneId: unlockedRewards[0].id,
         distance: Number(unlockedRewards[0].distance_km),
+      };
+    }
+
+    if (unlockedAchievements.length) {
+      client.achievements_unlocked = unlockedAchievements.map((a) => ({
+        id: a.id,
+        code: a.code,
+        name: a.name,
+        type: a.type,
+        icon: a.icon,
+      }));
+    }
+
+    if (levelUp) {
+      client.level_up = {
+        level: levelUp.level,
+        name: levelUp.name,
+        icon: levelUp.icon,
+        message: `Вы достигли Level ${levelUp.level} — ${levelUp.name}`,
       };
     }
 
