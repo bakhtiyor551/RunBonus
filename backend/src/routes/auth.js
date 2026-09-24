@@ -78,7 +78,6 @@ router.post('/sms/register', async (req, res) => {
     res.status(201).json({
       token,
       user: profile,
-      needsProfileSetup: true,
     });
   } catch (err) {
     await conn.rollback();
@@ -419,10 +418,7 @@ async function buildUserProfile(userId, requestDeviceId = null) {
     ...base,
     clientId: userId,
     client_id: userId,
-    needsProfileSetup:
-      !String(base.first_name || '').trim() ||
-      !String(base.city || '').trim() ||
-      String(base.city || '').trim() === 'Не указан',
+    needsProfileSetup: false,
     // Legacy wallet fields kept for API compat; money accrual is disabled.
     balance: 0,
     blocked_balance: 0,

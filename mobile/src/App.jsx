@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { api, cacheUser, getCachedUser, isNetworkError, logoutApi, onForcedLogout, setToken } from './api';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
-import ProfileSetupPage from './pages/ProfileSetupPage';
 import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
 import WorkoutPage from './pages/WorkoutPage';
@@ -150,17 +149,6 @@ function App() {
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </BrowserRouter>
-        </IonApp>
-        <OfflineModal />
-      </>
-    );
-  }
-
-  if (user.needsProfileSetup) {
-    return (
-      <>
-        <IonApp>
-          <ProfileSetupPage user={user} setUser={setUser} />
         </IonApp>
         <OfflineModal />
       </>
