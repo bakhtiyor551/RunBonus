@@ -20,10 +20,6 @@ export default function ProfileSetupPage({ user, setUser }) {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!firstName.trim()) {
-      setError('Укажите имя');
-      return;
-    }
     if (!city.trim()) {
       setError('Выберите город');
       return;
@@ -63,7 +59,7 @@ export default function ProfileSetupPage({ user, setUser }) {
               Настройка профиля
             </h2>
             <p className="rb-text-muted" style={{ marginBottom: 16, fontSize: 14 }}>
-              Укажите имя и город — можно изменить позже в профиле.
+              Выберите город. Имя — по желанию, можно заполнить позже в профиле.
             </p>
 
             {clientId != null && (
@@ -76,7 +72,7 @@ export default function ProfileSetupPage({ user, setUser }) {
             )}
 
             <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
-              Имя
+              Имя <span className="rb-text-muted">(необязательно)</span>
             </label>
             <div className="rb-input-wrap" style={{ marginBottom: 14 }}>
               <input
@@ -86,7 +82,6 @@ export default function ProfileSetupPage({ user, setUser }) {
                 placeholder="Как к вам обращаться"
                 autoComplete="given-name"
                 maxLength={60}
-                required
               />
             </div>
 

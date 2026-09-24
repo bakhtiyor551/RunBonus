@@ -300,17 +300,14 @@ router.patch('/profile', authUser, async (req, res) => {
     const avatarBase64 = req.body.avatarBase64 ?? req.body.avatar_base64 ?? null;
     const cityRaw = req.body.city;
 
-    if (!firstName) {
-      return res.status(400).json({ error: 'Укажите имя' });
-    }
-
+    // Имя и фамилия необязательны (особенно после SMS-регистрации).
     const userCity =
       cityRaw !== undefined && cityRaw !== null ? String(cityRaw).trim() : null;
     if (cityRaw !== undefined && !userCity) {
       return res.status(400).json({ error: 'Выберите город' });
     }
 
-    const name = buildDisplayName(firstName, lastName);
+    const name = buildDisplayName(firstName, lastName) || `Клиент RB-${req.userId}`;
     let avatarUrl;
 
     if (avatarBase64) {
@@ -386,9 +383,7 @@ async function buildUserProfile(userId, requestDeviceId = null) {
     clientId: userId,
     client_id: userId,
     needsProfileSetup:
-      !String(base.first_name || '').trim() ||
-      !String(base.city || '').trim() ||
-      String(base.city || '').trim() === 'Не указан',
+      !String(base.city || '').trim() || String(base.city || '').trim() === 'Не указан',
     // Legacy wallet fields kept for API compat; money accrual is disabled.
     balance: 0,
     blocked_balance: 0,

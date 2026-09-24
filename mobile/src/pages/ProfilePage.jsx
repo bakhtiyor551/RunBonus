@@ -98,10 +98,6 @@ export default function ProfilePage({ user, setUser, onLogout }) {
   };
 
   const saveProfile = async () => {
-    if (!firstName.trim()) {
-      setError('Укажите имя');
-      return;
-    }
     if (!city.trim()) {
       setError('Выберите город');
       return;
