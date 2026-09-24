@@ -11,43 +11,13 @@ import { formatDuration } from '../services/geolocation';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
-import { fetchChallengeState, startChallenge } from '../services/challenges';
 import { PageAdSlots } from '../components/MobileAdSlot';
-
-const CHALLENGE_CACHE_KEY = 'rb_home_challenge';
-const FINISHED_FLAG_KEY = 'rb_has_finished_workout';
-
-function readCachedChallenge() {
-  try {
-    const raw = localStorage.getItem(CHALLENGE_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function cacheChallenge(challenge) {
-  try {
-    if (challenge) localStorage.setItem(CHALLENGE_CACHE_KEY, JSON.stringify(challenge));
-  } catch {
-    /* ignore */
-  }
-}
-
-function km(value) {
-  return (Number(value) || 0).toLocaleString('ru', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-}
 
 export default function HomePage({ user, setUser }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [starting, setStarting] = useState(false);
   const [workouts, setWorkouts] = useState([]);
-  const [challengeState, setChallengeState] = useState(null);
-  const [cachedChallenge, setCachedChallenge] = useState(() => readCachedChallenge());
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
 
@@ -66,45 +36,8 @@ export default function HomePage({ user, setUser }) {
   };
 
   const loadHome = useCallback(async () => {
-    const [history, challenges] = await Promise.all([
-      api('/api/workouts/history').catch(() => []),
-      fetchChallengeState().catch(() => null),
-    ]);
-    const list = Array.isArray(history) ? history : [];
-    setWorkouts(list);
-    const finished = list.filter((w) => w.status && w.status !== 'in_progress');
-    if (finished.length) {
-      try {
-        localStorage.setItem(FINISHED_FLAG_KEY, '1');
-      } catch {
-        /* ignore */
-      }
-    }
-
-    let state = challenges;
-    // После первой тренировки, если задания ещё нет — стартуем автоматически
-    if (finished.length > 0 && state && !state.challenge && state.nextLevel?.canStart) {
-      try {
-        state = await startChallenge(state.nextLevel.levelId);
-      } catch {
-        /* ignore */
-      }
-    }
-    if (finished.length > 0 && !state?.challenge) {
-      try {
-        state = await startChallenge();
-      } catch {
-        /* ignore */
-      }
-    }
-
-    if (state) {
-      setChallengeState(state);
-      if (state.challenge) {
-        cacheChallenge(state.challenge);
-        setCachedChallenge(state.challenge);
-      }
-    }
+    const history = await api('/api/workouts/history').catch(() => []);
+    setWorkouts(Array.isArray(history) ? history : []);
     refreshActiveWorkout();
   }, []);
 
@@ -116,29 +49,11 @@ export default function HomePage({ user, setUser }) {
     if (location.pathname === '/') loadHome().catch(() => {});
   }, [location.pathname, location.state?.refreshHome, loadHome]);
 
-  // Подхват задания с экрана результата тренировки
-  useEffect(() => {
-    const fromResult = location.state?.challenge;
-    if (fromResult) {
-      cacheChallenge(fromResult);
-      setCachedChallenge(fromResult);
-      setChallengeState((prev) => ({ ...(prev || {}), challenge: fromResult }));
-    }
-  }, [location.state?.challenge]);
-
-  const challenge = challengeState?.challenge || cachedChallenge;
-
   const finishedWorkouts = useMemo(
     () => (workouts || []).filter((w) => w.status && w.status !== 'in_progress'),
     [workouts]
   );
   const lastWorkout = finishedWorkouts[0] || null;
-  const hasFinishedFlag =
-    finishedWorkouts.length > 0 ||
-    (typeof localStorage !== 'undefined' && localStorage.getItem(FINISHED_FLAG_KEY) === '1') ||
-    Boolean(location.state?.challenge);
-  // Карточка только после первой завершённой тренировки
-  const showChallengeCard = Boolean(challenge && hasFinishedFlag);
 
   const startWorkout = async () => {
     if (starting) return;
@@ -148,7 +63,6 @@ export default function HomePage({ user, setUser }) {
         alert('Нужно подключение к интернету');
         return;
       }
-      // После доставки заказа профиль мог устареть — обновим перед стартом
       let profile = user;
       try {
         profile = await api('/api/auth/me');
@@ -159,7 +73,7 @@ export default function HomePage({ user, setUser }) {
       }
       if (!profile?.activeShoe || profile?.needsActivation) {
         alert('Кроссовки ещё не активированы. После статуса «Доставлен» тренировки откроются автоматически.');
-        navigate('/orders');
+        navigate('/shop');
         return;
       }
       const data = await api('/api/workouts/start', { method: 'POST', body: '{}' });
@@ -200,59 +114,6 @@ export default function HomePage({ user, setUser }) {
               {greetingName ? `Привет, ${greetingName}!` : 'Добро пожаловать!'}
             </h1>
           </section>
-
-          {showChallengeCard && challenge?.status === 'COMPLETED' && !challenge.rewardClaimed && (
-            <button type="button" className="glass-card rb-home-claim" onClick={() => navigate('/rewards')}>
-              <div className="rb-home-claim__icon" aria-hidden>
-                <Icon name="redeem" filled />
-              </div>
-              <div className="rb-home-claim__body">
-                <strong>Задание выполнено!</strong>
-                <span>
-                  {km(challenge.currentKm)} / {km(challenge.targetKm)} KM — заберите награду
-                </span>
-              </div>
-              <Icon name="chevron_right" />
-            </button>
-          )}
-
-          {showChallengeCard && challenge?.status === 'EXPIRED' && (
-            <button type="button" className="glass-card rb-home-claim" onClick={() => navigate('/rewards')}>
-              <div className="rb-home-claim__icon" aria-hidden>
-                <Icon name="timer_off" filled />
-              </div>
-              <div className="rb-home-claim__body">
-                <strong>Время истекло</strong>
-                <span>
-                  {km(challenge.currentKm)} / {km(challenge.targetKm)} KM — начать заново
-                </span>
-              </div>
-              <Icon name="chevron_right" />
-            </button>
-          )}
-
-          {showChallengeCard && challenge?.status === 'ACTIVE' && (
-            <section className="glass-card neon-glow rb-progress-hero">
-              <div className="rb-progress-hero__head">
-                <Icon name="flag" />
-                <span className="rb-label">{challenge.name}</span>
-              </div>
-              <div className="rb-progress-hero__distance font-display font-tabular">
-                <span className="rb-progress-hero__value">{km(challenge.currentKm)}</span>
-                <span className="rb-progress-hero__unit">/ {km(challenge.targetKm)} км</span>
-              </div>
-              <div className="rb-progress-bar" aria-label="Прогресс задания">
-                <span style={{ width: `${challenge.progressPercent}%` }} />
-              </div>
-              <div className="rb-progress-hero__row" style={{ marginTop: 12 }}>
-                <span>Осталось</span>
-                <strong>{challenge.remaining?.label || '—'}</strong>
-              </div>
-              <button type="button" className="rb-btn-pill rb-btn-pill--sm" style={{ marginTop: 12 }} onClick={() => navigate('/rewards')}>
-                Подробнее
-              </button>
-            </section>
-          )}
 
           <PageAdSlots
             page="home"

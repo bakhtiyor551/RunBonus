@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
+import ChallengeTierCard from '../components/ChallengeTierCard';
 import Icon from '../components/Icon';
 import {
   claimChallengeReward,
@@ -192,7 +193,7 @@ function ClaimSheet({ challengeId, onClose, onDone }) {
               <p className="rb-text-muted">⏱️ {result.nextLevel.deadlineDays} дней</p>
             </div>
             <button type="button" className="rb-btn-primary" disabled={saving} onClick={startNext} style={{ width: '100%', marginTop: 16 }}>
-              {saving ? 'Старт…' : 'Начать задание'}
+              {saving ? 'Старт…' : 'Продолжить'}
             </button>
             <button type="button" className="rb-btn-pill" onClick={onClose} style={{ width: '100%', marginTop: 8 }}>
               Позже
@@ -258,7 +259,7 @@ export default function ChallengesPage() {
             <div>
               <h1 className="font-display rb-headline">Задания</h1>
               <p className="rb-text-muted">
-                Бегайте, выполняйте цель в срок и получайте награды
+                L1 → L5 · цель в км · срок · награда
               </p>
             </div>
             <button type="button" className="rb-btn-pill" onClick={() => navigate('/my-rewards')}>
@@ -269,95 +270,85 @@ export default function ChallengesPage() {
           {error && <p className="rb-text-error">{error}</p>}
           {loading && <p className="rb-text-muted">Загрузка…</p>}
 
-          {!loading && challenge?.status === 'ACTIVE' && (
-            <section className="glass-card neon-glow rb-progress-hero">
-              <div className="rb-progress-hero__head">
-                <Icon name="flag" />
-                <span className="rb-label">{challenge.name}</span>
-              </div>
-              <div className="rb-progress-hero__distance font-display font-tabular">
-                <span className="rb-progress-hero__value">
-                  {km(challenge.currentKm)}
-                </span>
-                <span className="rb-progress-hero__unit">/ {km(challenge.targetKm)} км</span>
-              </div>
-              <div className="rb-progress-bar" aria-label="Прогресс задания">
-                <span style={{ width: `${challenge.progressPercent}%` }} />
-              </div>
-              <div className="rb-progress-hero__row" style={{ marginTop: 12 }}>
-                <span>Осталось времени</span>
-                <strong>{challenge.remaining?.label || '—'}</strong>
-              </div>
-              <div className="rb-progress-hero__row rb-progress-hero__row--muted">
-                <span>Осталось км</span>
-                <strong className="font-tabular">{km(challenge.remainingKm)}</strong>
-              </div>
-            </section>
-          )}
-
           {!loading && challenge?.status === 'COMPLETED' && !challenge.rewardClaimed && (
-            <section className="glass-card" style={{ padding: 20, textAlign: 'center' }}>
-              <h2 className="font-display">🎉 Задание выполнено!</h2>
-              <p className="font-tabular" style={{ fontSize: 22, margin: '8px 0' }}>
-                {km(challenge.currentKm)} / {km(challenge.targetKm)} KM
-              </p>
-              <p className="rb-text-muted">🎁 {challenge.exampleReward || 'Ваша награда готова'}</p>
+            <section className="rb-tier-banner rb-tier-banner--claim">
+              <div>
+                <strong className="font-display">Задание выполнено</strong>
+                <p>
+                  {km(challenge.currentKm)} / {km(challenge.targetKm)} KM — заберите награду
+                </p>
+              </div>
               <button
                 type="button"
                 className="rb-btn-primary"
-                style={{ width: '100%', marginTop: 16 }}
+                disabled={busy}
                 onClick={() => setClaimId(challenge.id)}
               >
-                Забрать награду
+                Забрать
               </button>
             </section>
           )}
 
           {!loading && challenge?.status === 'EXPIRED' && (
-            <section className="glass-card" style={{ padding: 20, textAlign: 'center' }}>
-              <h2 className="font-display">⏰ Время истекло</h2>
-              <p className="rb-text-muted">🎯 {km(challenge.targetKm)} KM</p>
-              <p className="font-tabular" style={{ fontSize: 20 }}>
-                {km(challenge.currentKm)} / {km(challenge.targetKm)} KM
-              </p>
-              <p className="rb-text-error">❌ Задание не выполнено</p>
-              <p className="rb-text-muted">Ваш прогресс сброшен.</p>
+            <section className="rb-tier-banner rb-tier-banner--expired">
+              <div>
+                <strong className="font-display">Время истекло</strong>
+                <p>
+                  {km(challenge.currentKm)} / {km(challenge.targetKm)} KM — прогресс сброшен
+                </p>
+              </div>
               <button
                 type="button"
                 className="rb-btn-primary"
-                style={{ width: '100%', marginTop: 16 }}
                 disabled={busy}
                 onClick={() => onStart(challenge.levelId)}
               >
-                {busy ? 'Старт…' : 'Начать заново'}
+                {busy ? '…' : 'Заново'}
               </button>
             </section>
           )}
 
           {!loading && state?.allDone && (
-            <section className="glass-card" style={{ padding: 20, textAlign: 'center' }}>
-              <h2 className="font-display">Все задания пройдены</h2>
-              <p className="rb-text-muted">Вы чемпион RunBonus</p>
+            <section className="rb-tier-banner">
+              <div>
+                <strong className="font-display">Все задания пройдены</strong>
+                <p>Вы чемпион RunBonus</p>
+              </div>
             </section>
           )}
 
-          <section className="rb-rewards-list" style={{ marginTop: 24 }}>
-            {(state?.levels || []).map((level) => (
-              <article key={level.levelId} className="glass-card rb-progress-card">
-                <div className="rb-progress-card__top">
-                  <strong className="font-display">
-                    L{level.levelNum} · {km(level.targetKm)} км
-                  </strong>
-                  <span className="rb-label">{level.status}</span>
-                </div>
-                <p className="rb-text-muted" style={{ margin: '6px 0 0' }}>
-                  {level.name} · {level.deadlineDays} дн.
-                </p>
-                {level.exampleReward && (
-                  <p className="rb-progress-card__remaining">{level.exampleReward}</p>
-                )}
-              </article>
-            ))}
+          <section className="rb-tier-list" aria-label="Уровни заданий">
+            {(state?.levels || []).map((level) => {
+              const isCurrent = challenge && Number(challenge.levelNum) === Number(level.levelNum);
+              const status = isCurrent ? challenge.status : level.status;
+              return (
+                <ChallengeTierCard
+                  key={level.levelId}
+                  levelNum={level.levelNum}
+                  targetKm={level.targetKm}
+                  name={level.name}
+                  deadlineDays={level.deadlineDays}
+                  exampleReward={level.exampleReward}
+                  description={level.description}
+                  status={status}
+                  currentKm={isCurrent ? challenge.currentKm : undefined}
+                  progressPercent={isCurrent ? challenge.progressPercent : undefined}
+                  remainingLabel={
+                    isCurrent && status === 'ACTIVE' ? challenge.remaining?.label : undefined
+                  }
+                  onAction={
+                    status === 'COMPLETED' && isCurrent && !challenge.rewardClaimed
+                      ? () => setClaimId(challenge.id)
+                      : undefined
+                  }
+                  actionLabel={
+                    status === 'COMPLETED' && isCurrent && !challenge.rewardClaimed
+                      ? 'Забрать награду'
+                      : undefined
+                  }
+                />
+              );
+            })}
           </section>
         </main>
       </IonContent>
