@@ -24,8 +24,9 @@ import adminRewardsRoutes from './routes/adminRewards.js';
 import challengesRoutes from './routes/challenges.js';
 import adminChallengesRoutes from './routes/adminChallenges.js';
 import leaderboardRoutes from './routes/leaderboard.js';
+import telegramRoutes from './routes/telegram.js';
 import { buildDailyTelegramReport } from './services/reportsService.js';
-import { sendTelegramMessage } from './services/telegramService.js';
+import { sendTelegramMessage, ensureTelegramWebhook } from './services/telegramService.js';
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use('/api/admin/rewards', adminRewardsRoutes);
 app.use('/api/challenges', challengesRoutes);
 app.use('/api/admin/challenges', adminChallengesRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 /** Утренний Telegram-отчёт (08:00, один раз в сутки). */
 let lastDailyReportKey = '';
@@ -94,4 +96,5 @@ initWebSockets(httpServer);
 
 httpServer.listen(config.port, '0.0.0.0', () => {
   console.log(`API: http://localhost:${config.port} (доступен в сети по IP ПК:${config.port})`);
+  ensureTelegramWebhook().catch((err) => console.warn('[Telegram] setWebhook:', err.message));
 });
