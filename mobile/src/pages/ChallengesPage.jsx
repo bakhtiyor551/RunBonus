@@ -345,14 +345,17 @@ export default function ChallengesPage() {
               {nextLevel.exampleReward && (
                 <p className="rb-text-muted">🎁 {nextLevel.exampleReward}</p>
               )}
+              <p className="rb-text-muted" style={{ marginTop: 12, fontSize: 13 }}>
+                Запустится автоматически при старте тренировки
+              </p>
               <button
                 type="button"
-                className="rb-btn-primary"
-                style={{ width: '100%', marginTop: 16 }}
+                className="rb-btn-pill"
+                style={{ width: '100%', marginTop: 12 }}
                 disabled={busy}
                 onClick={() => onStart(nextLevel.levelId)}
               >
-                {busy ? 'Старт…' : 'Начать задание'}
+                {busy ? 'Старт…' : 'Или начать сейчас'}
               </button>
             </section>
           )}

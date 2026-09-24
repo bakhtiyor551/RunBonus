@@ -12,7 +12,7 @@ import { formatDuration } from '../services/geolocation';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
-import { fetchChallengeState, startChallenge } from '../services/challenges';
+import { fetchChallengeState } from '../services/challenges';
 import { PageAdSlots } from '../components/MobileAdSlot';
 
 function km(value) {
@@ -30,7 +30,6 @@ export default function HomePage({ user, setUser }) {
   const [challengeState, setChallengeState] = useState(null);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
-  const [challengeBusy, setChallengeBusy] = useState(false);
 
   const refreshActiveWorkout = () => {
     syncActiveWorkoutWithServer()
@@ -103,19 +102,6 @@ export default function HomePage({ user, setUser }) {
       alert(err.message || 'Не удалось начать тренировку');
     } finally {
       setStarting(false);
-    }
-  };
-
-  const onStartChallenge = async (levelId) => {
-    setChallengeBusy(true);
-    try {
-      const data = await startChallenge(levelId);
-      setChallengeState(data);
-      navigate('/rewards');
-    } catch (err) {
-      alert(err.message || 'Не удалось начать задание');
-    } finally {
-      setChallengeBusy(false);
     }
   };
 
@@ -210,15 +196,9 @@ export default function HomePage({ user, setUser }) {
                 ⏱️ {nextLevel.deadlineDays} дней
                 {nextLevel.exampleReward ? ` · 🎁 ${nextLevel.exampleReward}` : ''}
               </p>
-              <button
-                type="button"
-                className="rb-btn-primary"
-                style={{ width: '100%', marginTop: 16 }}
-                disabled={challengeBusy}
-                onClick={() => onStartChallenge(nextLevel.levelId)}
-              >
-                {challengeBusy ? 'Старт…' : 'Начать задание'}
-              </button>
+              <p className="rb-text-muted" style={{ margin: '10px 0 0', fontSize: 13 }}>
+                Задание запустится автоматически при старте тренировки
+              </p>
             </section>
           )}
 
