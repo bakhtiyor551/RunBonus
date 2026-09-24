@@ -4,7 +4,6 @@ import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/r
 import { api, cacheUser } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
-import ShoeBindBanner from '../components/ShoeBindBanner';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
 import Icon from '../components/Icon';
 import { formatWorkoutDate } from '../utils/format';
@@ -121,8 +120,6 @@ export default function HomePage({ user, setUser }) {
         </IonRefresher>
 
         <main className="rb-main rb-home-progress">
-          <ShoeBindBanner user={user} />
-
           <section className="rb-home-welcome">
             <p className="rb-label" style={{ margin: 0 }}>
               RunBonus

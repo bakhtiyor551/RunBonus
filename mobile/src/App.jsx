@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { IonApp } from '@ionic/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api, cacheUser, getCachedUser, isNetworkError, logoutApi, onForcedLogout, setToken } from './api';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
@@ -37,30 +37,34 @@ function PushNavigationBridge() {
   return null;
 }
 
-/** Неактивированные клиенты и первый вход → магазин. */
+/** При каждом открытии приложения без активации — магазин; дальше можно смотреть другие разделы. */
 function InactiveShopRedirect({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const redirectedThisLaunch = useRef(false);
 
   useEffect(() => {
-    const needsShop =
-      sessionStorage.getItem('rb_open_shop') === '1' ||
-      user?.needsActivation ||
-      !user?.activeShoe;
+    const needsActivation = Boolean(user?.needsActivation || !user?.activeShoe);
+    if (!needsActivation) {
+      redirectedThisLaunch.current = false;
+      sessionStorage.removeItem('rb_open_shop');
+      return;
+    }
 
-    if (!needsShop) return;
+    const fromRegister = sessionStorage.getItem('rb_open_shop') === '1';
+    if (redirectedThisLaunch.current && !fromRegister) return;
 
+    redirectedThisLaunch.current = true;
     sessionStorage.removeItem('rb_open_shop');
 
     const path = location.pathname || '/';
-    const allowed =
+    const onShopFlow =
       path === '/shop' ||
       path.startsWith('/shop/') ||
       path === '/cart' ||
-      path === '/orders' ||
-      path === '/profile';
+      path === '/orders';
 
-    if (!allowed) {
+    if (!onShopFlow) {
       navigate('/shop', { replace: true });
     }
   }, [user, location.pathname, navigate]);

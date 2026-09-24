@@ -4,7 +4,6 @@ import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
-import ShoeBindBanner from '../components/ShoeBindBanner';
 import Icon from '../components/Icon';
 import CityPicker from '../components/CityPicker';
 import { formatPhoneDisplay } from '../utils/phone';
@@ -136,7 +135,6 @@ export default function ProfilePage({ user, setUser, onLogout }) {
       <AppHeader showAvatar={false} />
       <IonContent>
         <main className="rb-main">
-          <ShoeBindBanner user={user} />
           <section className="rb-profile-hero">
             <input
               ref={fileRef}
