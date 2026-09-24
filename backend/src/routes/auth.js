@@ -94,41 +94,72 @@ router.post('/sms/register', async (req, res) => {
 });
 
 router.post('/sms/login', async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { phone, code } = req.body;
     const phoneNorm = await verifyCode(phone, 'login', code);
-
-    const [rows] = await pool.query('SELECT * FROM users WHERE phone = ?', [phoneNorm]);
-    if (!rows.length) {
-      return res.status(404).json({ error: 'Пользователь не найден' });
-    }
-
-    const user = rows[0];
-    if (user.status === 'blocked') {
-      return res.status(403).json({ error: 'Аккаунт заблокирован' });
-    }
 
     const deviceId = getDeviceIdFromRequest(req);
     if (!deviceId) {
       return res.status(400).json({ error: 'Не удалось определить устройство' });
     }
 
-    const bindResult = await bindDeviceOnLogin(pool, user.id, deviceId);
-    const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '30d' });
-    const profile = await buildUserProfile(user.id, deviceId);
+    const [rows] = await conn.query('SELECT * FROM users WHERE phone = ?', [phoneNorm]);
+    let userId;
+    let isNew = false;
+    let bindResult = { device_changed: false };
 
-    res.json({
+    if (!rows.length) {
+      // Первый вход — создаём аккаунт, дальше экран настройки (имя + город)
+      isNew = true;
+      const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
+      await conn.beginTransaction();
+      const [result] = await conn.query(
+        `INSERT INTO users (name, first_name, last_name, phone, password_hash, city, device_id, device_bound_at)
+         VALUES (?, NULL, NULL, ?, ?, ?, ?, NOW())`,
+        ['', phoneNorm, passwordHash, 'Не указан', deviceId]
+      );
+      userId = result.insertId;
+      try {
+        await conn.query(
+          'INSERT INTO user_bonus_wallets (user_id, balance, blocked_balance, total_earned, total_spent, total_withdrawn) VALUES (?, 0, 0, 0, 0, 0)',
+          [userId]
+        );
+      } catch {
+        /* wallet table optional */
+      }
+      await conn.commit();
+    } else {
+      const user = rows[0];
+      if (user.status === 'blocked') {
+        return res.status(403).json({ error: 'Аккаунт заблокирован' });
+      }
+      userId = user.id;
+      bindResult = await bindDeviceOnLogin(pool, userId, deviceId);
+    }
+
+    const token = jwt.sign({ userId }, config.jwtSecret, { expiresIn: '30d' });
+    const profile = await buildUserProfile(userId, deviceId);
+
+    res.status(isNew ? 201 : 200).json({
       token,
       user: profile,
+      isNew,
       device_changed: bindResult.device_changed,
       message: bindResult.device_changed
         ? 'Аккаунт привязан к этому телефону. Другие устройства отключены.'
         : undefined,
     });
   } catch (err) {
+    await conn.rollback().catch(() => {});
     if (err.status) return res.status(err.status).json({ error: err.message });
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Этот номер уже используется' });
+    }
     console.error(err);
     res.status(500).json({ error: 'Ошибка входа' });
+  } finally {
+    conn.release();
   }
 });
 
@@ -300,11 +331,17 @@ router.patch('/profile', authUser, async (req, res) => {
     const avatarBase64 = req.body.avatarBase64 ?? req.body.avatar_base64 ?? null;
     const cityRaw = req.body.city;
 
-    // Имя и фамилия необязательны (особенно после SMS-регистрации).
     const userCity =
       cityRaw !== undefined && cityRaw !== null ? String(cityRaw).trim() : null;
     if (cityRaw !== undefined && !userCity) {
       return res.status(400).json({ error: 'Выберите город' });
+    }
+    // Первый вход / настройка: имя обязательно вместе с городом
+    if (userCity != null && !firstName) {
+      return res.status(400).json({ error: 'Укажите имя' });
+    }
+    if (!firstName && cityRaw === undefined && !avatarBase64) {
+      return res.status(400).json({ error: 'Укажите имя' });
     }
 
     const name = buildDisplayName(firstName, lastName) || `Клиент RB-${req.userId}`;
@@ -383,7 +420,9 @@ async function buildUserProfile(userId, requestDeviceId = null) {
     clientId: userId,
     client_id: userId,
     needsProfileSetup:
-      !String(base.city || '').trim() || String(base.city || '').trim() === 'Не указан',
+      !String(base.first_name || '').trim() ||
+      !String(base.city || '').trim() ||
+      String(base.city || '').trim() === 'Не указан',
     // Legacy wallet fields kept for API compat; money accrual is disabled.
     balance: 0,
     blocked_balance: 0,

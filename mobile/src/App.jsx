@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { api, cacheUser, getCachedUser, isNetworkError, logoutApi, onForcedLogout, setToken } from './api';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
@@ -148,7 +147,6 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage onAuth={onAuth} />} />
-              <Route path="/register" element={<RegisterPage onAuth={onAuth} />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </BrowserRouter>

@@ -88,12 +88,8 @@ export async function sendVerificationCode(phoneRaw, purpose) {
     err.status = 409;
     throw err;
   }
-  if (purpose === 'login' && !userExists) {
-    const err = new Error('Номер не найден. Создайте аккаунт.');
-    err.status = 404;
-    throw err;
-  }
-  if (purpose === 'login' && users[0]?.status === 'blocked') {
+  // login: код можно отправить и новому, и существующему номеру
+  if (purpose === 'login' && userExists && users[0]?.status === 'blocked') {
     const err = new Error('Аккаунт заблокирован');
     err.status = 403;
     throw err;

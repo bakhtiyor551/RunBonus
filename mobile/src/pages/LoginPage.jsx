@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
 import { api } from '../api';
 import BoltIcon from '../components/BoltIcon';
@@ -153,12 +152,6 @@ export default function LoginPage({ onAuth }) {
               </button>
             </form>
           )}
-
-          <p className="rb-login-page__footer">
-            <Link to="/register" className="rb-link">
-              Создать аккаунт
-            </Link>
-          </p>
         </main>
       </IonContent>
     </IonPage>

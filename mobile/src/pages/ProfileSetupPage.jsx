@@ -5,8 +5,7 @@ import BoltIcon from '../components/BoltIcon';
 import CityPicker from '../components/CityPicker';
 
 /**
- * После регистрации по телефону: имя + город.
- * Client ID уже создан на сервере (users.id).
+ * Первый вход: имя + город. Client ID уже создан при SMS-входе.
  */
 export default function ProfileSetupPage({ user, setUser }) {
   const [firstName, setFirstName] = useState(user?.first_name || '');
@@ -20,6 +19,10 @@ export default function ProfileSetupPage({ user, setUser }) {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!firstName.trim()) {
+      setError('Укажите имя');
+      return;
+    }
     if (!city.trim()) {
       setError('Выберите город');
       return;
@@ -59,7 +62,7 @@ export default function ProfileSetupPage({ user, setUser }) {
               Настройка профиля
             </h2>
             <p className="rb-text-muted" style={{ marginBottom: 16, fontSize: 14 }}>
-              Выберите город. Имя — по желанию, можно заполнить позже в профиле.
+              Укажите имя и выберите город.
             </p>
 
             {clientId != null && (
@@ -72,7 +75,7 @@ export default function ProfileSetupPage({ user, setUser }) {
             )}
 
             <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
-              Имя <span className="rb-text-muted">(необязательно)</span>
+              Имя
             </label>
             <div className="rb-input-wrap" style={{ marginBottom: 14 }}>
               <input
@@ -82,6 +85,7 @@ export default function ProfileSetupPage({ user, setUser }) {
                 placeholder="Как к вам обращаться"
                 autoComplete="given-name"
                 maxLength={60}
+                required
               />
             </div>
 
