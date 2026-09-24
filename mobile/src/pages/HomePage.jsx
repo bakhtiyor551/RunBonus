@@ -135,8 +135,9 @@ export default function HomePage({ user, setUser }) {
   const lastWorkout = finishedWorkouts[0] || null;
   const hasFinishedFlag =
     finishedWorkouts.length > 0 ||
-    (typeof localStorage !== 'undefined' && localStorage.getItem(FINISHED_FLAG_KEY) === '1');
-  // Карточка после первой завершённой тренировки (или если задание уже есть в кэше)
+    (typeof localStorage !== 'undefined' && localStorage.getItem(FINISHED_FLAG_KEY) === '1') ||
+    Boolean(location.state?.challenge);
+  // Карточка только после первой завершённой тренировки
   const showChallengeCard = Boolean(challenge && hasFinishedFlag);
 
   const startWorkout = async () => {

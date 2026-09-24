@@ -411,6 +411,67 @@ export async function startChallenge(userId, { levelId } = {}) {
 }
 
 /**
+ * После финиша первой тренировки: создаём ACTIVE challenge со start_at = начало тренировки,
+ * чтобы км этой пробежки сразу вошли в прогресс.
+ */
+export async function ensureChallengeForFinishedWorkout(userId, workoutStartedAt) {
+  try {
+    let open = await findOpenChallenge(userId);
+    if (open) {
+      open = await expireIfNeeded(open);
+      if (open.status === 'ACTIVE') {
+        return { challengeId: open.id, started: false, reason: 'already_active' };
+      }
+      if (open.status === 'COMPLETED' && !open.reward_claimed_at) {
+        return { challengeId: open.id, started: false, reason: 'awaiting_claim' };
+      }
+    }
+
+    const startable =
+      open?.status === 'EXPIRED'
+        ? (
+            await pool.query(`SELECT * FROM challenge_levels WHERE id = ? AND status = 'active'`, [
+              open.level_id,
+            ])
+          )[0][0]
+        : await nextStartableLevel(userId);
+
+    if (!startable) {
+      return { challengeId: null, started: false, reason: 'nothing_to_start' };
+    }
+
+    const [[att]] = await pool.query(
+      `SELECT COALESCE(MAX(attempt), 0) + 1 AS next_attempt
+       FROM user_challenges WHERE user_id = ? AND level_id = ?`,
+      [userId, startable.id]
+    );
+    const attempt = Number(att.next_attempt || 1);
+    const startAt = workoutStartedAt ? new Date(workoutStartedAt) : new Date();
+    const expiresAt = new Date(
+      startAt.getTime() + Number(startable.deadline_days || startable.deadlineDays || 7) * 86400000
+    );
+
+    const [ins] = await pool.query(
+      `INSERT INTO user_challenges
+        (user_id, level_id, status, target_km, current_km, start_at, expires_at, attempt)
+       VALUES (?, ?, 'ACTIVE', ?, 0, ?, ?, ?)`,
+      [
+        userId,
+        startable.id,
+        startable.target_km ?? startable.targetKm,
+        startAt,
+        expiresAt,
+        attempt,
+      ]
+    );
+    return { challengeId: ins.insertId, started: true, reason: 'started_on_finish' };
+  } catch (err) {
+    console.warn('[challenge/finish-boot]', err.message || err);
+    return { challengeId: null, started: false, reason: 'error', error: err.message };
+  }
+}
+
+/**
  * При старте тренировки: если нет ACTIVE задания — автоматически запускаем
  * следующее доступное (или перезапуск EXPIRED). Не трогаем COMPLETED без claim.
  */

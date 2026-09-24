@@ -123,6 +123,11 @@ export default function WorkoutPage({ user, setUser }) {
 
   useEffect(() => {
     if (!workoutId) return;
+    // Во время первой тренировки карточку не грузим — она появится после финиша
+    if (localStorage.getItem('rb_has_finished_workout') !== '1') {
+      setChallenge(null);
+      return;
+    }
     let cancelled = false;
     fetchChallengeState()
       .then((data) => {
@@ -229,18 +234,8 @@ export default function WorkoutPage({ user, setUser }) {
           /* ignore */
         }
       }
-      if (data.challenge_completed || data.challenge?.status === 'COMPLETED') {
-        navigate('/rewards', { replace: true });
-        return;
-      }
-      if (data.rewards_unlocked?.length || data.reward_popup) {
-        const first = data.reward_popup || data.rewards_unlocked[0];
-        const milestoneId =
-          first?.milestoneId || first?.milestone_id || first?.id;
-        navigate(milestoneId ? `/milestones?milestone=${milestoneId}` : '/milestones', { replace: true });
-        return;
-      }
-      // Обновим задание для карточки на главной после первой тренировки
+
+      // После первой завершённой тренировки — задание и флаг для карточки на главной
       let challengeForHome = data.challenge || null;
       try {
         localStorage.setItem('rb_has_finished_workout', '1');
@@ -259,6 +254,25 @@ export default function WorkoutPage({ user, setUser }) {
         /* ignore */
       }
       data.challenge = challengeForHome;
+
+      if (data.challenge_completed || challengeForHome?.status === 'COMPLETED') {
+        navigate('/rewards', { replace: true, state: { challenge: challengeForHome } });
+        return;
+      }
+      // Первое задание показываем на экране результата / главной, не уводим сразу на milestones
+      if (
+        (data.rewards_unlocked?.length || data.reward_popup) &&
+        challengeForHome?.status !== 'ACTIVE'
+      ) {
+        const first = data.reward_popup || data.rewards_unlocked[0];
+        const milestoneId =
+          first?.milestoneId || first?.milestone_id || first?.id;
+        navigate(milestoneId ? `/milestones?milestone=${milestoneId}` : '/milestones', {
+          replace: true,
+          state: { challenge: challengeForHome },
+        });
+        return;
+      }
       setResult(data);
     } catch (err) {
       if (err.code === 'DEVICE_MISMATCH') {
@@ -315,7 +329,8 @@ export default function WorkoutPage({ user, setUser }) {
           <main className="rb-main rb-workout-result">
             <CelebrateBlock result={result} units={units} />
             <ResultCards result={result} units={units} />
-            {(result.challenge || challenge)?.status === 'ACTIVE' && (
+            {(result.challenge || challenge) &&
+              ['ACTIVE', 'COMPLETED', 'EXPIRED'].includes((result.challenge || challenge).status) && (
               <section className="rb-workout-challenge glass-card neon-glow" style={{ marginTop: 20 }}>
                 <div className="rb-workout-challenge__head">
                   <Icon name="flag" filled />

@@ -13,7 +13,7 @@ import {
   unlockMilestonesForUser,
   notifyUserRewardUnlocked,
 } from '../services/rewardService.js';
-import { applyWorkoutToActiveChallenge, ensureChallengeActiveForWorkout } from '../services/challengeService.js';
+import { applyWorkoutToActiveChallenge, ensureChallengeForFinishedWorkout } from '../services/challengeService.js';
 import {
   calcDistanceFromPoints,
   isSameCoordinates,
@@ -115,8 +115,8 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
       return res.status(400).json({ error: CLIENT_START_ERRORS.SHOE_INACTIVE });
     }
 
-    // Задание стартует вместе с тренировкой (если ещё не ACTIVE)
-    const challengeBoot = await ensureChallengeActiveForWorkout(req.userId);
+    // Задание стартуем при финише (start_at = начало этой тренировки)
+    const challengeBoot = { started: false, reason: 'deferred_to_finish' };
 
     await conn.beginTransaction();
     await closeStaleWorkouts(conn, req.userId);
@@ -458,28 +458,14 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
 
     let unlockedRewards = [];
     let challengeUpdate = null;
-    // Задание нужно и при rejected — чтобы карточка на главной появилась
     try {
-      await ensureChallengeActiveForWorkout(userId);
-    } catch (chBootErr) {
-      console.warn('[workout/finish/challenge-boot]', chBootErr.message);
-    }
-    if (finalStatus === 'approved') {
-      try {
-        const unlock = await unlockMilestonesForUser(userId);
-        unlockedRewards = unlock.unlocked || [];
-        notifyUserRewardUnlocked(userId, unlockedRewards);
-      } catch (rewErr) {
-        console.warn('[workout/finish/rewards]', rewErr.message);
-      }
-      try {
-        challengeUpdate = await applyWorkoutToActiveChallenge(userId, {
-          distanceKm: validation.distanceKm ?? distanceKm,
-          finishedAt,
-        });
-      } catch (chErr) {
-        console.warn('[workout/finish/challenge]', chErr.message);
-      }
+      await ensureChallengeForFinishedWorkout(userId, workout.started_at);
+      challengeUpdate = await applyWorkoutToActiveChallenge(userId, {
+        distanceKm: validation.distanceKm ?? distanceKm,
+        finishedAt,
+      });
+    } catch (chErr) {
+      console.warn('[workout/finish/challenge]', chErr.message);
     }
     if (!challengeUpdate) {
       try {
@@ -488,6 +474,15 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         challengeUpdate = state?.challenge || null;
       } catch {
         /* optional */
+      }
+    }
+    if (finalStatus === 'approved') {
+      try {
+        const unlock = await unlockMilestonesForUser(userId);
+        unlockedRewards = unlock.unlocked || [];
+        notifyUserRewardUnlocked(userId, unlockedRewards);
+      } catch (rewErr) {
+        console.warn('[workout/finish/rewards]', rewErr.message);
       }
     }
 
