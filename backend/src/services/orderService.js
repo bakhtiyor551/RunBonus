@@ -26,7 +26,7 @@ const STATUS_LABELS = {
   paid: 'Оплачен',
   delivered: 'Доставлен',
   cancelled: 'Отменён',
-  qr_issued: 'QR выдан',
+  qr_issued: 'Кроссовки привязаны',
 };
 
 export function statusLabel(status) {
@@ -467,6 +467,30 @@ export async function listAdminOrders() {
   );
 }
 
+async function activateAssignedShoeForOrder(conn, order) {
+  if (!order?.user_id || !order?.assigned_shoe_id) return null;
+
+  const [shoes] = await conn.query(`SELECT * FROM shoes WHERE id = ? FOR UPDATE`, [
+    order.assigned_shoe_id,
+  ]);
+  if (!shoes.length) {
+    const err = new Error('К кроссовкам заказа не найден код');
+    err.status = 400;
+    throw err;
+  }
+  const shoe = shoes[0];
+  if (shoe.status === 'activated') {
+    // Already active — ensure user_active_shoes link
+    await conn.query(
+      `INSERT INTO user_active_shoes (user_id, shoe_id) VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE shoe_id = VALUES(shoe_id)`,
+      [order.user_id, shoe.id]
+    );
+    return { id: shoe.id, unique_id: shoe.unique_id, model_name: shoe.model_name, alreadyActive: true };
+  }
+  return activateShoeForUserAdmin(conn, order.user_id, shoe.unique_id);
+}
+
 export async function updateOrderStatus(orderId, status) {
   const allowed = ['new', 'confirmed', 'paid', 'delivered', 'cancelled', 'qr_issued'];
   if (!allowed.includes(status)) {
@@ -480,13 +504,31 @@ export async function updateOrderStatus(orderId, status) {
   try {
     await conn.beginTransaction();
 
-    const [orders] = await conn.query(`SELECT status FROM shop_orders WHERE id = ? FOR UPDATE`, [orderId]);
+    const [orders] = await conn.query(
+      `SELECT * FROM shop_orders WHERE id = ? FOR UPDATE`,
+      [orderId]
+    );
     if (!orders.length) {
       const err = new Error('Заказ не найден');
       err.status = 404;
       throw err;
     }
-    prevStatus = orders[0].status;
+    const order = orders[0];
+    prevStatus = order.status;
+
+    if (status === 'delivered' && prevStatus !== 'delivered') {
+      if (!order.assigned_shoe_id) {
+        const err = new Error('Сначала привяжите код кроссовок к заказу');
+        err.status = 400;
+        throw err;
+      }
+      if (!order.user_id) {
+        const err = new Error('У заказа нет пользователя приложения — активация невозможна');
+        err.status = 400;
+        throw err;
+      }
+      await activateAssignedShoeForOrder(conn, order);
+    }
 
     await conn.query(`UPDATE shop_orders SET status = ? WHERE id = ?`, [status, orderId]);
 
@@ -507,7 +549,9 @@ export async function updateOrderStatus(orderId, status) {
   return order;
 }
 
+/** Привязать код кроссовок к заказу (без активации). Активация — при статусе «Доставлен». */
 export async function assignQrToOrder(orderId, uniqueIdRaw, adminDeviceId = null) {
+  void adminDeviceId;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -524,17 +568,45 @@ export async function assignQrToOrder(orderId, uniqueIdRaw, adminDeviceId = null
       throw err;
     }
 
-    const shoe = await activateShoeForUserAdmin(conn, order.user_id, uniqueIdRaw);
+    const unique_id = String(uniqueIdRaw || '')
+      .trim()
+      .toUpperCase();
+    if (!unique_id) {
+      const err = new Error('Введите код кроссовок');
+      err.status = 400;
+      throw err;
+    }
 
+    const [shoes] = await conn.query(`SELECT * FROM shoes WHERE unique_id = ? FOR UPDATE`, [unique_id]);
+    if (!shoes.length) {
+      const err = new Error('Код не найден');
+      err.status = 404;
+      throw err;
+    }
+    const shoe = shoes[0];
+    if (shoe.status === 'blocked' || shoe.status === 'expired') {
+      const err = new Error('Этот код недоступен');
+      err.status = 403;
+      throw err;
+    }
+    if (shoe.status === 'activated' && Number(shoe.activated_by_user_id) !== Number(order.user_id)) {
+      const err = new Error('Код уже активирован другим пользователем');
+      err.status = 409;
+      throw err;
+    }
+
+    // Только привязка. Активация произойдёт при статусе delivered.
     await conn.query(
-      `UPDATE shop_orders SET assigned_shoe_id = ?, status = 'qr_issued' WHERE id = ?`,
+      `UPDATE shop_orders SET assigned_shoe_id = ?, status = IF(status = 'delivered', status, 'qr_issued') WHERE id = ?`,
       [shoe.id, orderId]
     );
 
     await conn.commit();
     const updated = await getOrderById(orderId);
-    notifyOrderStatusPush(updated, order.status, 'qr_issued');
-    return { order: updated, shoe };
+    if (order.status !== updated.status) {
+      notifyOrderStatusPush(updated, order.status, updated.status);
+    }
+    return { order: updated, shoe: { id: shoe.id, unique_id: shoe.unique_id, model_name: shoe.model_name } };
   } catch (err) {
     await conn.rollback();
     throw err;

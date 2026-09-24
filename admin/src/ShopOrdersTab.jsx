@@ -7,7 +7,7 @@ const STATUS_OPTIONS = [
   { value: 'new', label: 'Новый' },
   { value: 'confirmed', label: 'Подтверждён' },
   { value: 'paid', label: 'Оплачен' },
-  { value: 'qr_issued', label: 'QR выдан' },
+  { value: 'qr_issued', label: 'Кроссовки привязаны' },
   { value: 'delivered', label: 'Доставлен' },
   { value: 'cancelled', label: 'Отменён' },
 ];
@@ -59,7 +59,7 @@ function ShopOrderCard({
   onAssignQr,
 }) {
   const hasUser = Boolean(order.user_id);
-  const showQrForm = order.status !== 'qr_issued' && hasUser;
+  const showShoeAssign = !order.assigned_shoe_code && hasUser && order.status !== 'delivered' && order.status !== 'cancelled';
 
   return (
     <article
@@ -149,7 +149,7 @@ function ShopOrderCard({
           </select>
         </label>
 
-        {showQrForm ? (
+        {showShoeAssign ? (
           <div className="shop-order-card__qr">
             <input
               placeholder="SHOE-..."
@@ -157,13 +157,14 @@ function ShopOrderCard({
               onChange={(e) => onQrChange(order.id, e.target.value)}
             />
             <button type="button" className="btn btn--sm" onClick={() => onAssignQr(order.id)}>
-              Выдать QR
+              Привязать
             </button>
           </div>
         ) : order.assigned_shoe_code ? (
           <p className="entity-card__meta">
-            <Icon name="qr_code_2" />
+            <Icon name="directions_run" />
             {order.assigned_shoe_code}
+            {order.status === 'delivered' ? ' · активированы' : ' · ждут доставки'}
           </p>
         ) : null}
       </div>
@@ -228,7 +229,7 @@ export default function ShopOrdersTab() {
   const assignQr = async (id) => {
     const unique_id = qrForms[id]?.trim();
     if (!unique_id) {
-      alert('Введите QR/ID кроссовок');
+      alert('Введите код кроссовок (SHOE-...)');
       return;
     }
     try {
@@ -236,7 +237,7 @@ export default function ShopOrdersTab() {
         method: 'POST',
         body: JSON.stringify({ unique_id }),
       });
-      alert('QR привязан, кроссовки активированы');
+      alert('Кроссовки привязаны к заказу. Активация — при статусе «Доставлен».');
       load();
     } catch (err) {
       alert(err.message);

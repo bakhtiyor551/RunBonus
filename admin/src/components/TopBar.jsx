@@ -3,7 +3,6 @@ import Icon from './Icon';
 const TITLES = {
   dashboard: 'Dashboard Analytics',
   0: 'Клиенты',
-  1: 'QR / Кроссовки',
   2: 'Тренировки',
   8: 'Магазин — товары',
   12: 'Склад',
@@ -11,6 +10,7 @@ const TITLES = {
   9: 'Заказы магазина',
   10: 'Способы оплаты',
   rewards: 'Награды',
+  challenges: 'Задания',
   ads: 'Реклама',
 };
 

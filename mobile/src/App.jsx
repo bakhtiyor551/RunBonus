@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { api, cacheUser, getCachedUser, isNetworkError, logoutApi, onForcedLogout, setToken } from './api';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
-import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
 import WorkoutPage from './pages/WorkoutPage';
 import ProfilePage from './pages/ProfilePage';
@@ -170,19 +169,7 @@ function App() {
             <Route path="/milestones" element={<ProgressPage />} />
             <Route path="/my-rewards" element={<MyRewardsPage />} />
             <Route path="/progress" element={<Navigate to="/rewards" replace />} />
-            <Route
-              path="/activate"
-              element={
-                <ActivatePage
-                  user={user}
-                  onActivated={async () => {
-                    const profile = await api('/api/auth/me');
-                    cacheUser(profile);
-                    setUser(profile);
-                  }}
-                />
-              }
-            />
+            <Route path="/activate" element={<Navigate to="/shop" replace />} />
             <Route path="/workouts" element={<WorkoutHistoryPage />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
             <Route path="/shop/:id" element={<ProductDetailPage />} />

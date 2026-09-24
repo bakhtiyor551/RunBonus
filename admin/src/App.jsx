@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from './api';
 import WorkoutsTab from './WorkoutsTab';
-import QrShoesTab from './QrShoesTab';
 import DashboardTab from './DashboardTab';
 import ClientsTab from './ClientsTab';
 import ShopProductsTab from './ShopProductsTab';
@@ -14,7 +13,6 @@ import RewardsTab from './rewards/RewardsTab';
 import ChallengesTab from './challenges/ChallengesTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
-import Icon from './components/Icon';
 import LoginPage from './LoginPage';
 
 export default function App() {
@@ -79,11 +77,6 @@ export default function App() {
               <ClientsTab />
             </div>
           )}
-          {tab === 1 && (
-            <div className="page-content">
-              <QrShoesTab />
-            </div>
-          )}
           {tab === 2 && (
             <div className="page-content">
               <WorkoutsTab />
@@ -114,15 +107,6 @@ export default function App() {
           {tab === 'rewards' && <RewardsTab />}
           {tab === 'challenges' && <ChallengesTab />}
         </div>
-        <button
-          type="button"
-          className="fab"
-          title="Генерация QR"
-          onClick={() => navigate(1)}
-          aria-label="QR / Кроссовки"
-        >
-          <Icon name="add" />
-        </button>
       </main>
     </div>
   );

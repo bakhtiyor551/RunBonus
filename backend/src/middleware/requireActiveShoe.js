@@ -11,7 +11,7 @@ export async function requireActiveShoe(req, res, next) {
     );
     if (!rows.length || rows[0].status !== 'activated') {
       return res.status(403).json({
-        error: 'Сначала активируйте кроссовки RunBonus или дождитесь доставки заказа',
+        error: 'Кроссовки ещё не активированы. Купите их в магазине — активация после доставки заказа.',
         code: 'NO_ACTIVE_SHOE',
       });
     }
