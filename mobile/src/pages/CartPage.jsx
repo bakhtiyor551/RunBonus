@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IonPage, IonContent } from '@ionic/react';
-import { api } from '../api';
+import { api, cacheUser } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import PaymentMethodPicker from '../components/PaymentMethodPicker';
@@ -17,7 +17,7 @@ import { showToast } from '../utils/toast';
 import { PAYMENT_METHODS_FALLBACK, filterShopPaymentMethods } from '../utils/paymentMethods';
 import { DELIVERY_METHODS_FALLBACK, deliveryRequiresAddress } from '../utils/deliveryMethods';
 
-export default function CartPage({ user }) {
+export default function CartPage({ user, setUser }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [items, setItems] = useState([]);
@@ -110,6 +110,13 @@ export default function CartPage({ user }) {
       setItems([]);
       setMobileModalOpen(false);
       setDone(true);
+      try {
+        const profile = await api('/api/auth/me');
+        cacheUser(profile);
+        setUser?.(profile);
+      } catch {
+        /* profile refresh optional */
+      }
     } catch (err) {
       await showToast(err.message || 'Не удалось оформить заказ');
     } finally {

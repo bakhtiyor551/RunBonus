@@ -56,14 +56,12 @@ function LeaderRow({ item, highlight }) {
 
 export default function LeaderboardPage({ user }) {
   const [items, setItems] = useState([]);
-  const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     const data = await api('/api/leaderboard?limit=20');
     setItems(Array.isArray(data?.items) ? data.items : []);
-    setMe(data?.me || null);
     setError('');
   }, []);
 
@@ -94,15 +92,6 @@ export default function LeaderboardPage({ user }) {
             <h1 className="rb-headline font-display">Топ км</h1>
             <p className="rb-text-muted">20 клиентов с наибольшим пробегом</p>
           </header>
-
-          {me && !me.inTop && (
-            <section className="rb-leader-me" aria-label="Ваш результат">
-              <p className="rb-label" style={{ margin: '0 0 8px' }}>
-                Ваше место
-              </p>
-              <LeaderRow item={me} highlight />
-            </section>
-          )}
 
           <div className="rb-leader-list">
             {items.map((item) => (
