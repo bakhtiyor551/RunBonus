@@ -411,6 +411,41 @@ export async function startChallenge(userId, { levelId } = {}) {
 }
 
 /**
+ * При старте тренировки: если нет ACTIVE задания — автоматически запускаем
+ * следующее доступное (или перезапуск EXPIRED). Не трогаем COMPLETED без claim.
+ */
+export async function ensureChallengeActiveForWorkout(userId) {
+  try {
+    let open = await findOpenChallenge(userId);
+    if (open) {
+      open = await expireIfNeeded(open);
+      if (open.status === 'ACTIVE') {
+        return { started: false, challengeId: open.id, reason: 'already_active' };
+      }
+      if (open.status === 'COMPLETED' && !open.reward_claimed_at) {
+        return { started: false, challengeId: open.id, reason: 'awaiting_claim' };
+      }
+      if (open.status === 'EXPIRED') {
+        const result = await startChallenge(userId, { levelId: open.level_id });
+        return { started: true, challengeId: result.challengeId, reason: 'restart_expired' };
+      }
+    }
+
+    const startable = await nextStartableLevel(userId);
+    if (!startable) {
+      return { started: false, challengeId: null, reason: 'nothing_to_start' };
+    }
+
+    const result = await startChallenge(userId, { levelId: startable.id });
+    return { started: true, challengeId: result.challengeId, reason: 'auto_started' };
+  } catch (err) {
+    // Не блокируем тренировку из‑за задания
+    console.warn('[challenge/auto-start]', err.message || err);
+    return { started: false, challengeId: null, reason: 'error', error: err.message };
+  }
+}
+
+/**
  * Called after approved workout. Adds km only if finished_at >= start_at (via SUM recalc).
  */
 export async function applyWorkoutToActiveChallenge(userId, { distanceKm, finishedAt } = {}) {

@@ -13,7 +13,7 @@ import {
   unlockMilestonesForUser,
   notifyUserRewardUnlocked,
 } from '../services/rewardService.js';
-import { applyWorkoutToActiveChallenge } from '../services/challengeService.js';
+import { applyWorkoutToActiveChallenge, ensureChallengeActiveForWorkout } from '../services/challengeService.js';
 import {
   calcDistanceFromPoints,
   isSameCoordinates,
@@ -115,6 +115,9 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
       return res.status(400).json({ error: CLIENT_START_ERRORS.SHOE_INACTIVE });
     }
 
+    // Задание стартует вместе с тренировкой (если ещё не ACTIVE)
+    const challengeBoot = await ensureChallengeActiveForWorkout(req.userId);
+
     await conn.beginTransaction();
     await closeStaleWorkouts(conn, req.userId);
     await closeAbandonedInProgressWorkouts(conn);
@@ -144,6 +147,7 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
         workoutId: existing.id,
         id: existing.id,
         resumed: true,
+        challenge: challengeBoot,
       });
     }
 
@@ -178,6 +182,7 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
     res.status(201).json({
       workoutId: result.insertId,
       id: result.insertId,
+      challenge: challengeBoot,
     });
   } catch (err) {
     await conn.rollback();
