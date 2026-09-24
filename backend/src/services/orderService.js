@@ -19,6 +19,7 @@ import { getWalletSummary } from './accountService.js';
 import { assertProductSizeInStock } from './shopService.js';
 import { decrementStockForOrder, restoreStockForCancelledOrder } from './warehouseService.js';
 import { sendOrderStatusPush } from './pushNotificationService.js';
+import { splitFullName, buildDisplayName } from '../utils/userProfile.js';
 
 const STATUS_LABELS = {
   new: 'Новый заказ',
@@ -51,6 +52,31 @@ function notifyOrderStatusPush(order, prevStatus, newStatus) {
     body: buildOrderStatusPushBody(order, newStatus),
     status: newStatus,
   }).catch((err) => console.warn('[Push] order status:', err.message));
+}
+
+/** Имя и город из оформления заказа → профиль клиента. */
+async function applyOrderContactToProfile(conn, userId, { customer_name, city }) {
+  if (!userId) return;
+  const nameRaw = String(customer_name || '').trim();
+  const cityRaw = String(city || '').trim();
+  if (!nameRaw && !cityRaw) return;
+
+  const { first_name, last_name } = splitFullName(nameRaw);
+  const name = buildDisplayName(first_name, last_name) || nameRaw;
+
+  if (nameRaw && cityRaw) {
+    await conn.query(
+      `UPDATE users SET name = ?, first_name = ?, last_name = ?, city = ? WHERE id = ?`,
+      [name, first_name || null, last_name || null, cityRaw, userId]
+    );
+  } else if (nameRaw) {
+    await conn.query(
+      `UPDATE users SET name = ?, first_name = ?, last_name = ? WHERE id = ?`,
+      [name, first_name || null, last_name || null, userId]
+    );
+  } else {
+    await conn.query(`UPDATE users SET city = ? WHERE id = ?`, [cityRaw, userId]);
+  }
 }
 
 export async function createOrder(data, userId = null) {
@@ -211,6 +237,11 @@ export async function createOrder(data, userId = null) {
       });
     }
 
+    await applyOrderContactToProfile(conn, userId, {
+      customer_name,
+      city,
+    });
+
     await conn.commit();
   } catch (err) {
     await conn.rollback();
@@ -364,6 +395,11 @@ async function createOrderPaidWithBonus(data, userId) {
       userId,
       amount: total,
       comment: `Оплата заказа в магазине #${orderId}`,
+    });
+
+    await applyOrderContactToProfile(conn, userId, {
+      customer_name,
+      city,
     });
 
     await conn.commit();

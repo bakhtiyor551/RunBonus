@@ -215,7 +215,7 @@ function App() {
             <Route path="/leaderboard" element={<LeaderboardPage user={user} />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
             <Route path="/shop/:id" element={<ProductDetailPage />} />
-            <Route path="/cart" element={<CartPage user={user} />} />
+            <Route path="/cart" element={<CartPage user={user} setUser={setUser} />} />
             <Route path="/orders" element={<MyOrdersPage />} />
             {/* Legacy money screens removed */}
             <Route path="/summary" element={<Navigate to="/" replace />} />
