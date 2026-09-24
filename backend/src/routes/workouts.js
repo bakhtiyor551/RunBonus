@@ -13,6 +13,7 @@ import {
   unlockMilestonesForUser,
   notifyUserRewardUnlocked,
 } from '../services/rewardService.js';
+import { applyWorkoutToActiveChallenge } from '../services/challengeService.js';
 import {
   calcDistanceFromPoints,
   isSameCoordinates,
@@ -451,6 +452,7 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     await conn.commit();
 
     let unlockedRewards = [];
+    let challengeUpdate = null;
     if (finalStatus === 'approved') {
       try {
         const unlock = await unlockMilestonesForUser(userId);
@@ -458,6 +460,14 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         notifyUserRewardUnlocked(userId, unlockedRewards);
       } catch (rewErr) {
         console.warn('[workout/finish/rewards]', rewErr.message);
+      }
+      try {
+        challengeUpdate = await applyWorkoutToActiveChallenge(userId, {
+          distanceKm: validation.distanceKm ?? distanceKm,
+          finishedAt,
+        });
+      } catch (chErr) {
+        console.warn('[workout/finish/challenge]', chErr.message);
       }
     }
 
@@ -487,6 +497,18 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         milestoneId: unlockedRewards[0].id,
         distance: Number(unlockedRewards[0].distance_km),
       };
+    }
+
+    if (challengeUpdate) {
+      client.challenge = challengeUpdate;
+      if (challengeUpdate.status === 'COMPLETED') {
+        client.challenge_completed = true;
+        client.challenge_popup = {
+          title: 'Задание выполнено!',
+          message: `${challengeUpdate.currentKm} / ${challengeUpdate.targetKm} KM`,
+          challengeId: challengeUpdate.id,
+        };
+      }
     }
 
     return { status: 200, body: client };

@@ -12,7 +12,7 @@ import { formatDuration } from '../services/geolocation';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
-import { fetchRewardsProgress } from '../services/rewards';
+import { fetchChallengeState, startChallenge } from '../services/challenges';
 import { PageAdSlots } from '../components/MobileAdSlot';
 
 function km(value) {
@@ -22,30 +22,15 @@ function km(value) {
   });
 }
 
-function nextRewardTitle(progress) {
-  const next = progress?.nextMilestone;
-  if (!next) return 'Все награды открыты';
-  if (typeof next === 'object') {
-    return next.name || next.rewardName || `Награда за ${km(next.distance)} км`;
-  }
-  return `Награда за ${km(next)} км`;
-}
-
-function nextRewardDistance(progress) {
-  const next = progress?.nextMilestone;
-  if (!next) return null;
-  if (typeof next === 'object') return Number(next.distance) || null;
-  return Number(next) || null;
-}
-
 export default function HomePage({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [starting, setStarting] = useState(false);
   const [workouts, setWorkouts] = useState([]);
-  const [progress, setProgress] = useState(null);
+  const [challengeState, setChallengeState] = useState(null);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
+  const [challengeBusy, setChallengeBusy] = useState(false);
 
   const refreshActiveWorkout = () => {
     syncActiveWorkoutWithServer()
@@ -62,12 +47,12 @@ export default function HomePage({ user }) {
   };
 
   const loadHome = useCallback(async () => {
-    const [history, rewardProgress] = await Promise.all([
+    const [history, challenges] = await Promise.all([
       api('/api/workouts/history').catch(() => []),
-      fetchRewardsProgress().catch(() => null),
+      fetchChallengeState().catch(() => null),
     ]);
     setWorkouts(Array.isArray(history) ? history : []);
-    if (rewardProgress) setProgress(rewardProgress);
+    if (challenges) setChallengeState(challenges);
     refreshActiveWorkout();
   }, []);
 
@@ -79,21 +64,8 @@ export default function HomePage({ user }) {
     if (location.pathname === '/') loadHome().catch(() => {});
   }, [location.pathname, loadHome]);
 
-  const totalDistance = Number(progress?.totalDistance ?? 0);
-  const remainingDistance = Number(progress?.remainingDistance ?? 0);
-  const nextDist = nextRewardDistance(progress);
-  const progressPercent = useMemo(() => {
-    if (!nextDist) return 100;
-    return Math.max(0, Math.min(100, Math.round((totalDistance / nextDist) * 100)));
-  }, [nextDist, totalDistance]);
-
-  const claimable = useMemo(
-    () =>
-      (progress?.milestones || []).filter(
-        (m) => m.status === 'AVAILABLE' || m.status === 'CHOOSING'
-      ),
-    [progress]
-  );
+  const challenge = challengeState?.challenge;
+  const nextLevel = challengeState?.nextLevel;
 
   const lastWorkout = useMemo(() => {
     return (workouts || []).find((w) => w.status !== 'in_progress') || null;
@@ -125,6 +97,19 @@ export default function HomePage({ user }) {
     }
   };
 
+  const onStartChallenge = async (levelId) => {
+    setChallengeBusy(true);
+    try {
+      const data = await startChallenge(levelId);
+      setChallengeState(data);
+      navigate('/rewards');
+    } catch (err) {
+      alert(err.message || 'Не удалось начать задание');
+    } finally {
+      setChallengeBusy(false);
+    }
+  };
+
   const greetingName = (user?.first_name || user?.name || '').split(' ')[0];
 
   return (
@@ -153,71 +138,80 @@ export default function HomePage({ user }) {
             </h1>
           </section>
 
-          {claimable.length > 0 && (
-            <button
-              type="button"
-              className="glass-card rb-home-claim"
-              onClick={() =>
-                navigate(`/rewards?milestone=${claimable[0].id}`)
-              }
-            >
+          {challenge?.status === 'COMPLETED' && !challenge.rewardClaimed && (
+            <button type="button" className="glass-card rb-home-claim" onClick={() => navigate('/rewards')}>
               <div className="rb-home-claim__icon" aria-hidden>
                 <Icon name="redeem" filled />
               </div>
               <div className="rb-home-claim__body">
-                <strong>Награда доступна</strong>
+                <strong>Задание выполнено!</strong>
                 <span>
-                  {claimable[0].name || `${km(claimable[0].distance)} км`} — выберите подарок
+                  {km(challenge.currentKm)} / {km(challenge.targetKm)} KM — заберите награду
                 </span>
               </div>
               <Icon name="chevron_right" />
             </button>
           )}
 
-          <section className="glass-card neon-glow rb-progress-hero">
-            <div className="rb-progress-hero__head">
-              <Icon name="directions_run" />
-              <span className="rb-label">Ваш прогресс</span>
-            </div>
-
-            <div className="rb-progress-hero__distance font-display font-tabular">
-              <span className="rb-progress-hero__value">{km(totalDistance)}</span>
-              <span className="rb-progress-hero__unit">км</span>
-            </div>
-
-            {nextDist != null ? (
-              <div className="rb-progress-hero__track">
-                <div className="rb-progress-hero__row">
-                  <span>До следующей награды</span>
-                  <strong className="font-tabular">{km(nextDist)} км</strong>
-                </div>
-                <div className="rb-progress-bar" aria-label="Прогресс до следующей награды">
-                  <span style={{ width: `${progressPercent}%` }} />
-                </div>
-                <div className="rb-progress-hero__row rb-progress-hero__row--muted">
-                  <span>Осталось</span>
-                  <strong className="font-tabular">{km(remainingDistance)} км</strong>
-                </div>
+          {challenge?.status === 'EXPIRED' && (
+            <button type="button" className="glass-card rb-home-claim" onClick={() => navigate('/rewards')}>
+              <div className="rb-home-claim__icon" aria-hidden>
+                <Icon name="timer_off" filled />
               </div>
-            ) : (
-              <p className="rb-text-muted rb-progress-hero__hint">
-                Вы достигли всех контрольных точек
-              </p>
-            )}
-          </section>
-
-          <section className="glass-card rb-home-next-reward">
-            <div className="rb-home-next-reward__icon" aria-hidden>
-              <Icon name="card_giftcard" />
-            </div>
-            <div className="rb-home-next-reward__body">
-              <span className="rb-label">Следующая награда</span>
-              <h2 className="font-display">{nextRewardTitle(progress)}</h2>
-            </div>
-            <button type="button" className="rb-btn-pill rb-btn-pill--sm" onClick={() => navigate('/rewards')}>
-              Подробнее
+              <div className="rb-home-claim__body">
+                <strong>Время истекло</strong>
+                <span>
+                  {km(challenge.currentKm)} / {km(challenge.targetKm)} KM — начать заново
+                </span>
+              </div>
+              <Icon name="chevron_right" />
             </button>
-          </section>
+          )}
+
+          {challenge?.status === 'ACTIVE' && (
+            <section className="glass-card neon-glow rb-progress-hero">
+              <div className="rb-progress-hero__head">
+                <Icon name="flag" />
+                <span className="rb-label">{challenge.name}</span>
+              </div>
+              <div className="rb-progress-hero__distance font-display font-tabular">
+                <span className="rb-progress-hero__value">{km(challenge.currentKm)}</span>
+                <span className="rb-progress-hero__unit">/ {km(challenge.targetKm)} км</span>
+              </div>
+              <div className="rb-progress-bar" aria-label="Прогресс задания">
+                <span style={{ width: `${challenge.progressPercent}%` }} />
+              </div>
+              <div className="rb-progress-hero__row" style={{ marginTop: 12 }}>
+                <span>Осталось</span>
+                <strong>{challenge.remaining?.label || '—'}</strong>
+              </div>
+              <button type="button" className="rb-btn-pill rb-btn-pill--sm" style={{ marginTop: 12 }} onClick={() => navigate('/rewards')}>
+                Подробнее
+              </button>
+            </section>
+          )}
+
+          {!challenge && nextLevel && (
+            <section className="glass-card" style={{ padding: 20 }}>
+              <span className="rb-label">🔓 Следующее задание</span>
+              <h2 className="font-display" style={{ margin: '8px 0' }}>
+                🎯 {km(nextLevel.targetKm)} KM
+              </h2>
+              <p className="rb-text-muted" style={{ margin: 0 }}>
+                ⏱️ {nextLevel.deadlineDays} дней
+                {nextLevel.exampleReward ? ` · 🎁 ${nextLevel.exampleReward}` : ''}
+              </p>
+              <button
+                type="button"
+                className="rb-btn-primary"
+                style={{ width: '100%', marginTop: 16 }}
+                disabled={challengeBusy}
+                onClick={() => onStartChallenge(nextLevel.levelId)}
+              >
+                {challengeBusy ? 'Старт…' : 'Начать задание'}
+              </button>
+            </section>
+          )}
 
           <PageAdSlots
             page="home"

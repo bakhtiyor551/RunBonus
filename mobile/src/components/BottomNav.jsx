@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import Icon from './Icon';
-import { fetchRewardsProgress } from '../services/rewards';
+import { fetchChallengeState } from '../services/challenges';
 import { cartCount } from '../services/cart';
 
 const tabs = [
   { to: '/', label: 'Главная', icon: 'home', end: true },
   { to: '/workouts', label: 'Тренировки', icon: 'directions_run', match: ['/workouts', '/workout'] },
-  { to: '/rewards', label: 'Награды', icon: 'redeem', badgeKey: 'rewards', match: ['/rewards', '/my-rewards'] },
+  {
+    to: '/rewards',
+    label: 'Задания',
+    icon: 'flag',
+    badgeKey: 'challenges',
+    match: ['/rewards', '/my-rewards', '/challenges', '/milestones'],
+  },
   { to: '/shop', label: 'Магазин', icon: 'storefront', badgeKey: 'cart', match: ['/shop', '/cart', '/orders'] },
   { to: '/profile', label: 'Профиль', icon: 'person' },
 ];
@@ -22,18 +28,19 @@ function pathMatches(pathname, tab) {
 
 export default function BottomNav() {
   const location = useLocation();
-  const [claimable, setClaimable] = useState(0);
+  const [badge, setBadge] = useState(0);
   const [cartItems, setCartItems] = useState(() => cartCount());
 
   useEffect(() => {
     let cancelled = false;
-    fetchRewardsProgress()
+    fetchChallengeState()
       .then((data) => {
         if (cancelled) return;
-        const count = (data?.milestones || []).filter(
-          (m) => m.status === 'AVAILABLE' || m.status === 'CHOOSING'
-        ).length;
-        setClaimable(count);
+        let n = 0;
+        if (data?.challenge?.status === 'COMPLETED' && !data.challenge.rewardClaimed) n = 1;
+        else if (data?.challenge?.status === 'EXPIRED') n = 1;
+        else if (!data?.challenge && data?.nextLevel?.canStart) n = 1;
+        setBadge(n);
       })
       .catch(() => {});
     return () => {
@@ -63,9 +70,9 @@ export default function BottomNav() {
         >
           <span className="rb-bottom-nav__icon-wrap">
             <Icon name={tab.icon} />
-            {tab.badgeKey === 'rewards' && claimable > 0 ? (
-              <span className="rb-bottom-nav__badge" aria-label={`${claimable} доступно`}>
-                {claimable > 9 ? '9+' : claimable}
+            {tab.badgeKey === 'challenges' && badge > 0 ? (
+              <span className="rb-bottom-nav__badge" aria-label="Действие по заданию">
+                {badge}
               </span>
             ) : null}
             {tab.badgeKey === 'cart' && cartItems > 0 ? (

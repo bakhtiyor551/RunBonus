@@ -11,6 +11,7 @@ import WarehouseTab from './WarehouseTab';
 import ReportsTab from './reports/ReportsTab';
 import AdsTab from './ads/AdsTab';
 import RewardsTab from './rewards/RewardsTab';
+import ChallengesTab from './challenges/ChallengesTab';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Icon from './components/Icon';
@@ -111,6 +112,7 @@ export default function App() {
           {tab === 11 && <ReportsTab />}
           {tab === 'ads' && <AdsTab />}
           {tab === 'rewards' && <RewardsTab />}
+          {tab === 'challenges' && <ChallengesTab />}
         </div>
         <button
           type="button"

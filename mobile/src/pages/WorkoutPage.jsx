@@ -204,11 +204,15 @@ export default function WorkoutPage({ user, setUser }) {
           /* ignore */
         }
       }
+      if (data.challenge_completed || data.challenge?.status === 'COMPLETED') {
+        navigate('/rewards', { replace: true });
+        return;
+      }
       if (data.rewards_unlocked?.length || data.reward_popup) {
         const first = data.reward_popup || data.rewards_unlocked[0];
         const milestoneId =
           first?.milestoneId || first?.milestone_id || first?.id;
-        navigate(milestoneId ? `/rewards?milestone=${milestoneId}` : '/rewards', { replace: true });
+        navigate(milestoneId ? `/milestones?milestone=${milestoneId}` : '/milestones', { replace: true });
         return;
       }
       setResult(data);
