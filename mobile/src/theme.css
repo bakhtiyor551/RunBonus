@@ -5110,3 +5110,64 @@ html.rb-keyboard-open .rb-main {
   margin-top: 8px;
   width: min(100%, 280px);
 }
+
+/* —— Workout challenge card —— */
+.rb-workout-challenge {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rb-workout-challenge__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rb-workout-challenge__head .material-symbols-outlined {
+  font-size: 26px;
+  color: var(--rb-neon);
+}
+
+.rb-workout-challenge__head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rb-workout-challenge__head strong {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.rb-workout-challenge__km {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.rb-workout-challenge__value {
+  font-size: 28px;
+  color: var(--rb-neon);
+  line-height: 1;
+}
+
+.rb-workout-challenge__unit {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.rb-workout-challenge__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.rb-workout-challenge__meta strong {
+  color: var(--rb-on-surface, #fff);
+}

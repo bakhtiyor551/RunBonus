@@ -33,6 +33,14 @@ import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
 import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
 import { PageAdSlots } from '../components/MobileAdSlot';
+import { fetchChallengeState } from '../services/challenges';
+
+function kmLabel(value) {
+  return (Number(value) || 0).toLocaleString('ru', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
 
 export default function WorkoutPage({ user, setUser }) {
   const { state } = useLocation();
@@ -40,6 +48,7 @@ export default function WorkoutPage({ user, setUser }) {
   const [workoutId, setWorkoutId] = useState(null);
   const [syncing, setSyncing] = useState(true);
   const [units] = useState(() => getDistanceUnits());
+  const [challenge, setChallenge] = useState(null);
   const [live, setLive] = useState({
     distance: 0,
     seconds: 0,
@@ -111,6 +120,22 @@ export default function WorkoutPage({ user, setUser }) {
     if (syncing || !workoutId) return undefined;
     return subscribeWorkoutSession(setLive);
   }, [syncing, workoutId]);
+
+  useEffect(() => {
+    if (!workoutId) return;
+    let cancelled = false;
+    fetchChallengeState()
+      .then((data) => {
+        if (cancelled) return;
+        setChallenge(data?.challenge || null);
+      })
+      .catch(() => {
+        if (!cancelled) setChallenge(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workoutId]);
 
   useEffect(() => {
     if (syncing || !workoutId) return undefined;
@@ -308,6 +333,44 @@ export default function WorkoutPage({ user, setUser }) {
           </section>
 
           <main className={`rb-workout-layout__panel${live.autoPaused ? ' rb-workout-layout__panel--auto-paused' : ''}`}>
+            {challenge?.status === 'ACTIVE' && (
+              <section className="rb-workout-challenge glass-card neon-glow">
+                <div className="rb-workout-challenge__head">
+                  <Icon name="flag" filled />
+                  <div>
+                    <span className="rb-label">Активное задание</span>
+                    <strong className="font-display">{challenge.name}</strong>
+                  </div>
+                </div>
+                <div className="rb-workout-challenge__km font-display font-tabular">
+                  <span className="rb-workout-challenge__value">
+                    {kmLabel(Number(challenge.currentKm || 0) + Number(live.distance || 0))}
+                  </span>
+                  <span className="rb-workout-challenge__unit">
+                    / {kmLabel(challenge.targetKm)} км
+                  </span>
+                </div>
+                <div className="rb-progress-bar" aria-label="Прогресс задания">
+                  <span
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.round(
+                          ((Number(challenge.currentKm || 0) + Number(live.distance || 0)) /
+                            Math.max(Number(challenge.targetKm) || 1, 0.001)) *
+                            100
+                        )
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <div className="rb-workout-challenge__meta">
+                  <span>Осталось времени</span>
+                  <strong>{challenge.remaining?.label || '—'}</strong>
+                </div>
+              </section>
+            )}
+
             <div className={`rb-workout-dashboard${live.pauseSeconds > 0 ? '' : ' rb-workout-dashboard--no-pause'}`}>
               <MetricCard
                 icon="timer"
