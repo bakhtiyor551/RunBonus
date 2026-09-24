@@ -225,7 +225,6 @@ export default function ChallengesPage() {
   }, [load]);
 
   const challenge = state?.challenge;
-  const nextLevel = state?.nextLevel;
 
   const onStart = async (levelId) => {
     setBusy(true);
@@ -331,31 +330,6 @@ export default function ChallengesPage() {
                 onClick={() => onStart(challenge.levelId)}
               >
                 {busy ? 'Старт…' : 'Начать заново'}
-              </button>
-            </section>
-          )}
-
-          {!loading && !challenge && nextLevel && (
-            <section className="glass-card" style={{ padding: 20, textAlign: 'center' }}>
-              <span className="rb-label">🔓 Новое задание</span>
-              <h2 className="font-display" style={{ margin: '8px 0' }}>
-                🎯 {km(nextLevel.targetKm)} KM
-              </h2>
-              <p className="rb-text-muted">⏱️ {nextLevel.deadlineDays} дней</p>
-              {nextLevel.exampleReward && (
-                <p className="rb-text-muted">🎁 {nextLevel.exampleReward}</p>
-              )}
-              <p className="rb-text-muted" style={{ marginTop: 12, fontSize: 13 }}>
-                Запустится автоматически при старте тренировки
-              </p>
-              <button
-                type="button"
-                className="rb-btn-pill"
-                style={{ width: '100%', marginTop: 12 }}
-                disabled={busy}
-                onClick={() => onStart(nextLevel.levelId)}
-              >
-                {busy ? 'Старт…' : 'Или начать сейчас'}
               </button>
             </section>
           )}

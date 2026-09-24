@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { IonApp } from '@ionic/react';
 import { useEffect, useState } from 'react';
 import { api, cacheUser, getCachedUser, isNetworkError, logoutApi, onForcedLogout, setToken } from './api';
@@ -37,15 +37,34 @@ function PushNavigationBridge() {
   return null;
 }
 
-/** После первой регистрации открываем магазин. */
-function FirstLoginShopRedirect() {
+/** Неактивированные клиенты и первый вход → магазин. */
+function InactiveShopRedirect({ user }) {
   const navigate = useNavigate();
+  const location = useLocation();
+
   useEffect(() => {
-    if (sessionStorage.getItem('rb_open_shop') === '1') {
-      sessionStorage.removeItem('rb_open_shop');
+    const needsShop =
+      sessionStorage.getItem('rb_open_shop') === '1' ||
+      user?.needsActivation ||
+      !user?.activeShoe;
+
+    if (!needsShop) return;
+
+    sessionStorage.removeItem('rb_open_shop');
+
+    const path = location.pathname || '/';
+    const allowed =
+      path === '/shop' ||
+      path.startsWith('/shop/') ||
+      path === '/cart' ||
+      path === '/orders' ||
+      path === '/profile';
+
+    if (!allowed) {
       navigate('/shop', { replace: true });
     }
-  }, [navigate]);
+  }, [user, location.pathname, navigate]);
+
   return null;
 }
 
@@ -176,7 +195,7 @@ function App() {
       <IonApp>
         <BrowserRouter>
           <PushNavigationBridge />
-          <FirstLoginShopRedirect />
+          <InactiveShopRedirect user={user} />
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
