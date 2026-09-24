@@ -5,71 +5,40 @@ import { api } from '../api';
 import BoltIcon from '../components/BoltIcon';
 import Icon from '../components/Icon';
 import OtpInput from '../components/OtpInput';
-import CityPicker from '../components/CityPicker';
 import PhoneInput from '../components/PhoneInput';
 import { formatPhoneDisplay, phoneValidationMessage } from '../utils/phone';
 
-const STEP_LABELS = ['Данные', 'Код из SMS'];
-
-function StepDots({ step }) {
-  return (
-    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 28 }}>
-      {STEP_LABELS.map((label, i) => (
-        <div key={label} style={{ textAlign: 'center', flex: 1 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              margin: '0 auto 6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: 14,
-              background: i === step ? 'var(--rb-neon)' : i < step ? 'rgba(195,244,0,0.2)' : 'var(--rb-surface-high)',
-              color: i === step ? 'var(--rb-on-neon)' : 'var(--rb-on-surface-variant)',
-            }}
-          >
-            {i + 1}
-          </div>
-          <span className="rb-label" style={{ fontSize: 10, opacity: i <= step ? 1 : 0.4 }}>
-            {label}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function RegisterPage({ onAuth }) {
   const [step, setStep] = useState(0);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendSec, setResendSec] = useState(0);
 
-  const sendCode = async () => {
+  const startResendTimer = () => {
+    setResendSec(60);
+    const t = setInterval(() => {
+      setResendSec((s) => {
+        if (s <= 1) {
+          clearInterval(t);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
+  const sendCode = async (e) => {
+    e?.preventDefault();
     setError('');
-    if (!firstName.trim() || !lastName.trim()) {
-      setError('Укажите имя и фамилию');
-      return;
-    }
     if (!phone.trim()) {
-      setError('Укажите номер телефона');
+      setError('Введите номер телефона');
       return;
     }
     const phoneErr = phoneValidationMessage(phone);
     if (phoneErr) {
       setError(phoneErr);
-      return;
-    }
-    if (!city.trim()) {
-      setError('Выберите город');
       return;
     }
     setLoading(true);
@@ -80,26 +49,12 @@ export default function RegisterPage({ onAuth }) {
       });
       setStep(1);
       setOtp('');
-      setResendSec(60);
-      const t = setInterval(() => {
-        setResendSec((s) => {
-          if (s <= 1) {
-            clearInterval(t);
-            return 0;
-          }
-          return s - 1;
-        });
-      }, 1000);
+      startResendTimer();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Не удалось отправить SMS');
     } finally {
       setLoading(false);
     }
-  };
-
-  const resendCode = async () => {
-    if (resendSec > 0) return;
-    await sendCode();
   };
 
   const finish = async (e) => {
@@ -116,14 +71,11 @@ export default function RegisterPage({ onAuth }) {
         body: JSON.stringify({
           phone: phone.trim(),
           code: otp,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          city: city.trim(),
         }),
       });
       onAuth(data);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Не удалось создать аккаунт');
     } finally {
       setLoading(false);
     }
@@ -146,36 +98,14 @@ export default function RegisterPage({ onAuth }) {
       </header>
       <IonContent>
         <main style={{ padding: '16px 24px 32px', maxWidth: 440, margin: '0 auto' }}>
-          <StepDots step={step} />
-
           {step === 0 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendCode();
-              }}
-              className="glass-effect"
-              style={{ padding: 24, borderRadius: 24 }}
-            >
+            <form onSubmit={sendCode} className="glass-effect" style={{ padding: 24, borderRadius: 24 }}>
               <h2 className="font-display" style={{ fontSize: 22, margin: '0 0 8px' }}>
                 Регистрация
               </h2>
               <p className="rb-text-muted" style={{ marginBottom: 20, fontSize: 14 }}>
-                Укажите данные — отправим SMS с кодом подтверждения.
+                Введите номер телефона — отправим SMS с кодом.
               </p>
-              <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
-                Имя
-              </label>
-              <div className="rb-input-wrap" style={{ marginBottom: 14 }}>
-                <input className="rb-input" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-              </div>
-              <label className="rb-label" style={{ display: 'block', marginBottom: 6 }}>
-                Фамилия
-              </label>
-              <div className="rb-input-wrap" style={{ marginBottom: 14 }}>
-                <input className="rb-input" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-              </div>
-              <CityPicker value={city} onChange={setCity} />
               <PhoneInput value={phone} onChange={setPhone} required />
               {error && <p className="rb-text-error">{error}</p>}
               <button type="submit" className="rb-btn-primary" disabled={loading} style={{ width: '100%', marginTop: 16 }}>
@@ -195,14 +125,14 @@ export default function RegisterPage({ onAuth }) {
               <OtpInput value={otp} onChange={setOtp} disabled={loading} />
               {error && <p className="rb-text-error">{error}</p>}
               <button type="submit" className="rb-btn-primary" disabled={loading} style={{ width: '100%', marginTop: 8 }}>
-                {loading ? 'Проверка…' : 'Создать аккаунт'}
+                {loading ? 'Проверка…' : 'Продолжить'}
               </button>
               <button
                 type="button"
                 className="rb-btn-pill"
                 style={{ width: '100%', marginTop: 12 }}
                 disabled={loading || resendSec > 0}
-                onClick={resendCode}
+                onClick={() => sendCode()}
               >
                 {resendSec > 0 ? `Повтор через ${resendSec} с` : 'Отправить код снова'}
               </button>

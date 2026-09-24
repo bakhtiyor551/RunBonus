@@ -45,14 +45,7 @@ router.post('/sms/send', async (req, res) => {
 router.post('/sms/register', async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { phone, code, firstName, lastName, city } = req.body;
-    if (!firstName?.trim() || !lastName?.trim()) {
-      return res.status(400).json({ error: 'Укажите имя и фамилию' });
-    }
-    const userCity = String(city || '').trim();
-    if (!userCity) {
-      return res.status(400).json({ error: 'Выберите город' });
-    }
+    const { phone, code } = req.body;
 
     const phoneNorm = await verifyCode(phone, 'register', code);
     const deviceId = getDeviceIdFromRequest(req);
@@ -60,15 +53,15 @@ router.post('/sms/register', async (req, res) => {
       return res.status(400).json({ error: 'Не удалось определить устройство' });
     }
 
-    const name = buildDisplayName(firstName.trim(), lastName.trim());
     const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
 
     await conn.beginTransaction();
 
+    // Минимальная регистрация: только телефон. Имя/город — на следующем экране.
     const [result] = await conn.query(
       `INSERT INTO users (name, first_name, last_name, phone, password_hash, city, device_id, device_bound_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [name, firstName.trim(), lastName.trim(), phoneNorm, passwordHash, userCity, deviceId]
+       VALUES (?, NULL, NULL, ?, ?, ?, ?, NOW())`,
+      ['', phoneNorm, passwordHash, 'Не указан', deviceId]
     );
 
     const userId = result.insertId;
@@ -85,11 +78,14 @@ router.post('/sms/register', async (req, res) => {
     res.status(201).json({
       token,
       user: profile,
-      redirectToShop: true,
+      needsProfileSetup: true,
     });
   } catch (err) {
     await conn.rollback();
     if (err.status) return res.status(err.status).json({ error: err.message });
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Этот номер уже зарегистрирован. Войдите в аккаунт.' });
+    }
     console.error(err);
     res.status(500).json({ error: 'Ошибка регистрации' });
   } finally {
@@ -304,8 +300,8 @@ router.patch('/profile', authUser, async (req, res) => {
     const avatarBase64 = req.body.avatarBase64 ?? req.body.avatar_base64 ?? null;
     const cityRaw = req.body.city;
 
-    if (!firstName || !lastName) {
-      return res.status(400).json({ error: 'Укажите имя и фамилию' });
+    if (!firstName) {
+      return res.status(400).json({ error: 'Укажите имя' });
     }
 
     const userCity =
@@ -324,22 +320,22 @@ router.patch('/profile', authUser, async (req, res) => {
     if (avatarUrl && userCity != null) {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ?, avatar_url = ?, city = ? WHERE id = ?',
-        [name, firstName, lastName, avatarUrl, userCity, req.userId]
+        [name, firstName, lastName || null, avatarUrl, userCity, req.userId]
       );
     } else if (avatarUrl) {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ?, avatar_url = ? WHERE id = ?',
-        [name, firstName, lastName, avatarUrl, req.userId]
+        [name, firstName, lastName || null, avatarUrl, req.userId]
       );
     } else if (userCity != null) {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ?, city = ? WHERE id = ?',
-        [name, firstName, lastName, userCity, req.userId]
+        [name, firstName, lastName || null, userCity, req.userId]
       );
     } else {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ? WHERE id = ?',
-        [name, firstName, lastName, req.userId]
+        [name, firstName, lastName || null, req.userId]
       );
     }
 
@@ -387,6 +383,12 @@ async function buildUserProfile(userId, requestDeviceId = null) {
 
   return {
     ...base,
+    clientId: userId,
+    client_id: userId,
+    needsProfileSetup:
+      !String(base.first_name || '').trim() ||
+      !String(base.city || '').trim() ||
+      String(base.city || '').trim() === 'Не указан',
     // Legacy wallet fields kept for API compat; money accrual is disabled.
     balance: 0,
     blocked_balance: 0,

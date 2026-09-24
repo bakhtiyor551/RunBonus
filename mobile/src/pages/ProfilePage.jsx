@@ -98,8 +98,8 @@ export default function ProfilePage({ user, setUser, onLogout }) {
   };
 
   const saveProfile = async () => {
-    if (!firstName.trim() || !lastName.trim()) {
-      setError('Укажите имя и фамилию');
+    if (!firstName.trim()) {
+      setError('Укажите имя');
       return;
     }
     if (!city.trim()) {
@@ -215,6 +215,14 @@ export default function ProfilePage({ user, setUser, onLogout }) {
                   {user.name || 'Пользователь'}
                 </h2>
                 <p className="rb-text-muted">{formatPhoneDisplay(user.phone)}</p>
+                {(user.clientId ?? user.client_id ?? user.id) != null && (
+                  <p className="rb-label" style={{ marginTop: 10 }}>
+                    ID клиента:{' '}
+                    <span className="font-tabular" style={{ color: 'var(--rb-neon)' }}>
+                      RB-{user.clientId ?? user.client_id ?? user.id}
+                    </span>
+                  </p>
+                )}
                 {user.email && <p className="rb-text-muted" style={{ marginTop: 4 }}>{user.email}</p>}
                 {profileCity(user.city) && (
                   <p className="rb-text-muted" style={{ marginTop: 4 }}>
