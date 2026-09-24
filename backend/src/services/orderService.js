@@ -443,13 +443,24 @@ async function mapOrderRow(row) {
 export async function listUserOrders(userId) {
   const [rows] = await pool.query(
     `SELECT o.*, p.name AS product_name, p.color AS product_color,
-            c.name AS courier_name, c.phone AS courier_phone
+            c.name AS courier_name, c.phone AS courier_phone,
+            s.unique_id AS assigned_shoe_code,
+            (SELECT pi.image_url FROM product_images pi
+             WHERE pi.product_id = o.product_id
+             ORDER BY pi.sort_order ASC, pi.id ASC LIMIT 1) AS product_image
      ${ORDER_JOIN}
+     LEFT JOIN shoes s ON s.id = o.assigned_shoe_id
      WHERE o.user_id = ?
      ORDER BY o.created_at DESC`,
     [userId]
   );
-  return Promise.all(rows.map(mapOrderRow));
+  return Promise.all(
+    rows.map(async (r) => ({
+      ...(await mapOrderRow(r)),
+      assigned_shoe_code: r.assigned_shoe_code || null,
+      product_image: r.product_image || null,
+    }))
+  );
 }
 
 export async function listAdminOrders() {
