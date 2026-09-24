@@ -37,6 +37,18 @@ function PushNavigationBridge() {
   return null;
 }
 
+/** После первой регистрации открываем магазин. */
+function FirstLoginShopRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (sessionStorage.getItem('rb_open_shop') === '1') {
+      sessionStorage.removeItem('rb_open_shop');
+      navigate('/shop', { replace: true });
+    }
+  }, [navigate]);
+  return null;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -120,6 +132,10 @@ function App() {
     if (data.message) {
       sessionStorage.setItem('auth_notice', data.message);
     }
+    // Первый вход / регистрация → сразу в магазин
+    if (data.isNew || data.user?.isNew) {
+      sessionStorage.setItem('rb_open_shop', '1');
+    }
   };
 
   const logout = async () => {
@@ -160,6 +176,7 @@ function App() {
       <IonApp>
         <BrowserRouter>
           <PushNavigationBridge />
+          <FirstLoginShopRedirect />
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
