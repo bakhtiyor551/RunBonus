@@ -5,9 +5,14 @@ import { normalizeAvatarUrl } from '../utils/userProfile.js';
 
 const router = Router();
 
+/** Имя клиента или null, если не задано. */
 function displayName(row) {
-  const full = [row.first_name, row.last_name].map((s) => String(s || '').trim()).filter(Boolean).join(' ');
-  return full || row.name || `ID ${row.id}`;
+  const full = [row.first_name, row.last_name]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+    .join(' ');
+  const name = full || String(row.name || '').trim();
+  return name || null;
 }
 
 /** Топ клиентов по подтверждённым км (approved workouts). */
@@ -31,14 +36,18 @@ router.get('/', authUser, async (req, res) => {
       [limit]
     );
 
-    const items = rows.map((r, i) => ({
-      rank: i + 1,
-      id: r.id,
-      clientId: r.id,
-      name: displayName(r),
-      avatar_url: normalizeAvatarUrl(r.avatar_url),
-      totalKm: Math.round(Number(r.total_km) * 100) / 100,
-    }));
+    const items = rows.map((r, i) => {
+      const name = displayName(r);
+      return {
+        rank: i + 1,
+        id: r.id,
+        clientId: r.id,
+        name,
+        label: name || String(r.id),
+        avatar_url: normalizeAvatarUrl(r.avatar_url),
+        totalKm: Math.round(Number(r.total_km) * 100) / 100,
+      };
+    });
 
     let me = null;
     const myId = Number(req.userId);
@@ -69,11 +78,13 @@ router.get('/', authUser, async (req, res) => {
         [myId]
       );
       if (userRow) {
+        const name = displayName(userRow);
         me = {
           rank: Number(ahead?.cnt || 0) + 1,
           id: userRow.id,
           clientId: userRow.id,
-          name: displayName(userRow),
+          name,
+          label: name || String(userRow.id),
           avatar_url: normalizeAvatarUrl(userRow.avatar_url),
           totalKm: myKm,
           inTop: false,

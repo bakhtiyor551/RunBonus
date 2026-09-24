@@ -29,16 +29,22 @@ function RankBadge({ rank }) {
   return <span className="rb-leader-rank">{rank}</span>;
 }
 
+function rowLabel(item) {
+  const name = String(item?.name || '').trim();
+  if (name) return name;
+  return String(item?.label || item?.id || '');
+}
+
 function LeaderRow({ item, highlight }) {
+  const title = rowLabel(item);
   return (
     <div className={`glass-card rb-leader-row${highlight ? ' rb-leader-row--me' : ''}`}>
       <RankBadge rank={item.rank} />
       <div className="rb-leader-avatar" aria-hidden>
-        <Avatar url={item.avatar_url} name={item.name} />
+        <Avatar url={item.avatar_url} name={title} />
       </div>
       <div className="rb-leader-row__text">
-        <strong className="rb-leader-row__name">{item.name || `ID ${item.id}`}</strong>
-        <span className="rb-label">ID {item.id}</span>
+        <strong className="rb-leader-row__name">{title}</strong>
       </div>
       <div className="rb-leader-row__km font-tabular">
         <span className="rb-leader-row__km-value">{formatKm(item.totalKm)}</span>
