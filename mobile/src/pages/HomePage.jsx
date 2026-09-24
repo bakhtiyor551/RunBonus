@@ -11,13 +11,42 @@ import { formatDuration } from '../services/geolocation';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
+import { fetchChallengeState, startChallenge } from '../services/challenges';
 import { PageAdSlots } from '../components/MobileAdSlot';
+
+const CHALLENGE_CACHE_KEY = 'rb_home_challenge';
+const FINISHED_FLAG_KEY = 'rb_has_finished_workout';
+
+function readCachedChallenge() {
+  try {
+    const raw = localStorage.getItem(CHALLENGE_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheChallenge(challenge) {
+  try {
+    if (challenge) localStorage.setItem(CHALLENGE_CACHE_KEY, JSON.stringify(challenge));
+  } catch {
+    /* ignore */
+  }
+}
+
+function km(value) {
+  return (Number(value) || 0).toLocaleString('ru', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
 
 export default function HomePage({ user, setUser }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [starting, setStarting] = useState(false);
   const [workouts, setWorkouts] = useState([]);
+  const [challenge, setChallenge] = useState(() => readCachedChallenge());
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
 
@@ -36,8 +65,42 @@ export default function HomePage({ user, setUser }) {
   };
 
   const loadHome = useCallback(async () => {
-    const history = await api('/api/workouts/history').catch(() => []);
-    setWorkouts(Array.isArray(history) ? history : []);
+    const [history, challenges] = await Promise.all([
+      api('/api/workouts/history').catch(() => []),
+      fetchChallengeState().catch(() => null),
+    ]);
+    const list = Array.isArray(history) ? history : [];
+    setWorkouts(list);
+    const finished = list.filter((w) => w.status && w.status !== 'in_progress');
+    if (finished.length) {
+      try {
+        localStorage.setItem(FINISHED_FLAG_KEY, '1');
+      } catch {
+        /* ignore */
+      }
+    }
+
+    let state = challenges;
+    // После первой тренировки задание стартует само — карточка прогресса на главной
+    if (finished.length > 0 && state && !state.challenge && state.nextLevel?.canStart) {
+      try {
+        state = await startChallenge(state.nextLevel.levelId);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (finished.length > 0 && !state?.challenge) {
+      try {
+        state = await startChallenge();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (state?.challenge) {
+      cacheChallenge(state.challenge);
+      setChallenge(state.challenge);
+    }
     refreshActiveWorkout();
   }, []);
 
@@ -49,11 +112,33 @@ export default function HomePage({ user, setUser }) {
     if (location.pathname === '/') loadHome().catch(() => {});
   }, [location.pathname, location.state?.refreshHome, loadHome]);
 
+  useEffect(() => {
+    const fromResult = location.state?.challenge;
+    if (fromResult) {
+      cacheChallenge(fromResult);
+      setChallenge(fromResult);
+      try {
+        localStorage.setItem(FINISHED_FLAG_KEY, '1');
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [location.state?.challenge]);
+
   const finishedWorkouts = useMemo(
     () => (workouts || []).filter((w) => w.status && w.status !== 'in_progress'),
     [workouts]
   );
   const lastWorkout = finishedWorkouts[0] || null;
+  const hasFinished =
+    finishedWorkouts.length > 0 ||
+    (typeof localStorage !== 'undefined' && localStorage.getItem(FINISHED_FLAG_KEY) === '1') ||
+    Boolean(location.state?.challenge);
+  const showProgressCard = Boolean(
+    hasFinished &&
+      challenge &&
+      ['ACTIVE', 'COMPLETED', 'EXPIRED'].includes(challenge.status)
+  );
 
   const startWorkout = async () => {
     if (starting) return;
@@ -114,6 +199,63 @@ export default function HomePage({ user, setUser }) {
               {greetingName ? `Привет, ${greetingName}!` : 'Добро пожаловать!'}
             </h1>
           </section>
+
+          {showProgressCard && (
+            <section
+              className="rb-workout-challenge glass-card neon-glow"
+              style={{ marginBottom: 20 }}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate('/rewards')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate('/rewards');
+                }
+              }}
+            >
+              <div className="rb-workout-challenge__head">
+                <Icon name="flag" filled />
+                <div>
+                  <span className="rb-label">
+                    {challenge.status === 'COMPLETED'
+                      ? 'Задание выполнено'
+                      : challenge.status === 'EXPIRED'
+                        ? 'Время истекло'
+                        : 'Ваше задание'}
+                  </span>
+                  <strong className="font-display">{challenge.name}</strong>
+                </div>
+              </div>
+              <div className="rb-workout-challenge__km font-display font-tabular">
+                <span className="rb-workout-challenge__value">{km(challenge.currentKm)}</span>
+                <span className="rb-workout-challenge__unit">/ {km(challenge.targetKm)} км</span>
+              </div>
+              <div className="rb-progress-bar" aria-label="Прогресс задания">
+                <span
+                  style={{
+                    width: `${Math.min(100, Math.max(0, Number(challenge.progressPercent) || 0))}%`,
+                  }}
+                />
+              </div>
+              <div className="rb-workout-challenge__meta">
+                <span>
+                  {challenge.status === 'COMPLETED'
+                    ? 'Награда'
+                    : challenge.status === 'EXPIRED'
+                      ? 'Статус'
+                      : 'Осталось времени'}
+                </span>
+                <strong>
+                  {challenge.status === 'COMPLETED'
+                    ? challenge.exampleReward || 'Заберите награду'
+                    : challenge.status === 'EXPIRED'
+                      ? 'Начать заново'
+                      : challenge.remaining?.label || '—'}
+                </strong>
+              </div>
+            </section>
+          )}
 
           <PageAdSlots
             page="home"
