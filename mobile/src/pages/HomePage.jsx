@@ -64,7 +64,6 @@ export default function HomePage({ user, setUser }) {
   }, [location.pathname, loadHome]);
 
   const challenge = challengeState?.challenge;
-  const nextLevel = challengeState?.nextLevel;
 
   const lastWorkout = useMemo(() => {
     return (workouts || []).find((w) => w.status !== 'in_progress') || null;
@@ -183,22 +182,6 @@ export default function HomePage({ user, setUser }) {
               <button type="button" className="rb-btn-pill rb-btn-pill--sm" style={{ marginTop: 12 }} onClick={() => navigate('/rewards')}>
                 Подробнее
               </button>
-            </section>
-          )}
-
-          {!challenge && nextLevel && (
-            <section className="glass-card" style={{ padding: 20 }}>
-              <span className="rb-label">🔓 Следующее задание</span>
-              <h2 className="font-display" style={{ margin: '8px 0' }}>
-                🎯 {km(nextLevel.targetKm)} KM
-              </h2>
-              <p className="rb-text-muted" style={{ margin: 0 }}>
-                ⏱️ {nextLevel.deadlineDays} дней
-                {nextLevel.exampleReward ? ` · 🎁 ${nextLevel.exampleReward}` : ''}
-              </p>
-              <p className="rb-text-muted" style={{ margin: '10px 0 0', fontSize: 13 }}>
-                Задание запустится автоматически при старте тренировки
-              </p>
             </section>
           )}
 

@@ -142,7 +142,7 @@ router.post('/sms/login', async (req, res) => {
 
     res.status(isNew ? 201 : 200).json({
       token,
-      user: profile,
+      user: { ...profile, isNew },
       isNew,
       device_changed: bindResult.device_changed,
       message: bindResult.device_changed
