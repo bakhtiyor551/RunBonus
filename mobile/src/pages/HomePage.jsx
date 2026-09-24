@@ -11,8 +11,28 @@ import { formatDuration } from '../services/geolocation';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
-import { fetchChallengeState } from '../services/challenges';
+import { fetchChallengeState, startChallenge } from '../services/challenges';
 import { PageAdSlots } from '../components/MobileAdSlot';
+
+const CHALLENGE_CACHE_KEY = 'rb_home_challenge';
+const FINISHED_FLAG_KEY = 'rb_has_finished_workout';
+
+function readCachedChallenge() {
+  try {
+    const raw = localStorage.getItem(CHALLENGE_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheChallenge(challenge) {
+  try {
+    if (challenge) localStorage.setItem(CHALLENGE_CACHE_KEY, JSON.stringify(challenge));
+  } catch {
+    /* ignore */
+  }
+}
 
 function km(value) {
   return (Number(value) || 0).toLocaleString('ru', {
@@ -27,6 +47,7 @@ export default function HomePage({ user, setUser }) {
   const [starting, setStarting] = useState(false);
   const [workouts, setWorkouts] = useState([]);
   const [challengeState, setChallengeState] = useState(null);
+  const [cachedChallenge, setCachedChallenge] = useState(() => readCachedChallenge());
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [activeWorkoutId, setActiveWorkoutIdState] = useState(null);
 
@@ -49,8 +70,41 @@ export default function HomePage({ user, setUser }) {
       api('/api/workouts/history').catch(() => []),
       fetchChallengeState().catch(() => null),
     ]);
-    setWorkouts(Array.isArray(history) ? history : []);
-    if (challenges) setChallengeState(challenges);
+    const list = Array.isArray(history) ? history : [];
+    setWorkouts(list);
+    const finished = list.filter((w) => w.status && w.status !== 'in_progress');
+    if (finished.length) {
+      try {
+        localStorage.setItem(FINISHED_FLAG_KEY, '1');
+      } catch {
+        /* ignore */
+      }
+    }
+
+    let state = challenges;
+    // После первой тренировки, если задания ещё нет — стартуем автоматически
+    if (finished.length > 0 && state && !state.challenge && state.nextLevel?.canStart) {
+      try {
+        state = await startChallenge(state.nextLevel.levelId);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (finished.length > 0 && !state?.challenge) {
+      try {
+        state = await startChallenge();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (state) {
+      setChallengeState(state);
+      if (state.challenge) {
+        cacheChallenge(state.challenge);
+        setCachedChallenge(state.challenge);
+      }
+    }
     refreshActiveWorkout();
   }, []);
 
@@ -60,13 +114,30 @@ export default function HomePage({ user, setUser }) {
 
   useEffect(() => {
     if (location.pathname === '/') loadHome().catch(() => {});
-  }, [location.pathname, loadHome]);
+  }, [location.pathname, location.state?.refreshHome, loadHome]);
 
-  const challenge = challengeState?.challenge;
+  // Подхват задания с экрана результата тренировки
+  useEffect(() => {
+    const fromResult = location.state?.challenge;
+    if (fromResult) {
+      cacheChallenge(fromResult);
+      setCachedChallenge(fromResult);
+      setChallengeState((prev) => ({ ...(prev || {}), challenge: fromResult }));
+    }
+  }, [location.state?.challenge]);
 
-  const lastWorkout = useMemo(() => {
-    return (workouts || []).find((w) => w.status !== 'in_progress') || null;
-  }, [workouts]);
+  const challenge = challengeState?.challenge || cachedChallenge;
+
+  const finishedWorkouts = useMemo(
+    () => (workouts || []).filter((w) => w.status && w.status !== 'in_progress'),
+    [workouts]
+  );
+  const lastWorkout = finishedWorkouts[0] || null;
+  const hasFinishedFlag =
+    finishedWorkouts.length > 0 ||
+    (typeof localStorage !== 'undefined' && localStorage.getItem(FINISHED_FLAG_KEY) === '1');
+  // Карточка после первой завершённой тренировки (или если задание уже есть в кэше)
+  const showChallengeCard = Boolean(challenge && hasFinishedFlag);
 
   const startWorkout = async () => {
     if (starting) return;
@@ -129,7 +200,7 @@ export default function HomePage({ user, setUser }) {
             </h1>
           </section>
 
-          {challenge?.status === 'COMPLETED' && !challenge.rewardClaimed && (
+          {showChallengeCard && challenge?.status === 'COMPLETED' && !challenge.rewardClaimed && (
             <button type="button" className="glass-card rb-home-claim" onClick={() => navigate('/rewards')}>
               <div className="rb-home-claim__icon" aria-hidden>
                 <Icon name="redeem" filled />
@@ -144,7 +215,7 @@ export default function HomePage({ user, setUser }) {
             </button>
           )}
 
-          {challenge?.status === 'EXPIRED' && (
+          {showChallengeCard && challenge?.status === 'EXPIRED' && (
             <button type="button" className="glass-card rb-home-claim" onClick={() => navigate('/rewards')}>
               <div className="rb-home-claim__icon" aria-hidden>
                 <Icon name="timer_off" filled />
@@ -159,7 +230,7 @@ export default function HomePage({ user, setUser }) {
             </button>
           )}
 
-          {challenge?.status === 'ACTIVE' && (
+          {showChallengeCard && challenge?.status === 'ACTIVE' && (
             <section className="glass-card neon-glow rb-progress-hero">
               <div className="rb-progress-hero__head">
                 <Icon name="flag" />

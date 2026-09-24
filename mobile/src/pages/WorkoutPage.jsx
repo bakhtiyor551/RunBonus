@@ -33,7 +33,7 @@ import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
 import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
 import { PageAdSlots } from '../components/MobileAdSlot';
-import { fetchChallengeState } from '../services/challenges';
+import { fetchChallengeState, startChallenge } from '../services/challenges';
 
 function kmLabel(value) {
   return (Number(value) || 0).toLocaleString('ru', {
@@ -240,6 +240,25 @@ export default function WorkoutPage({ user, setUser }) {
         navigate(milestoneId ? `/milestones?milestone=${milestoneId}` : '/milestones', { replace: true });
         return;
       }
+      // Обновим задание для карточки на главной после первой тренировки
+      let challengeForHome = data.challenge || null;
+      try {
+        localStorage.setItem('rb_has_finished_workout', '1');
+        if (!challengeForHome) {
+          let state = await fetchChallengeState();
+          if (!state?.challenge) {
+            state = await startChallenge(state?.nextLevel?.levelId);
+          }
+          challengeForHome = state?.challenge || null;
+        }
+        if (challengeForHome) {
+          localStorage.setItem('rb_home_challenge', JSON.stringify(challengeForHome));
+          setChallenge(challengeForHome);
+        }
+      } catch {
+        /* ignore */
+      }
+      data.challenge = challengeForHome;
       setResult(data);
     } catch (err) {
       if (err.code === 'DEVICE_MISMATCH') {
@@ -296,6 +315,38 @@ export default function WorkoutPage({ user, setUser }) {
           <main className="rb-main rb-workout-result">
             <CelebrateBlock result={result} units={units} />
             <ResultCards result={result} units={units} />
+            {(result.challenge || challenge)?.status === 'ACTIVE' && (
+              <section className="rb-workout-challenge glass-card neon-glow" style={{ marginTop: 20 }}>
+                <div className="rb-workout-challenge__head">
+                  <Icon name="flag" filled />
+                  <div>
+                    <span className="rb-label">Ваше задание</span>
+                    <strong className="font-display">
+                      {(result.challenge || challenge).name}
+                    </strong>
+                  </div>
+                </div>
+                <div className="rb-workout-challenge__km font-display font-tabular">
+                  <span className="rb-workout-challenge__value">
+                    {kmLabel((result.challenge || challenge).currentKm)}
+                  </span>
+                  <span className="rb-workout-challenge__unit">
+                    / {kmLabel((result.challenge || challenge).targetKm)} км
+                  </span>
+                </div>
+                <div className="rb-progress-bar" aria-label="Прогресс задания">
+                  <span
+                    style={{
+                      width: `${(result.challenge || challenge).progressPercent || 0}%`,
+                    }}
+                  />
+                </div>
+                <div className="rb-workout-challenge__meta">
+                  <span>Осталось времени</span>
+                  <strong>{(result.challenge || challenge).remaining?.label || '—'}</strong>
+                </div>
+              </section>
+            )}
             <PageAdSlots
               key={`workout-ads-${result.workout_id ?? result.id ?? 'done'}`}
               page="workout"
@@ -304,7 +355,20 @@ export default function WorkoutPage({ user, setUser }) {
               className="rb-ad-banner--workout"
               style={{ marginTop: 24 }}
             />
-            <button type="button" className="rb-btn-pill" style={{ width: '100%', marginTop: 32 }} onClick={() => navigate('/')}>
+            <button
+              type="button"
+              className="rb-btn-pill"
+              style={{ width: '100%', marginTop: 32 }}
+              onClick={() =>
+                navigate('/', {
+                  replace: true,
+                  state: {
+                    refreshHome: Date.now(),
+                    challenge: result.challenge || challenge || null,
+                  },
+                })
+              }
+            >
               Готово
               <Icon name="arrow_forward" />
             </button>

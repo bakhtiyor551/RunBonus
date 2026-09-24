@@ -458,6 +458,12 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
 
     let unlockedRewards = [];
     let challengeUpdate = null;
+    // Задание нужно и при rejected — чтобы карточка на главной появилась
+    try {
+      await ensureChallengeActiveForWorkout(userId);
+    } catch (chBootErr) {
+      console.warn('[workout/finish/challenge-boot]', chBootErr.message);
+    }
     if (finalStatus === 'approved') {
       try {
         const unlock = await unlockMilestonesForUser(userId);
@@ -473,6 +479,15 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         });
       } catch (chErr) {
         console.warn('[workout/finish/challenge]', chErr.message);
+      }
+    }
+    if (!challengeUpdate) {
+      try {
+        const { getChallengeState } = await import('../services/challengeService.js');
+        const state = await getChallengeState(userId);
+        challengeUpdate = state?.challenge || null;
+      } catch {
+        /* optional */
       }
     }
 
