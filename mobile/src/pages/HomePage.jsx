@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
-import { api } from '../api';
+import { api, cacheUser } from '../api';
 import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import ShoeBindBanner from '../components/ShoeBindBanner';
@@ -22,7 +22,7 @@ function km(value) {
   });
 }
 
-export default function HomePage({ user }) {
+export default function HomePage({ user, setUser }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [starting, setStarting] = useState(false);
@@ -79,9 +79,18 @@ export default function HomePage({ user }) {
         alert('Нужно подключение к интернету');
         return;
       }
-      if (!user.activeShoe || user.needsActivation) {
-        alert('Кроссовки ещё не активированы. Купите их в магазине — активация после доставки заказа.');
-        navigate('/shop');
+      // После доставки заказа профиль мог устареть — обновим перед стартом
+      let profile = user;
+      try {
+        profile = await api('/api/auth/me');
+        cacheUser(profile);
+        setUser?.(profile);
+      } catch {
+        /* use cached user */
+      }
+      if (!profile?.activeShoe || profile?.needsActivation) {
+        alert('Кроссовки ещё не активированы. После статуса «Доставлен» тренировки откроются автоматически.');
+        navigate('/orders');
         return;
       }
       const data = await api('/api/workouts/start', { method: 'POST', body: '{}' });
