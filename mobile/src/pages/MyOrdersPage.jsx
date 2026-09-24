@@ -104,7 +104,12 @@ export default function MyOrdersPage() {
                 </p>
                 {o.status === 'qr_issued' && (
                   <p style={{ marginTop: 8, color: 'var(--rb-neon)', fontSize: 13 }}>
-                    QR выдан — отсканируйте код на главной или в разделе «Сканировать QR»
+                    Кроссовки привязаны к заказу. Активация после доставки.
+                  </p>
+                )}
+                {o.status === 'delivered' && (
+                  <p style={{ marginTop: 8, color: 'var(--rb-neon)', fontSize: 13 }}>
+                    Заказ доставлен — кроссовки активированы, можно бегать.
                   </p>
                 )}
               </div>

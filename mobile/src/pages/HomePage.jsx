@@ -80,8 +80,8 @@ export default function HomePage({ user }) {
         return;
       }
       if (!user.activeShoe || user.needsActivation) {
-        alert('Привяжите кроссовки RunBonus по QR, чтобы накапливать километры.');
-        navigate('/activate');
+        alert('Кроссовки ещё не активированы. Купите их в магазине — активация после доставки заказа.');
+        navigate('/shop');
         return;
       }
       const data = await api('/api/workouts/start', { method: 'POST', body: '{}' });
