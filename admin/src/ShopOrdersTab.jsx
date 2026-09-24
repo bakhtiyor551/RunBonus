@@ -52,15 +52,9 @@ function OrderReceipt({ order, large = false }) {
 function ShopOrderCard({
   order,
   selected,
-  qrValue,
   onSelect,
-  onQrChange,
   onStatusChange,
-  onAssignQr,
 }) {
-  const hasUser = Boolean(order.user_id);
-  const showShoeAssign = !order.assigned_shoe_code && hasUser && order.status !== 'delivered' && order.status !== 'cancelled';
-
   return (
     <article
       className={`shop-order-card glass-card${selected ? ' entity-card--selected' : ''}`}
@@ -138,35 +132,33 @@ function ShopOrderCard({
       </p>
 
       <div className="shop-order-card__footer" onClick={(e) => e.stopPropagation()}>
-        <label className="shop-order-card__status-label">
-          Статус
-          <select value={order.status} onChange={(e) => onStatusChange(order.id, e.target.value)}>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {showShoeAssign ? (
-          <div className="shop-order-card__qr">
-            <input
-              placeholder="SHOE-..."
-              value={qrValue}
-              onChange={(e) => onQrChange(order.id, e.target.value)}
-            />
-            <button type="button" className="btn btn--sm" onClick={() => onAssignQr(order.id)}>
-              Привязать
+        <div className="shop-order-card__status-actions">
+          <span className="shop-order-card__status-label">Статус</span>
+          <div className="shop-order-status-btns">
+            <button
+              type="button"
+              className={`btn btn--sm shop-order-status-btn${
+                order.status === 'paid' || order.status === 'qr_issued' ? ' is-active is-paid' : ''
+              }`}
+              disabled={order.status === 'cancelled' || order.status === 'delivered'}
+              onClick={() => onStatusChange(order.id, 'paid')}
+            >
+              <Icon name="payments" />
+              Оплачено
+            </button>
+            <button
+              type="button"
+              className={`btn btn--sm shop-order-status-btn${
+                order.status === 'delivered' ? ' is-active is-delivered' : ''
+              }`}
+              disabled={order.status === 'cancelled' || order.status === 'delivered'}
+              onClick={() => onStatusChange(order.id, 'delivered')}
+            >
+              <Icon name="local_shipping" />
+              Доставлено
             </button>
           </div>
-        ) : order.assigned_shoe_code ? (
-          <p className="entity-card__meta">
-            <Icon name="directions_run" />
-            {order.assigned_shoe_code}
-            {order.status === 'delivered' ? ' · активированы' : ' · ждут доставки'}
-          </p>
-        ) : null}
+        </div>
       </div>
     </article>
   );
@@ -174,24 +166,17 @@ function ShopOrderCard({
 
 export default function ShopOrdersTab() {
   const [orders, setOrders] = useState([]);
-  const [couriers, setCouriers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [qrForms, setQrForms] = useState({});
   const [selectedId, setSelectedId] = useState(null);
 
   const load = () => {
     setLoading(true);
-    Promise.all([
-      adminApi('/api/admin/shop/orders'),
-      adminApi('/api/admin/shop/couriers'),
-    ])
-      .then(([ords, curs]) => {
+    adminApi('/api/admin/shop/orders')
+      .then((ords) => {
         setOrders(ords);
-        setCouriers((curs || []).filter((c) => c.status === 'active'));
       })
       .catch(() => {
         setOrders([]);
-        setCouriers([]);
       })
       .finally(() => setLoading(false));
   };
@@ -201,46 +186,14 @@ export default function ShopOrdersTab() {
   }, []);
 
   const setStatus = async (id, status) => {
-    await adminApi(`/api/admin/shop/orders/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-    load();
-  };
-
-  const assignDelivery = async (orderId) => {
-    const courier_id = courierPick[orderId];
-    if (!courier_id) {
-      alert('Выберите курьера');
-      return;
-    }
     try {
-      await adminApi(`/api/admin/shop/orders/${orderId}/delivery`, {
+      await adminApi(`/api/admin/shop/orders/${id}/status`, {
         method: 'PUT',
-        body: JSON.stringify({ courier_id: Number(courier_id) }),
+        body: JSON.stringify({ status }),
       });
-      alert('Курьер назначен — клиент увидит в приложении');
       load();
     } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const assignQr = async (id) => {
-    const unique_id = qrForms[id]?.trim();
-    if (!unique_id) {
-      alert('Введите код кроссовок (SHOE-...)');
-      return;
-    }
-    try {
-      await adminApi(`/api/admin/shop/orders/${id}/assign-qr`, {
-        method: 'POST',
-        body: JSON.stringify({ unique_id }),
-      });
-      alert('Кроссовки привязаны к заказу. Активация — при статусе «Доставлен».');
-      load();
-    } catch (err) {
-      alert(err.message);
+      alert(err.message || 'Не удалось обновить статус');
     }
   };
 
@@ -271,11 +224,8 @@ export default function ShopOrdersTab() {
               key={o.id}
               order={o}
               selected={selectedId === o.id}
-              qrValue={qrForms[o.id] || ''}
               onSelect={setSelectedId}
-              onQrChange={(id, v) => setQrForms({ ...qrForms, [id]: v })}
               onStatusChange={setStatus}
-              onAssignQr={assignQr}
             />
           ))}
         </div>
@@ -321,7 +271,11 @@ export default function ShopOrdersTab() {
               )}
               <div>
                 <dt>Статус</dt>
-                <dd>{selected.status_label || statusLabel(selected.status)}</dd>
+                <dd>
+                  <span className={`chip shop-order-status ${STATUS_CLASS[selected.status] || ''}`}>
+                    {selected.status_label || statusLabel(selected.status)}
+                  </span>
+                </dd>
               </div>
               {selected.comment && (
                 <div>
@@ -330,6 +284,31 @@ export default function ShopOrdersTab() {
                 </div>
               )}
             </dl>
+
+            <div className="shop-order-status-btns shop-order-status-btns--detail">
+              <button
+                type="button"
+                className={`btn shop-order-status-btn${
+                  selected.status === 'paid' || selected.status === 'qr_issued' ? ' is-active is-paid' : ''
+                }`}
+                disabled={selected.status === 'cancelled' || selected.status === 'delivered'}
+                onClick={() => setStatus(selected.id, 'paid')}
+              >
+                <Icon name="payments" />
+                Оплачено
+              </button>
+              <button
+                type="button"
+                className={`btn shop-order-status-btn${
+                  selected.status === 'delivered' ? ' is-active is-delivered' : ''
+                }`}
+                disabled={selected.status === 'cancelled' || selected.status === 'delivered'}
+                onClick={() => setStatus(selected.id, 'delivered')}
+              >
+                <Icon name="local_shipping" />
+                Доставлено
+              </button>
+            </div>
 
             <h4 className="shop-orders-detail__receipt-title">Чек клиента</h4>
             <OrderReceipt order={selected} large />

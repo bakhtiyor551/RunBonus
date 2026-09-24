@@ -6,7 +6,7 @@ import { cartCount } from '../services/cart';
 
 const tabs = [
   { to: '/', label: 'Главная', icon: 'home', end: true },
-  { to: '/workouts', label: 'Тренировки', icon: 'directions_run', match: ['/workouts', '/workout'] },
+  { to: '/leaderboard', label: 'Топ км', icon: 'emoji_events', match: ['/leaderboard'] },
   {
     to: '/rewards',
     label: 'Задания',
