@@ -8,6 +8,7 @@ import HomePage from './pages/HomePage';
 import WorkoutPage from './pages/WorkoutPage';
 import ProfilePage from './pages/ProfilePage';
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage';
+import LeaderboardPage from './pages/LeaderboardPage';
 import ProgressPage from './pages/ProgressPage';
 import ChallengesPage from './pages/ChallengesPage';
 import MyRewardsPage from './pages/MyRewardsPage';
@@ -211,6 +212,7 @@ function App() {
             <Route path="/progress" element={<Navigate to="/rewards" replace />} />
             <Route path="/activate" element={<Navigate to="/shop" replace />} />
             <Route path="/workouts" element={<WorkoutHistoryPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage user={user} />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
             <Route path="/shop/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage user={user} />} />

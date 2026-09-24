@@ -23,6 +23,7 @@ import rewardsRoutes from './routes/rewards.js';
 import adminRewardsRoutes from './routes/adminRewards.js';
 import challengesRoutes from './routes/challenges.js';
 import adminChallengesRoutes from './routes/adminChallenges.js';
+import leaderboardRoutes from './routes/leaderboard.js';
 import { buildDailyTelegramReport } from './services/reportsService.js';
 import { sendTelegramMessage } from './services/telegramService.js';
 
@@ -65,6 +66,7 @@ app.use('/api/rewards', rewardsRoutes);
 app.use('/api/admin/rewards', adminRewardsRoutes);
 app.use('/api/challenges', challengesRoutes);
 app.use('/api/admin/challenges', adminChallengesRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
 
 /** Утренний Telegram-отчёт (08:00, один раз в сутки). */
 let lastDailyReportKey = '';
