@@ -517,17 +517,10 @@ export async function updateOrderStatus(orderId, status) {
     prevStatus = order.status;
 
     if (status === 'delivered' && prevStatus !== 'delivered') {
-      if (!order.assigned_shoe_id) {
-        const err = new Error('Сначала привяжите код кроссовок к заказу');
-        err.status = 400;
-        throw err;
+      // Shoe binding optional: activate only if already assigned
+      if (order.assigned_shoe_id && order.user_id) {
+        await activateAssignedShoeForOrder(conn, order);
       }
-      if (!order.user_id) {
-        const err = new Error('У заказа нет пользователя приложения — активация невозможна');
-        err.status = 400;
-        throw err;
-      }
-      await activateAssignedShoeForOrder(conn, order);
     }
 
     await conn.query(`UPDATE shop_orders SET status = ? WHERE id = ?`, [status, orderId]);

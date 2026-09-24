@@ -2198,11 +2198,60 @@ code {
 }
 
 .shop-order-card__status-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: block;
   font-size: 11px;
   color: var(--on-surface-variant);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.shop-order-card__status-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shop-order-status-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.shop-order-status-btns--detail {
+  margin: 0 0 20px;
+}
+
+.shop-order-status-btn {
+  width: 100%;
+  border-radius: 999px;
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  border: 1px solid rgba(68, 73, 51, 0.4);
+  box-shadow: none;
+}
+
+.shop-order-status-btn:hover:not(:disabled) {
+  border-color: rgba(195, 244, 0, 0.4);
+  color: var(--on-surface);
+}
+
+.shop-order-status-btn.is-active.is-paid {
+  background: rgba(125, 211, 252, 0.16);
+  border-color: rgba(125, 211, 252, 0.55);
+  color: #7dd3fc;
+}
+
+.shop-order-status-btn.is-active.is-delivered {
+  background: rgba(195, 244, 0, 0.16);
+  border-color: rgba(195, 244, 0, 0.55);
+  color: var(--primary-fixed);
+}
+
+.shop-order-status-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .shop-order-card__status-label select {
