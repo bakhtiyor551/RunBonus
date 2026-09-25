@@ -53,6 +53,23 @@ export async function bufferGpsPoint(workoutId, point) {
   });
 }
 
+/** Записать несколько GPS-точек одним transaction. */
+export async function bufferGpsPoints(workoutId, points) {
+  if (!points?.length) return;
+  const db = await openDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    for (const point of points) {
+      const payload = pointPayload(workoutId, point);
+      if (!Number.isFinite(payload.latitude) || !Number.isFinite(payload.longitude)) continue;
+      store.add(payload);
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 /** Получить pending-точки для тренировки (по recorded_at). */
 export async function getPendingPoints(workoutId, limit = 50) {
   const db = await openDb();

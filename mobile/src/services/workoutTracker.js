@@ -8,7 +8,7 @@ import {
   saveWorkoutLocal,
   loadWorkoutLocal,
   requestLocationPermission,
-  getCurrentPosition,
+  getCurrentPositionQuick,
 } from './geolocation';
 import {
   GPS_AUTO_PAUSE_MS,
@@ -34,6 +34,7 @@ import {
 } from './liveActivity';
 import {
   bufferGpsPoint,
+  bufferGpsPoints,
   bufferedToApiPoint,
   clearWorkoutBuffer,
   deleteBufferedPoints,
@@ -48,12 +49,13 @@ import {
   sendWorkoutPoints,
 } from './workoutSocket';
 
-const SYNC_INTERVAL_MS = 5000;
-const PAUSED_SYNC_INTERVAL_MS = 10000;
-const BATCH_SIZE = 50;
-const BACKGROUND_POLL_MS = 15000;
-const BACKGROUND_POLL_SLOW_MS = 25000;
-const GPS_ACQUIRE_POLL_MS = 3000;
+const SYNC_INTERVAL_MS = 4000;
+const PAUSED_SYNC_INTERVAL_MS = 8000;
+const BATCH_SIZE = 80;
+/** Резервный опрос GPS, когда watchPosition молчит (особенно в фоне). */
+const BACKGROUND_POLL_MS = 4000;
+const FOREGROUND_POLL_MS = 8000;
+const GPS_ACQUIRE_POLL_MS = 2500;
 const AUTO_PAUSE_GRACE_MS = 45000;
 const UI_EMIT_MIN_MS = 1000;
 const PERSIST_MIN_MS = 10000;
@@ -64,6 +66,8 @@ const commandListeners = new Set();
 let lastUiEmitAt = 0;
 let lastPersistAt = 0;
 let persistTimer = null;
+let flushInFlight = false;
+let pollInFlight = false;
 
 function emitCommand(cmd) {
   commandListeners.forEach((fn) => fn(cmd));
@@ -332,34 +336,41 @@ async function uploadPointBatch(batch) {
 }
 
 async function flushPointsToServer() {
-  if (!session || session.serverStale) return;
+  if (!session || session.serverStale || flushInFlight) return;
+  flushInFlight = true;
 
-  let sentAny = false;
+  try {
+    let sentAny = false;
+    let loops = 0;
 
-  while (session && !session.serverStale) {
-    const pending = await getPendingPoints(session.workoutId, BATCH_SIZE);
-    if (!pending.length) {
-      if (!sentAny && session.livePosition && !session.points.length && !session.anchorBuffered) {
-        await ensureAnchorBuffered();
-        continue;
+    while (session && !session.serverStale && loops < 12) {
+      loops += 1;
+      const pending = await getPendingPoints(session.workoutId, BATCH_SIZE);
+      if (!pending.length) {
+        if (!sentAny && session.livePosition && !session.points.length && !session.anchorBuffered) {
+          await ensureAnchorBuffered();
+          continue;
+        }
+        return;
       }
-      return;
-    }
 
-    const ids = pending.map((r) => r.id);
-    const batch = pending.map((r) => clampPointRecordedAt(bufferedToApiPoint(r)));
+      const ids = pending.map((r) => r.id);
+      const batch = pending.map((r) => clampPointRecordedAt(bufferedToApiPoint(r)));
 
-    try {
-      await uploadPointBatch(batch);
-      await deleteBufferedPoints(ids);
-      sentAny = true;
-      if (pending.length < BATCH_SIZE) return;
-    } catch (err) {
-      if (err.status === 404 || err.message?.includes('не найдена') || err.message?.includes('workout_not_active')) {
-        session.serverStale = true;
+      try {
+        await uploadPointBatch(batch);
+        await deleteBufferedPoints(ids);
+        sentAny = true;
+        if (pending.length < BATCH_SIZE) return;
+      } catch (err) {
+        if (err.status === 404 || err.message?.includes('не найдена') || err.message?.includes('workout_not_active')) {
+          session.serverStale = true;
+        }
+        return;
       }
-      return;
     }
+  } finally {
+    flushInFlight = false;
   }
 }
 
@@ -367,7 +378,7 @@ async function flushPointsToServer() {
 export async function flushAllPendingPoints() {
   if (!session || session.serverStale) return;
   let guard = 0;
-  while (session && !session.serverStale && guard < 200) {
+  while (session && !session.serverStale && guard < 80) {
     const before = await getPendingPoints(session.workoutId, 1);
     if (!before.length) return;
     await flushPointsToServer();
@@ -381,11 +392,12 @@ async function migrateLocalPointsToBuffer(workoutId, points) {
   const pending = await getPendingPoints(workoutId, 1);
   if (pending.length) return;
   const startedAt = session?.startedAt ?? Date.now();
-  for (const p of points) {
+  const valid = points.filter((p) => {
     const t = new Date(p.recorded_at ?? 0).getTime();
-    if (!Number.isFinite(t) || t < startedAt) continue;
-    await bufferGpsPoint(workoutId, p).catch(() => {});
-  }
+    return Number.isFinite(t) && t >= startedAt;
+  });
+  if (!valid.length) return;
+  await bufferGpsPoints(workoutId, valid).catch(() => {});
 }
 
 let lastLiveAnchorFlushAt = 0;
@@ -447,12 +459,15 @@ function onGpsPosition(pos) {
 }
 
 async function pollPositionOnce() {
-  if (!session) return;
+  if (!session || pollInFlight || session.finishing) return;
+  pollInFlight = true;
   try {
-    const pos = await getCurrentPosition();
+    const pos = await getCurrentPositionQuick();
     onGpsPosition(pos);
   } catch {
     /* GPS временно недоступен */
+  } finally {
+    pollInFlight = false;
   }
 }
 
@@ -467,7 +482,8 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
     syncElapsedSeconds();
     attachLiveActivityHandlers();
     connectWorkoutSocket(id, { onCommand: handleServerCommand }).catch(() => {});
-    emit();
+    flushPointsToServer().catch(() => {});
+    emit(true);
     return session;
   }
 
@@ -515,43 +531,61 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
 
   restoreSessionSteps(saved?.steps || 0);
   syncElapsedSeconds();
-  await clearWorkoutBuffer(id);
-  await migrateLocalPointsToBuffer(id, points);
+  // UI сразу видит сессию — тяжёлую работу не блокируем
+  emit(true);
 
   setConnectivityWorkoutMode(true);
 
-  try {
-    await connectWorkoutSocket(id, { onCommand: handleServerCommand });
-  } catch {
-    /* оффлайн — буфер + reconnect при восстановлении сети */
-  }
+  // Socket / буфер / GPS — параллельно, без ожидания ACK на старте
+  const boot = async () => {
+    if (session?.workoutId !== id) return;
 
-  try {
-    await requestLocationPermission();
-  } catch (err) {
-    if (session?.workoutId === id) {
-      session.gpsError = err.message;
-    }
-  }
-
-  try {
-    await startWorkoutForeground();
-    await startStepCounter();
-  } catch {
-    /* foreground / шаги опциональны */
-  }
-
-  if (!session.gpsError) {
     try {
-      session.stopGps = await startBackgroundTracking(onGpsPosition);
-      pollPositionOnce().catch(() => {});
-      await flushPointsToServer();
+      if (points.length) {
+        await clearWorkoutBuffer(id);
+        await migrateLocalPointsToBuffer(id, points);
+      } else {
+        clearWorkoutBuffer(id).catch(() => {});
+      }
+    } catch {
+      /* buffer optional */
+    }
+
+    connectWorkoutSocket(id, { onCommand: handleServerCommand }).catch(() => {});
+
+    try {
+      await requestLocationPermission();
     } catch (err) {
       if (session?.workoutId === id) {
-        session.gpsError = err.message || 'Не удалось запустить GPS';
+        session.gpsError = err.message;
+        emit(true);
       }
     }
-  }
+
+    try {
+      await startWorkoutForeground();
+      await startStepCounter();
+    } catch {
+      /* foreground / шаги опциональны */
+    }
+
+    if (session?.workoutId !== id) return;
+
+    if (!session.gpsError) {
+      try {
+        session.stopGps = await startBackgroundTracking(onGpsPosition);
+        pollPositionOnce().catch(() => {});
+      } catch (err) {
+        if (session?.workoutId === id) {
+          session.gpsError = err.message || 'Не удалось запустить GPS';
+          emit(true);
+        }
+      }
+    }
+
+    flushPointsToServer().catch(() => {});
+  };
+  boot().catch(() => {});
 
   session.gpsAcquirePollId = setInterval(() => {
     if (!session || session.workoutId !== id) return;
@@ -578,19 +612,26 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
   session.restartSyncInterval = restartSyncInterval;
 
   if (Capacitor.isNativePlatform()) {
+    // В фоне watchPosition часто засыпает — опрашиваем чаще, не реже
     session.backgroundPollId = setInterval(() => {
       if (!session || session.workoutId !== id) return;
       pollPositionOnce();
-    }, BACKGROUND_POLL_MS);
+    }, FOREGROUND_POLL_MS);
     session.onAppState = ({ isActive }) => {
       if (!session || session.workoutId !== id) return;
       clearInterval(session.backgroundPollId);
-      const interval = isActive ? BACKGROUND_POLL_MS : BACKGROUND_POLL_SLOW_MS;
+      const interval = isActive ? FOREGROUND_POLL_MS : BACKGROUND_POLL_MS;
       session.backgroundPollId = setInterval(() => {
         if (!session || session.workoutId !== id) return;
         pollPositionOnce();
       }, interval);
-      if (isActive) attachLiveActivityHandlers();
+      if (isActive) {
+        attachLiveActivityHandlers();
+        flushPointsToServer().catch(() => {});
+      } else {
+        persistWorkoutSession();
+        ensureWorkoutLiveActivity(liveSnapshotFromSession()).catch(() => {});
+      }
     };
     App.addListener('appStateChange', session.onAppState).then((handle) => {
       if (session?.workoutId === id) session.appStateHandle = handle;
@@ -616,7 +657,6 @@ export async function startWorkoutSession(workoutId, api, options = {}) {
   });
 
   attachLiveActivityHandlers();
-  emit();
   return session;
 }
 
@@ -695,9 +735,10 @@ export async function resumeWorkoutSession() {
   if (!isWorkoutSocketOpen()) {
     connectWorkoutSocket(session.workoutId, { onCommand: handleServerCommand }).catch(() => {});
   }
-  if (!isTrackingFrozen()) await pollPositionOnce();
-  await flushAllPendingPoints();
-  emit();
+  // Не блокируем UI полным drain буфера
+  pollPositionOnce().catch(() => {});
+  flushPointsToServer().catch(() => {});
+  emit(true);
 }
 
 export function stopWorkoutSession() {

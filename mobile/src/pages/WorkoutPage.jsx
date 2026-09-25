@@ -65,10 +65,38 @@ export default function WorkoutPage({ user, setUser }) {
     let cancelled = false;
 
     (async () => {
+      const localHint = state?.workoutId ?? getActiveWorkoutId();
+      // Сразу показываем экран, если id уже известен — не ждём сеть
+      if (localHint && !cancelled) {
+        setWorkoutId(Number(localHint));
+        setActiveWorkoutId(Number(localHint));
+        setSyncing(false);
+        startWorkoutSession(Number(localHint), api).catch(() => {});
+      }
+
       try {
-        const localHint = state?.workoutId ?? getActiveWorkoutId();
-        const sync = await syncActiveWorkoutWithServer();
+        const syncPromise = syncActiveWorkoutWithServer();
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve({ workoutId: null, offline: true, timedOut: true }), 3500)
+        );
+        const sync = await Promise.race([syncPromise, timeoutPromise]);
         if (cancelled) return;
+
+        if (sync.timedOut) {
+          // Сеть тормозит — продолжаем с локальным id
+          if (!localHint) {
+            const late = await syncPromise.catch(() => null);
+            if (cancelled) return;
+            if (late?.workoutId) {
+              setWorkoutId(late.workoutId);
+              setActiveWorkoutId(late.workoutId);
+              await startWorkoutSession(late.workoutId, api, { startedAt: late.startedAt });
+              return;
+            }
+            navigate('/', { replace: true });
+          }
+          return;
+        }
 
         if (!sync.workoutId) {
           if (sync.offline && localHint) {
@@ -82,7 +110,7 @@ export default function WorkoutPage({ user, setUser }) {
               'Сохранённая тренировка на сервере не найдена (уже завершена). Начните новую с главной.'
             );
           }
-          navigate('/', { replace: true });
+          if (!localHint) navigate('/', { replace: true });
           return;
         }
 
@@ -94,7 +122,7 @@ export default function WorkoutPage({ user, setUser }) {
         setActiveWorkoutId(sync.workoutId);
         await startWorkoutSession(sync.workoutId, api, { startedAt: sync.startedAt });
       } catch (e) {
-        if (!cancelled) {
+        if (!cancelled && !localHint) {
           alert(e.message || 'Не удалось открыть тренировку');
           navigate('/', { replace: true });
         }

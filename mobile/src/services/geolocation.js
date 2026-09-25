@@ -142,6 +142,42 @@ export async function getCurrentPosition() {
 }
 
 /**
+ * Быстрый фикс для фонового опроса — не ждём десятки секунд.
+ * Использует кэш (maximumAge) и короткий timeout.
+ */
+export async function getCurrentPositionQuick() {
+  if (isNative()) {
+    const attempts = [
+      { enableHighAccuracy: true, timeout: 4000, maximumAge: 8000 },
+      { enableHighAccuracy: false, timeout: 3500, maximumAge: 30000 },
+    ];
+    let lastErr;
+    for (const options of attempts) {
+      try {
+        const pos = await Geolocation.getCurrentPosition(options);
+        const normalized = normalizePosition(pos);
+        if (normalized) return normalized;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error('GPS сигнал недоступен');
+  }
+
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        const normalized = normalizePosition(p);
+        if (normalized) resolve(normalized);
+        else reject(new Error('GPS сигнал недоступен'));
+      },
+      () => reject(new Error('GPS сигнал недоступен')),
+      { enableHighAccuracy: true, maximumAge: 8000, timeout: 4000 }
+    );
+  });
+}
+
+/**
  * @returns {Promise<() => void>} stop
  */
 export async function startBackgroundTracking(onPosition) {
@@ -149,9 +185,9 @@ export async function startBackgroundTracking(onPosition) {
     const watchId = await Geolocation.watchPosition(
       {
         enableHighAccuracy: true,
-        timeout: 30000,
-        maximumAge: isAndroid() ? 8000 : 4000,
-        minimumUpdateInterval: 2000,
+        timeout: 12000,
+        maximumAge: isAndroid() ? 5000 : 3000,
+        minimumUpdateInterval: 1500,
       },
       (pos, err) => {
         if (err) return;
@@ -161,7 +197,8 @@ export async function startBackgroundTracking(onPosition) {
       }
     );
 
-    getCurrentPosition()
+    // Не блокируем старт долгим getCurrentPosition — быстрый фикс
+    getCurrentPositionQuick()
       .then((pos) => onPosition(pos))
       .catch(() => {});
 
@@ -175,14 +212,14 @@ export async function startBackgroundTracking(onPosition) {
         if (normalized) onPosition(normalized);
       },
       () => {},
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 }
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
   }
 
   const intervalId = setInterval(async () => {
     try {
-      const position = await getCurrentPosition();
+      const position = await getCurrentPositionQuick();
       onPosition(position);
     } catch {
       /* retry */
