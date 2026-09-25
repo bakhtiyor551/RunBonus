@@ -5760,6 +5760,40 @@ html.rb-keyboard-open .rb-main {
   padding: 0;
 }
 
+.rb-home-exercise__lock {
+  margin-top: 18px;
+  max-width: 300px;
+  text-align: center;
+}
+
+.rb-home-exercise__lock-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.rb-home-exercise__lock-text {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.rb-home-exercise__lock-cta {
+  margin-top: 14px;
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--rb-neon) 55%, transparent);
+  background: color-mix(in srgb, var(--rb-neon) 14%, transparent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
 .rb-home-exercise__fabs {
   display: flex;
   align-items: center;
@@ -6072,6 +6106,13 @@ html.rb-keyboard-open .rb-main {
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1;
+}
+
+.rb-result-sheet__raw-dist {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .rb-result-bonus {

@@ -100,7 +100,9 @@ function normalizePosition(pos) {
     longitude: lng,
     speedMps,
     speed: speedMpsToKmh(speedMps),
-    accuracy: c.accuracy,
+    accuracy: c.accuracy != null ? Number(c.accuracy) : null,
+    altitude: c.altitude != null ? Number(c.altitude) : null,
+    course: c.heading != null ? Number(c.heading) : c.course != null ? Number(c.course) : null,
     recorded_at: new Date().toISOString(),
   };
 }

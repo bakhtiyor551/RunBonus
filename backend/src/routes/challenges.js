@@ -19,6 +19,20 @@ router.get('/state', authUser, async (req, res) => {
   }
 });
 
+/** TZ §33: GET /api/challenges/current */
+router.get('/current', authUser, async (req, res) => {
+  try {
+    const state = await getChallengeState(req.userId);
+    res.json({
+      ...state,
+      challenge: state.challenge || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось загрузить задания' });
+  }
+});
+
 router.post('/start', authUser, async (req, res) => {
   try {
     const result = await startChallenge(req.userId, {

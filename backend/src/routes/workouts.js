@@ -44,20 +44,22 @@ async function getActiveShoe(userId) {
 
 async function assertWorkoutOwner(workoutId, userId) {
   const [rows] = await pool.query(
-    `SELECT * FROM workouts WHERE id = ? AND user_id = ? AND status = 'in_progress'`,
+    `SELECT * FROM workouts WHERE id = ? AND user_id = ? AND status IN ('in_progress', 'paused')`,
     [workoutId, userId]
   );
   return rows[0] || null;
 }
 
-/** Закрыть только очень старые незавершённые тренировки (>24 ч). */
+/** Закрыть только очень старые незавершённые тренировки (>24 ч) → AUTO_CLOSED. */
 async function closeStaleWorkouts(conn, userId) {
   await conn.query(
     `UPDATE workouts SET
-       status = 'rejected',
-       reject_reason = 'Тренировка отменена (не завершена)',
+       status = 'auto_closed',
+       approved_distance_km = 0,
+       validation_status = 'auto_closed',
+       reject_reason = 'Автоматически закрыта: более 24 часов без завершения',
        finished_at = NOW()
-     WHERE user_id = ? AND status = 'in_progress'
+     WHERE user_id = ? AND status IN ('in_progress', 'paused')
        AND started_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)`,
     [userId]
   );
@@ -65,8 +67,8 @@ async function closeStaleWorkouts(conn, userId) {
 
 async function getInProgressWorkout(conn, userId) {
   const [rows] = await conn.query(
-    `SELECT id FROM workouts
-     WHERE user_id = ? AND status = 'in_progress'
+    `SELECT id, status FROM workouts
+     WHERE user_id = ? AND status IN ('in_progress', 'paused')
      ORDER BY started_at DESC LIMIT 1`,
     [userId]
   );
@@ -81,7 +83,39 @@ router.get('/active', authUser, async (req, res) => {
       await closeAbandonedInProgressWorkouts(conn);
       const [rows] = await conn.query(
         `SELECT id, started_at, status FROM workouts
-         WHERE user_id = ? AND status = 'in_progress'
+         WHERE user_id = ? AND status IN ('in_progress', 'paused')
+         ORDER BY started_at DESC LIMIT 1`,
+        [req.userId]
+      );
+      if (!rows.length) {
+        return res.json({ active: false, workoutId: null, id: null });
+      }
+      res.json({
+        active: true,
+        workoutId: rows[0].id,
+        id: rows[0].id,
+        started_at: rows[0].started_at,
+        status: rows[0].status,
+      });
+    } finally {
+      conn.release();
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки активной тренировки' });
+  }
+});
+
+/** TZ §33: GET /api/workouts/current */
+router.get('/current', authUser, async (req, res) => {
+  try {
+    const conn = await pool.getConnection();
+    try {
+      await closeStaleWorkouts(conn, req.userId);
+      await closeAbandonedInProgressWorkouts(conn);
+      const [rows] = await conn.query(
+        `SELECT id, started_at, status FROM workouts
+         WHERE user_id = ? AND status IN ('in_progress', 'paused')
          ORDER BY started_at DESC LIMIT 1`,
         [req.userId]
       );
@@ -125,37 +159,40 @@ router.post('/start', authUser, requireActiveUser, requireActiveShoe, async (req
     const existing = await getInProgressWorkout(conn, req.userId);
     if (existing) {
       await conn.commit();
-
-      const [resumeRows] = await pool.query(
-        `SELECT w.id, w.user_id, u.name AS client_name, u.phone, w.started_at, w.status,
-                w.steps_count, w.pause_seconds
-         FROM workouts w
-         JOIN users u ON u.id = w.user_id
-         WHERE w.id = ?`,
-        [existing.id]
-      );
-      const [resumePoints] = await pool.query(
-        `SELECT latitude AS lat, longitude AS lng, speed, accuracy, recorded_at
-         FROM workout_points WHERE workout_id = ? ORDER BY recorded_at`,
-        [existing.id]
-      );
-      if (resumeRows[0]) {
-        emitWorkoutStarted(buildWorkoutLiveRow(resumeRows[0], resumePoints));
-      }
-
-      return res.status(200).json({
+      // TZ §28: одна активная тренировка — нельзя стартовать вторую
+      return res.status(409).json({
+        error: 'ACTIVE_WORKOUT_EXISTS',
+        code: 'ACTIVE_WORKOUT_EXISTS',
         workoutId: existing.id,
         id: existing.id,
-        resumed: true,
-        challenge: challengeBoot,
       });
     }
 
-    const [result] = await conn.query(
-      `INSERT INTO workouts (user_id, shoe_id, started_at, status, background_tracking)
-       VALUES (?, ?, NOW(), 'in_progress', TRUE)`,
-      [req.userId, shoe.id]
-    );
+    const deviceId =
+      req.body?.deviceId != null
+        ? String(req.body.deviceId).slice(0, 128)
+        : req.body?.device_id != null
+          ? String(req.body.device_id).slice(0, 128)
+          : null;
+
+    let result;
+    try {
+      [result] = await conn.query(
+        `INSERT INTO workouts (user_id, shoe_id, device_id, started_at, status, background_tracking)
+         VALUES (?, ?, ?, NOW(), 'in_progress', TRUE)`,
+        [req.userId, shoe.id, deviceId]
+      );
+    } catch (insertErr) {
+      if (insertErr?.code === 'ER_BAD_FIELD_ERROR') {
+        [result] = await conn.query(
+          `INSERT INTO workouts (user_id, shoe_id, started_at, status, background_tracking)
+           VALUES (?, ?, NOW(), 'in_progress', TRUE)`,
+          [req.userId, shoe.id]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
 
     await conn.commit();
 
@@ -256,6 +293,49 @@ router.post('/point', authUser, async (req, res) => {
   }
 });
 
+/** TZ §33 Pause */
+router.post('/:id/pause', authUser, async (req, res) => {
+  try {
+    const workout = await assertWorkoutOwner(req.params.id, req.userId);
+    if (!workout) {
+      return res.status(404).json({ error: 'Активная тренировка не найдена', code: 'WORKOUT_NOT_ACTIVE' });
+    }
+    if (workout.status === 'paused') {
+      return res.json({ ok: true, status: 'paused', workoutId: workout.id });
+    }
+    await pool.query(
+      `UPDATE workouts SET status = 'paused', paused_at = NOW() WHERE id = ? AND user_id = ?`,
+      [workout.id, req.userId]
+    );
+    res.json({ ok: true, status: 'paused', workoutId: workout.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось поставить на паузу' });
+  }
+});
+
+/** TZ §33 Resume */
+router.post('/:id/resume', authUser, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM workouts WHERE id = ? AND user_id = ? AND status IN ('in_progress', 'paused')`,
+      [req.params.id, req.userId]
+    );
+    const workout = rows[0];
+    if (!workout) {
+      return res.status(404).json({ error: 'Активная тренировка не найдена', code: 'WORKOUT_NOT_ACTIVE' });
+    }
+    await pool.query(
+      `UPDATE workouts SET status = 'in_progress', paused_at = NULL WHERE id = ? AND user_id = ?`,
+      [workout.id, req.userId]
+    );
+    res.json({ ok: true, status: 'in_progress', workoutId: workout.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Не удалось продолжить тренировку' });
+  }
+});
+
 router.post('/:id/points', authUser, async (req, res) => {
   try {
     const workoutId = req.params.id;
@@ -303,7 +383,7 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
 
     const workout = workouts[0];
 
-    if (workout.status !== 'in_progress') {
+    if (workout.status !== 'in_progress' && workout.status !== 'paused') {
       await conn.rollback();
       return {
         status: 400,
@@ -355,6 +435,11 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         : null;
 
     const settings = await getActiveBonusSettings(conn);
+    // Mark processing while validating (source of truth on server)
+    await conn.query(`UPDATE workouts SET status = 'processing' WHERE id = ? AND status IN ('in_progress', 'paused')`, [
+      workoutId,
+    ]);
+
     let validation = validateWorkout(dbPoints, durationSeconds, settings);
 
     let clientTrackDistance = 0;
@@ -366,80 +451,86 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
     }
     const clientDistanceKm = Number(clientMeta.distance_km);
 
-    let distanceKm = validation.distanceKm ?? 0;
-    if (distanceKm < 0.001 && clientTrackDistance > distanceKm) {
+    // Official distance = server GPS track only (client distance is never trusted as approved)
+    let distanceKm = validation.distanceKm ?? calcDistanceFromPoints(dbPoints) ?? 0;
+    if (distanceKm < 0.001 && clientTrackDistance > 0) {
+      // fallback display only if server track empty — still subject to validation status
       distanceKm = clientTrackDistance;
-    }
-    if (distanceKm < 0.001 && clientDistanceKm > 0) {
-      distanceKm = clientDistanceKm;
-    }
-
-    const minDurationSec = (settings?.min_duration_minutes ?? 5) * 60;
-    const minDistanceKm = settings?.min_distance_km ?? 0.5;
-
-    if (!validation.ok && validation.reason?.includes('GPS')) {
-      if (durationSeconds >= minDurationSec && distanceKm >= minDistanceKm) {
-        const avgSpeed =
-          durationSeconds > 0 ? (distanceKm / durationSeconds) * 3600 : 0;
-        validation = {
-          ok: true,
-          status: 'approved',
-          distanceKm,
-          avgSpeed,
-          maxSpeed: validation.maxSpeed ?? 0,
-        };
-      } else {
-        validation = {
-          ...validation,
-          distanceKm,
-          reason:
-            durationSeconds < minDurationSec
-              ? `Минимум ${settings?.min_duration_minutes ?? 5} мин (сейчас ${Math.floor(durationSeconds / 60)} мин)`
-              : `Минимум ${minDistanceKm} км (сейчас ${distanceKm.toFixed(2)} км)`,
-        };
+      if (validation.ok) {
+        validation = { ...validation, distanceKm, approvedDistanceKm: 0, ok: false, status: 'suspicious', reason: 'Недостаточно серверных GPS-точек', reasons: ['GPS_GAP'] };
       }
     }
+    void clientDistanceKm;
+
     let pricePerKm = 0;
     let rawCalculatedBonus = 0;
     let bonusBreakdown = null;
     let levelSnapshot = null;
     let progressKm = 0;
 
-    // Rewards mode: no money-per-km. Approve on GPS OK; progress feeds milestones.
     let bonusAmount = 0;
-    let finalStatus = validation.status;
+    let finalStatus = validation.status || 'rejected';
     let rejectReason = validation.ok ? null : validation.reason;
+    let approvedDistanceKm = 0;
 
-    if (validation.ok) {
+    if (validation.ok && validation.status === 'approved') {
       if (workout.shoe_status === 'blocked') {
         finalStatus = 'rejected';
         rejectReason = 'Кроссовки заблокированы';
+        approvedDistanceKm = 0;
       } else {
         finalStatus = 'approved';
-        progressKm = distanceKm;
+        approvedDistanceKm = Number(validation.approvedDistanceKm ?? distanceKm) || 0;
+        progressKm = approvedDistanceKm;
         await ensureShoeProgress(conn, userId, workout.shoe_id);
       }
+    } else if (finalStatus === 'suspicious') {
+      approvedDistanceKm = 0;
+      progressKm = 0;
+    } else {
+      finalStatus = 'rejected';
+      approvedDistanceKm = 0;
+      progressKm = 0;
     }
+
+    const avgPace =
+      approvedDistanceKm > 0 && durationSeconds > 0
+        ? durationSeconds / approvedDistanceKm
+        : null;
+
+    const validationReasonsJson = validation.reasons?.length
+      ? JSON.stringify(validation.reasons)
+      : null;
 
     await conn.query(
       `UPDATE workouts SET
-        distance_km = ?, duration_seconds = ?, avg_speed = ?, max_speed = ?,
+        distance_km = ?, approved_distance_km = ?, duration_seconds = ?,
+        active_duration_seconds = ?, avg_speed = ?, max_speed = ?, avg_pace = ?,
+        gps_points_count = ?,
         steps_count = ?, moving_seconds = ?, pause_seconds = ?,
         finished_at = ?, status = ?, reject_reason = ?,
+        validation_status = ?, validation_score = ?, validation_reasons = ?,
         price_per_km = ?, calculated_bonus = ?,
         level_snapshot = ?, bonus_breakdown = ?
        WHERE id = ?`,
       [
         distanceKm,
+        approvedDistanceKm,
         durationSeconds,
+        movingSeconds ?? durationSeconds,
         validation.avgSpeed ?? null,
         validation.maxSpeed ?? null,
+        avgPace,
+        dbPoints.length,
         stepsCount,
         movingSeconds,
         pauseSeconds,
         finishedAt,
         finalStatus,
         rejectReason,
+        finalStatus,
+        validation.score ?? null,
+        validationReasonsJson,
         pricePerKm,
         rawCalculatedBonus,
         levelSnapshot ? JSON.stringify(levelSnapshot) : null,
@@ -448,7 +539,7 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       ]
     );
 
-    if (validation.ok && finalStatus === 'approved' && progressKm > 0) {
+    if (finalStatus === 'approved' && progressKm > 0) {
       await applyWorkoutProgress(conn, userId, workout.shoe_id, progressKm, 0);
     }
 
@@ -458,16 +549,34 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
 
     let unlockedRewards = [];
     let challengeUpdate = null;
-    try {
-      await ensureChallengeForFinishedWorkout(userId, workout.started_at);
-      challengeUpdate = await applyWorkoutToActiveChallenge(userId, {
-        distanceKm: validation.distanceKm ?? distanceKm,
-        finishedAt,
-      });
-    } catch (chErr) {
-      console.warn('[workout/finish/challenge]', chErr.message);
-    }
-    if (!challengeUpdate) {
+    // TZ: only APPROVED KM → challenge
+    if (finalStatus === 'approved') {
+      try {
+        await ensureChallengeForFinishedWorkout(userId, workout.started_at);
+        challengeUpdate = await applyWorkoutToActiveChallenge(userId, {
+          distanceKm: approvedDistanceKm,
+          finishedAt,
+        });
+      } catch (chErr) {
+        console.warn('[workout/finish/challenge]', chErr.message);
+      }
+      if (!challengeUpdate) {
+        try {
+          const { getChallengeState } = await import('../services/challengeService.js');
+          const state = await getChallengeState(userId);
+          challengeUpdate = state?.challenge || null;
+        } catch {
+          /* optional */
+        }
+      }
+      try {
+        const unlock = await unlockMilestonesForUser(userId);
+        unlockedRewards = unlock.unlocked || [];
+        notifyUserRewardUnlocked(userId, unlockedRewards);
+      } catch (rewErr) {
+        console.warn('[workout/finish/rewards]', rewErr.message);
+      }
+    } else {
       try {
         const { getChallengeState } = await import('../services/challengeService.js');
         const state = await getChallengeState(userId);
@@ -476,28 +585,22 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
         /* optional */
       }
     }
-    if (finalStatus === 'approved') {
-      try {
-        const unlock = await unlockMilestonesForUser(userId);
-        unlockedRewards = unlock.unlocked || [];
-        notifyUserRewardUnlocked(userId, unlockedRewards);
-      } catch (rewErr) {
-        console.warn('[workout/finish/rewards]', rewErr.message);
-      }
-    }
 
     emitWorkoutClosed(workoutId, finalStatus, {
-      distance_km: validation.distanceKm ?? distanceKm,
+      distance_km: distanceKm,
+      approved_distance_km: approvedDistanceKm,
       client_name: null,
     });
 
     const client = buildClientFinishResponse({
       finalStatus,
       bonusAmount,
-      distanceKm: validation.distanceKm ?? distanceKm,
+      distanceKm,
+      approvedDistanceKm,
       durationSeconds,
       balanceAfter,
       rejectReason,
+      validationReasons: validation.reasons,
     });
 
     if (unlockedRewards.length) {

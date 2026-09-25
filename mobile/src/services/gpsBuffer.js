@@ -32,6 +32,8 @@ function pointPayload(workoutId, point) {
     longitude: lng,
     speed: point.speed != null ? Number(point.speed) : point.speedMps ?? null,
     accuracy: point.accuracy != null ? Number(point.accuracy) : null,
+    altitude: point.altitude != null ? Number(point.altitude) : null,
+    course: point.course != null ? Number(point.course) : null,
     recorded_at: recordedAt,
     status: 'pending',
     created_at: Date.now(),
@@ -124,6 +126,9 @@ export function bufferedToApiPoint(row) {
     longitude: row.longitude,
     speed: row.speed,
     accuracy: row.accuracy,
+    altitude: row.altitude ?? null,
+    course: row.course ?? null,
+    timestamp: row.recorded_at,
     recorded_at: row.recorded_at,
   };
 }

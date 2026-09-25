@@ -18,7 +18,7 @@ export const FORCE_STOP_SPEED_KMH = 60;
 
 async function assertWorkoutOwner(workoutId, userId) {
   const [rows] = await pool.query(
-    `SELECT * FROM workouts WHERE id = ? AND user_id = ? AND status = 'in_progress'`,
+    `SELECT * FROM workouts WHERE id = ? AND user_id = ? AND status IN ('in_progress', 'paused')`,
     [workoutId, userId]
   );
   return rows[0] || null;
@@ -51,6 +51,8 @@ function preparePointRow(workoutId, rawPoint, workoutStartedAt = null) {
     longitude: p.longitude,
     speed: p.speed,
     accuracy: p.accuracy,
+    altitude: p.altitude,
+    course: p.course,
     recordedAt,
     point: { ...p, recorded_at: recordedAt.toISOString?.() || recordedAt },
   };
@@ -58,16 +60,39 @@ function preparePointRow(workoutId, rawPoint, workoutStartedAt = null) {
 
 async function insertGpsPointsBulk(conn, rows) {
   if (!rows.length) return;
-  const values = rows.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
-  const params = [];
+  const valuesFull = rows.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+  const paramsFull = [];
   for (const r of rows) {
-    params.push(r.workoutId, r.latitude, r.longitude, r.speed, r.accuracy, r.recordedAt);
+    paramsFull.push(
+      r.workoutId,
+      r.latitude,
+      r.longitude,
+      r.speed,
+      r.accuracy,
+      r.altitude ?? null,
+      r.course ?? null,
+      r.recordedAt
+    );
   }
-  await conn.query(
-    `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
-     VALUES ${values}`,
-    params
-  );
+  try {
+    await conn.query(
+      `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, altitude, course, recorded_at)
+       VALUES ${valuesFull}`,
+      paramsFull
+    );
+  } catch (err) {
+    if (err?.code !== 'ER_BAD_FIELD_ERROR') throw err;
+    const values = rows.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
+    const params = [];
+    for (const r of rows) {
+      params.push(r.workoutId, r.latitude, r.longitude, r.speed, r.accuracy, r.recordedAt);
+    }
+    await conn.query(
+      `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
+       VALUES ${values}`,
+      params
+    );
+  }
 }
 
 export function detectSpeedFraud(points) {
@@ -197,8 +222,9 @@ export async function forceStopWorkout(workoutId, userId, reason) {
     `UPDATE workouts SET
        status = 'rejected',
        reject_reason = ?,
+       approved_distance_km = 0,
        finished_at = NOW()
-     WHERE id = ? AND user_id = ? AND status = 'in_progress'`,
+     WHERE id = ? AND user_id = ? AND status IN ('in_progress', 'paused')`,
     [reason, workoutId, userId]
   );
   return result.affectedRows > 0;

@@ -140,7 +140,13 @@ export default function WorkoutResultScreen({
           </button>
           <span className="rb-result-screen__gps">
             <i />
-            {approved ? 'ПРОВЕРЕННЫЙ GPS' : pending ? 'ПРОВЕРКА GPS' : 'GPS НЕ ЗАСЧИТАН'}
+            {approved
+              ? 'ПРОВЕРЕННЫЙ GPS'
+              : pending
+                ? 'ПРОВЕРКА GPS'
+                : result.status === 'suspicious'
+                  ? 'НА ПРОВЕРКЕ'
+                  : 'НЕ ЗАСЧИТАНО'}
           </span>
           <div className="rb-result-screen__city">
             <strong className="font-display">{city}</strong>
@@ -179,8 +185,17 @@ export default function WorkoutResultScreen({
               {activityLabel(avgKmh)}
             </span>
             <strong className="rb-result-sheet__dist font-display font-tabular">
-              {distanceKm.toFixed(2)} КМ
+              {(
+                Number(result.approvedDistanceKm ?? result.approved_distance_km ?? distanceKm) ||
+                distanceKm
+              ).toFixed(2)}{' '}
+              КМ
             </strong>
+            {!approved && distanceKm > 0 && (
+              <span className="rb-result-sheet__raw-dist">
+                GPS: {distanceKm.toFixed(2)} км
+              </span>
+            )}
           </div>
         </header>
 

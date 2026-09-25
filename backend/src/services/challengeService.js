@@ -67,10 +67,10 @@ async function getLevelRewards(levelId, conn = pool) {
   }));
 }
 
-/** Km from approved workouts finished at/after startAt (backend source of truth). */
+/** Only APPROVED workouts; only approved_distance_km (TZ §26–27). */
 export async function getChallengeDistanceKm(userId, startAt, conn = pool) {
   const [[row]] = await conn.query(
-    `SELECT COALESCE(SUM(distance_km), 0) AS total
+    `SELECT COALESCE(SUM(COALESCE(approved_distance_km, 0)), 0) AS total
      FROM workouts
      WHERE user_id = ?
        AND status = 'approved'

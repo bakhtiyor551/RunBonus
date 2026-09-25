@@ -674,6 +674,10 @@ export function pauseWorkoutSession() {
   session.restartSyncInterval?.();
   persistWorkoutSession();
   emit();
+  // TZ: sync pause to backend
+  if (session.api && session.workoutId) {
+    session.api(`/api/workouts/${session.workoutId}/pause`, { method: 'POST', body: '{}' }).catch(() => {});
+  }
 }
 
 export function resumeWorkoutSessionTracking() {
@@ -687,6 +691,9 @@ export function resumeWorkoutSessionTracking() {
   pollPositionOnce().catch(() => {});
   persistWorkoutSession();
   emit();
+  if (session.api && session.workoutId) {
+    session.api(`/api/workouts/${session.workoutId}/resume`, { method: 'POST', body: '{}' }).catch(() => {});
+  }
 }
 
 export function toggleWorkoutPause() {

@@ -9,6 +9,7 @@ import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
 import { fetchChallengeState, startChallenge } from '../services/challenges';
+import { getDeviceId } from '../services/deviceId';
 
 const CHALLENGE_CACHE_KEY = 'rb_home_challenge';
 const FINISHED_FLAG_KEY = 'rb_has_finished_workout';
@@ -143,8 +144,14 @@ export default function HomePage({ user, setUser }) {
         ? Number(lastWorkout.distance_km)
         : totalKm;
 
+  const shoesLocked = !user?.activeShoe || user?.needsActivation;
+
   const startWorkout = async () => {
     if (starting) return;
+    if (shoesLocked) {
+      navigate('/orders');
+      return;
+    }
     setStarting(true);
     try {
       if (!navigator.onLine) {
@@ -160,17 +167,34 @@ export default function HomePage({ user, setUser }) {
         /* use cached user */
       }
       if (!profile?.activeShoe || profile?.needsActivation) {
-        alert('Кроссовки ещё не активированы. После статуса «Доставлен» тренировки откроются автоматически.');
-        navigate('/shop');
+        alert(
+          '🔒 Тренировки недоступны\n\nДля начала тренировки необходимо активировать RunBonus-кроссовки.'
+        );
+        navigate('/orders');
         return;
       }
-      const data = await api('/api/workouts/start', { method: 'POST', body: '{}' });
+      const data = await api('/api/workouts/start', {
+        method: 'POST',
+        body: JSON.stringify({
+          shoeId: profile.activeShoe?.id ?? profile.activeShoeId,
+          deviceId: getDeviceId(),
+        }),
+      });
       const id = data.workoutId ?? data.id;
       if (!id) throw new Error('Сервер не вернул id тренировки');
       setActiveWorkoutId(id);
       setActiveWorkoutIdState(id);
       navigate('/workout', { state: { workoutId: id } });
     } catch (err) {
+      if (err.code === 'ACTIVE_WORKOUT_EXISTS' || err.status === 409) {
+        const id = err.workoutId ?? err.data?.workoutId ?? err.data?.id;
+        if (id) {
+          setActiveWorkoutId(id);
+          setActiveWorkoutIdState(id);
+          navigate('/workout', { state: { workoutId: id } });
+          return;
+        }
+      }
       alert(err.message || 'Не удалось начать тренировку');
     } finally {
       setStarting(false);
@@ -240,7 +264,21 @@ export default function HomePage({ user, setUser }) {
               </span>
               <span className="rb-home-exercise__accent-line" aria-hidden />
               <span className="rb-home-exercise__unit">KM</span>
-              {showProgress ? (
+              {shoesLocked && !activeWorkoutId ? (
+                <div className="rb-home-exercise__lock">
+                  <p className="rb-home-exercise__lock-title">🔒 Тренировки недоступны</p>
+                  <p className="rb-home-exercise__lock-text">
+                    Для начала тренировки необходимо активировать RunBonus-кроссовки.
+                  </p>
+                  <button
+                    type="button"
+                    className="rb-home-exercise__lock-cta"
+                    onClick={() => navigate('/orders')}
+                  >
+                    МОИ КРОССОВКИ
+                  </button>
+                </div>
+              ) : showProgress ? (
                 <button
                   type="button"
                   className="rb-home-exercise__progress-link"
