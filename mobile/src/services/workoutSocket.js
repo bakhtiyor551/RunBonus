@@ -3,9 +3,9 @@ import { getDeviceId } from './deviceId';
 import { Capacitor } from '@capacitor/core';
 
 const WS_PATH = '/app/workout';
-const RECONNECT_MS = 4000;
-const ACK_TIMEOUT_MS = 15000;
-const CONNECT_TIMEOUT_MS = Capacitor.getPlatform() === 'android' ? 5000 : ACK_TIMEOUT_MS;
+const RECONNECT_MS = 2000;
+const ACK_TIMEOUT_MS = 8000;
+const CONNECT_TIMEOUT_MS = Capacitor.getPlatform() === 'android' ? 3500 : 6000;
 
 function getToken() {
   return localStorage.getItem('token');

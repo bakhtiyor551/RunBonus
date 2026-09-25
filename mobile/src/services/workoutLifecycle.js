@@ -3,6 +3,7 @@ import { App } from '@capacitor/app';
 import { getActiveWorkoutId } from './geolocation';
 import { getWorkoutSession, resumeWorkoutSession, persistWorkoutSession } from './workoutTracker';
 import { ensureWorkoutLiveActivity } from './liveActivity';
+import { startWorkoutForeground } from './workoutForeground';
 
 let initialized = false;
 
@@ -52,6 +53,8 @@ export function initWorkoutLifecycle() {
       persistWorkoutSession();
       const snapshot = workoutLiveSnapshot();
       if (snapshot) ensureWorkoutLiveActivity(snapshot).catch(() => {});
+      // Поддерживаем foreground-сервис: без него Android убивает GPS
+      startWorkoutForeground().catch(() => {});
     }
   });
 }

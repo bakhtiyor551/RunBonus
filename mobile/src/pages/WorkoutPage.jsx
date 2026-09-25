@@ -32,15 +32,8 @@ import { disconnectWorkoutSocket } from '../services/workoutSocket';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
 import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
-import { PageAdSlots } from '../components/MobileAdSlot';
+import WorkoutResultScreen from '../components/WorkoutResultScreen';
 import { fetchChallengeState, startChallenge } from '../services/challenges';
-
-function kmLabel(value) {
-  return (Number(value) || 0).toLocaleString('ru', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-}
 
 export default function WorkoutPage({ user, setUser }) {
   const { state } = useLocation();
@@ -48,7 +41,6 @@ export default function WorkoutPage({ user, setUser }) {
   const [workoutId, setWorkoutId] = useState(null);
   const [syncing, setSyncing] = useState(true);
   const [units] = useState(() => getDistanceUnits());
-  const [challenge, setChallenge] = useState(null);
   const [live, setLive] = useState({
     distance: 0,
     seconds: 0,
@@ -73,10 +65,38 @@ export default function WorkoutPage({ user, setUser }) {
     let cancelled = false;
 
     (async () => {
+      const localHint = state?.workoutId ?? getActiveWorkoutId();
+      // Сразу показываем экран, если id уже известен — не ждём сеть
+      if (localHint && !cancelled) {
+        setWorkoutId(Number(localHint));
+        setActiveWorkoutId(Number(localHint));
+        setSyncing(false);
+        startWorkoutSession(Number(localHint), api).catch(() => {});
+      }
+
       try {
-        const localHint = state?.workoutId ?? getActiveWorkoutId();
-        const sync = await syncActiveWorkoutWithServer();
+        const syncPromise = syncActiveWorkoutWithServer();
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve({ workoutId: null, offline: true, timedOut: true }), 3500)
+        );
+        const sync = await Promise.race([syncPromise, timeoutPromise]);
         if (cancelled) return;
+
+        if (sync.timedOut) {
+          // Сеть тормозит — продолжаем с локальным id
+          if (!localHint) {
+            const late = await syncPromise.catch(() => null);
+            if (cancelled) return;
+            if (late?.workoutId) {
+              setWorkoutId(late.workoutId);
+              setActiveWorkoutId(late.workoutId);
+              await startWorkoutSession(late.workoutId, api, { startedAt: late.startedAt });
+              return;
+            }
+            navigate('/', { replace: true });
+          }
+          return;
+        }
 
         if (!sync.workoutId) {
           if (sync.offline && localHint) {
@@ -90,7 +110,7 @@ export default function WorkoutPage({ user, setUser }) {
               'Сохранённая тренировка на сервере не найдена (уже завершена). Начните новую с главной.'
             );
           }
-          navigate('/', { replace: true });
+          if (!localHint) navigate('/', { replace: true });
           return;
         }
 
@@ -102,7 +122,7 @@ export default function WorkoutPage({ user, setUser }) {
         setActiveWorkoutId(sync.workoutId);
         await startWorkoutSession(sync.workoutId, api, { startedAt: sync.startedAt });
       } catch (e) {
-        if (!cancelled) {
+        if (!cancelled && !localHint) {
           alert(e.message || 'Не удалось открыть тренировку');
           navigate('/', { replace: true });
         }
@@ -120,27 +140,6 @@ export default function WorkoutPage({ user, setUser }) {
     if (syncing || !workoutId) return undefined;
     return subscribeWorkoutSession(setLive);
   }, [syncing, workoutId]);
-
-  useEffect(() => {
-    if (!workoutId) return;
-    // Во время первой тренировки карточку не грузим — она появится после финиша
-    if (localStorage.getItem('rb_has_finished_workout') !== '1') {
-      setChallenge(null);
-      return;
-    }
-    let cancelled = false;
-    fetchChallengeState()
-      .then((data) => {
-        if (cancelled) return;
-        setChallenge(data?.challenge || null);
-      })
-      .catch(() => {
-        if (!cancelled) setChallenge(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [workoutId]);
 
   useEffect(() => {
     if (syncing || !workoutId) return undefined;
@@ -248,12 +247,15 @@ export default function WorkoutPage({ user, setUser }) {
         }
         if (challengeForHome) {
           localStorage.setItem('rb_home_challenge', JSON.stringify(challengeForHome));
-          setChallenge(challengeForHome);
         }
       } catch {
         /* ignore */
       }
       data.challenge = challengeForHome;
+      data.trackPoints = points;
+      data.steps_count = snapSteps;
+      data.avg_speed = snapAvgSpeed;
+      data.finished_at = new Date().toISOString();
 
       if (data.challenge_completed || challengeForHome?.status === 'COMPLETED') {
         navigate('/rewards', { replace: true, state: { challenge: challengeForHome } });
@@ -322,72 +324,24 @@ export default function WorkoutPage({ user, setUser }) {
   }
 
   if (result) {
+    const goHome = () =>
+      navigate('/', {
+        replace: true,
+        state: {
+          refreshHome: Date.now(),
+          challenge: result.challenge || null,
+        },
+      });
+
     return (
-      <IonPage>
-        <AppHeader showAvatar={false} />
-        <IonContent>
-          <main className="rb-main rb-workout-result">
-            <CelebrateBlock result={result} units={units} />
-            <ResultCards result={result} units={units} />
-            {(result.challenge || challenge) &&
-              ['ACTIVE', 'COMPLETED', 'EXPIRED'].includes((result.challenge || challenge).status) && (
-              <section className="rb-workout-challenge glass-card neon-glow" style={{ marginTop: 20 }}>
-                <div className="rb-workout-challenge__head">
-                  <Icon name="flag" filled />
-                  <div>
-                    <span className="rb-label">Ваше задание</span>
-                    <strong className="font-display">
-                      {(result.challenge || challenge).name}
-                    </strong>
-                  </div>
-                </div>
-                <div className="rb-workout-challenge__km font-display font-tabular">
-                  <span className="rb-workout-challenge__value">
-                    {kmLabel((result.challenge || challenge).currentKm)}
-                  </span>
-                  <span className="rb-workout-challenge__unit">
-                    / {kmLabel((result.challenge || challenge).targetKm)} км
-                  </span>
-                </div>
-                <div className="rb-progress-bar" aria-label="Прогресс задания">
-                  <span
-                    style={{
-                      width: `${(result.challenge || challenge).progressPercent || 0}%`,
-                    }}
-                  />
-                </div>
-                <div className="rb-workout-challenge__meta">
-                  <span>Осталось времени</span>
-                  <strong>{(result.challenge || challenge).remaining?.label || '—'}</strong>
-                </div>
-              </section>
-            )}
-            <PageAdSlots
-              key={`workout-ads-${result.workout_id ?? result.id ?? 'done'}`}
-              page="workout"
-              user={user}
-              runBonusPlacement="banner_workout"
-              className="rb-ad-banner--workout"
-              style={{ marginTop: 24 }}
-            />
-            <button
-              type="button"
-              className="rb-btn-pill"
-              style={{ width: '100%', marginTop: 32 }}
-              onClick={() =>
-                navigate('/', {
-                  replace: true,
-                  state: {
-                    refreshHome: Date.now(),
-                    challenge: result.challenge || challenge || null,
-                  },
-                })
-              }
-            >
-              Готово
-              <Icon name="arrow_forward" />
-            </button>
-          </main>
+      <IonPage className="rb-result-page">
+        <IonContent fullscreen scrollY className="rb-result-content">
+          <WorkoutResultScreen
+            result={result}
+            user={user}
+            trackPoints={result.trackPoints || []}
+            onDone={goHome}
+          />
         </IonContent>
       </IonPage>
     );
@@ -412,44 +366,6 @@ export default function WorkoutPage({ user, setUser }) {
           </section>
 
           <main className={`rb-workout-layout__panel${live.autoPaused ? ' rb-workout-layout__panel--auto-paused' : ''}`}>
-            {challenge?.status === 'ACTIVE' && (
-              <section className="rb-workout-challenge glass-card neon-glow">
-                <div className="rb-workout-challenge__head">
-                  <Icon name="flag" filled />
-                  <div>
-                    <span className="rb-label">Активное задание</span>
-                    <strong className="font-display">{challenge.name}</strong>
-                  </div>
-                </div>
-                <div className="rb-workout-challenge__km font-display font-tabular">
-                  <span className="rb-workout-challenge__value">
-                    {kmLabel(Number(challenge.currentKm || 0) + Number(live.distance || 0))}
-                  </span>
-                  <span className="rb-workout-challenge__unit">
-                    / {kmLabel(challenge.targetKm)} км
-                  </span>
-                </div>
-                <div className="rb-progress-bar" aria-label="Прогресс задания">
-                  <span
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        Math.round(
-                          ((Number(challenge.currentKm || 0) + Number(live.distance || 0)) /
-                            Math.max(Number(challenge.targetKm) || 1, 0.001)) *
-                            100
-                        )
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <div className="rb-workout-challenge__meta">
-                  <span>Осталось времени</span>
-                  <strong>{challenge.remaining?.label || '—'}</strong>
-                </div>
-              </section>
-            )}
-
             <div className={`rb-workout-dashboard${live.pauseSeconds > 0 ? '' : ' rb-workout-dashboard--no-pause'}`}>
               <MetricCard
                 icon="timer"
@@ -573,108 +489,3 @@ function MetricCard({ icon, label, value, area, accent = 'neon', hero = false, c
   );
 }
 
-function CelebrateBlock({ result, units }) {
-  return (
-    <div className="rb-celebrate rb-celebrate--result">
-      <div className="rb-celebrate__icon">
-        <Icon name="check_circle" />
-      </div>
-      <h1 className="rb-celebrate__title font-display">
-        {result.title || 'Тренировка завершена!'}
-      </h1>
-      <p className="rb-celebrate__summary">
-        {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
-      </p>
-    </div>
-  );
-}
-
-function ResultCards({ result, units }) {
-  const approved = result.status === 'approved';
-  const pending = !result.status || result.status === 'pending' || result.status === 'processing';
-  const checkLabel = approved
-    ? 'Засчитано'
-    : pending
-      ? 'Обрабатывается'
-      : result.reject_reason || result.message || 'Не засчитано';
-  const durationSec = Number(result.duration_seconds) || 0;
-  const avgSpeed =
-    durationSec > 0 && result.distance_km != null
-      ? (Number(result.distance_km) / durationSec) * 3600
-      : null;
-
-  return (
-    <div className="rb-workout-result-cards">
-      <div className="rb-workout-metric glass-card rb-workout-metric--cyan rb-workout-result-card">
-        <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name="straighten" />
-        </div>
-        <div className="rb-workout-metric__body">
-          <span className="rb-workout-metric__value font-display font-tabular">
-            {formatDistance(result.distance_km, units)}
-          </span>
-          <span className="rb-workout-metric__label">Расстояние</span>
-        </div>
-      </div>
-
-      <div className="rb-workout-metric glass-card rb-workout-metric--neon rb-workout-result-card">
-        <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name="timer" />
-        </div>
-        <div className="rb-workout-metric__body">
-          <span className="rb-workout-metric__value font-display font-tabular">
-            {formatDuration(durationSec)}
-          </span>
-          <span className="rb-workout-metric__label">Время</span>
-        </div>
-      </div>
-
-      {avgSpeed != null && avgSpeed > 0 && (
-        <div className="rb-workout-metric glass-card rb-workout-result-card">
-          <div className="rb-workout-metric__icon" aria-hidden>
-            <Icon name="speed" />
-          </div>
-          <div className="rb-workout-metric__body">
-            <span className="rb-workout-metric__value font-display font-tabular">
-              {avgSpeed.toFixed(1)}
-            </span>
-            <span className="rb-workout-metric__label">км/ч средняя</span>
-          </div>
-        </div>
-      )}
-
-      <div
-        className={[
-          'rb-workout-metric',
-          'glass-card',
-          'rb-workout-result-card',
-          approved ? '' : 'rb-workout-result-card--muted',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name={approved ? 'verified' : 'hourglass_top'} />
-        </div>
-        <div className="rb-workout-metric__body">
-          <span className="rb-workout-result-card__note">{checkLabel}</span>
-          <span className="rb-workout-metric__label">Проверка</span>
-        </div>
-      </div>
-
-      {Array.isArray(result.rewards_unlocked) && result.rewards_unlocked.length > 0 && (
-        <div className="glass-card rb-workout-result-unlock">
-          <div className="rb-workout-result-unlock__icon" aria-hidden>
-            <Icon name="redeem" />
-          </div>
-          <div>
-            <p className="rb-label" style={{ margin: 0 }}>Новые награды</p>
-            <p className="rb-workout-result-unlock__names">
-              {result.rewards_unlocked.map((r) => r.name || `${r.distance} км`).join(', ')}
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

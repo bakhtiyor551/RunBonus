@@ -32,6 +32,8 @@ function pointPayload(workoutId, point) {
     longitude: lng,
     speed: point.speed != null ? Number(point.speed) : point.speedMps ?? null,
     accuracy: point.accuracy != null ? Number(point.accuracy) : null,
+    altitude: point.altitude != null ? Number(point.altitude) : null,
+    course: point.course != null ? Number(point.course) : null,
     recorded_at: recordedAt,
     status: 'pending',
     created_at: Date.now(),
@@ -50,6 +52,23 @@ export async function bufferGpsPoint(workoutId, point) {
     const req = store.add(payload);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+  });
+}
+
+/** Записать несколько GPS-точек одним transaction. */
+export async function bufferGpsPoints(workoutId, points) {
+  if (!points?.length) return;
+  const db = await openDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    for (const point of points) {
+      const payload = pointPayload(workoutId, point);
+      if (!Number.isFinite(payload.latitude) || !Number.isFinite(payload.longitude)) continue;
+      store.add(payload);
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -107,6 +126,9 @@ export function bufferedToApiPoint(row) {
     longitude: row.longitude,
     speed: row.speed,
     accuracy: row.accuracy,
+    altitude: row.altitude ?? null,
+    course: row.course ?? null,
+    timestamp: row.recorded_at,
     recorded_at: row.recorded_at,
   };
 }

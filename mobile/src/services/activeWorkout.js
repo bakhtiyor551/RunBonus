@@ -21,7 +21,10 @@ export async function syncActiveWorkoutWithServer() {
   const localId = getActiveWorkoutId();
 
   try {
-    const data = await api('/api/workouts/active');
+    const data = await Promise.race([
+      api('/api/workouts/active'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('active_timeout')), 4000)),
+    ]);
     const serverId = data?.workoutId ?? data?.id ?? null;
     const numServer = serverId != null ? Number(serverId) : null;
     const startedAt = data?.started_at ? new Date(data.started_at).getTime() : null;

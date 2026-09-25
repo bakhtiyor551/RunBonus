@@ -26,7 +26,8 @@ import adminChallengesRoutes from './routes/adminChallenges.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import telegramRoutes from './routes/telegram.js';
 import { buildDailyTelegramReport } from './services/reportsService.js';
-import { sendTelegramMessage, ensureTelegramWebhook } from './services/telegramService.js';
+import { sendTelegramMessage } from './services/telegramService.js';
+import { autoCloseStaleWorkouts } from './services/workoutAutoClose.js';
 
 const app = express();
 
@@ -85,6 +86,14 @@ setInterval(async () => {
     console.error('[daily-report]', e.message);
   }
 }, 60_000);
+
+/** TZ §29: auto-close workouts >24h */
+setInterval(() => {
+  autoCloseStaleWorkouts().catch((e) => console.error('[auto-close]', e.message));
+}, 5 * 60_000);
+setTimeout(() => {
+  autoCloseStaleWorkouts().catch(() => {});
+}, 15_000);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
+import { Capacitor } from '@capacitor/core';
 import 'leaflet/dist/leaflet.css';
 
 function FollowLive({ lat, lng, interactive }) {
@@ -46,8 +47,13 @@ function WorkoutMap({ points = [], livePosition = null, interactive = true, clas
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; Apple / OSM'
+          url={
+            Capacitor.getPlatform() === 'ios'
+              ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+              : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+          }
+          subdomains="abcd"
         />
         {positions.length >= 2 && (
           <Polyline
