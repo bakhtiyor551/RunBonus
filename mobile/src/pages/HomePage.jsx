@@ -2,17 +2,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IonPage, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
 import { api, cacheUser } from '../api';
-import AppHeader from '../components/AppHeader';
 import BottomNav from '../components/BottomNav';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
 import Icon from '../components/Icon';
-import { formatWorkoutDate } from '../utils/format';
-import { formatDuration } from '../services/geolocation';
 import { setActiveWorkoutId } from '../services/geolocation';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { getWorkoutSession } from '../services/workoutTracker';
 import { fetchChallengeState, startChallenge } from '../services/challenges';
-import { PageAdSlots } from '../components/MobileAdSlot';
 
 const CHALLENGE_CACHE_KEY = 'rb_home_challenge';
 const FINISHED_FLAG_KEY = 'rb_has_finished_workout';
@@ -34,11 +30,9 @@ function cacheChallenge(challenge) {
   }
 }
 
-function km(value) {
-  return (Number(value) || 0).toLocaleString('ru', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+function kmNum(value) {
+  const n = Number(value) || 0;
+  return n.toLocaleString('ru', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function HomePage({ user, setUser }) {
@@ -81,7 +75,6 @@ export default function HomePage({ user, setUser }) {
     }
 
     let state = challenges;
-    // После первой тренировки задание стартует само — карточка прогресса на главной
     if (finished.length > 0 && state && !state.challenge && state.nextLevel?.canStart) {
       try {
         state = await startChallenge(state.nextLevel.levelId);
@@ -134,11 +127,21 @@ export default function HomePage({ user, setUser }) {
     finishedWorkouts.length > 0 ||
     (typeof localStorage !== 'undefined' && localStorage.getItem(FINISHED_FLAG_KEY) === '1') ||
     Boolean(location.state?.challenge);
-  const showProgressCard = Boolean(
+  const showProgress =
     hasFinished &&
-      challenge &&
-      ['ACTIVE', 'COMPLETED', 'EXPIRED'].includes(challenge.status)
+    challenge &&
+    ['ACTIVE', 'COMPLETED', 'EXPIRED'].includes(challenge.status);
+
+  const totalKm = useMemo(
+    () => finishedWorkouts.reduce((sum, w) => sum + (Number(w.distance_km) || 0), 0),
+    [finishedWorkouts]
   );
+  const heroKm =
+    showProgress && challenge?.currentKm != null
+      ? Number(challenge.currentKm)
+      : lastWorkout?.distance_km != null
+        ? Number(lastWorkout.distance_km)
+        : totalKm;
 
   const startWorkout = async () => {
     if (starting) return;
@@ -174,12 +177,17 @@ export default function HomePage({ user, setUser }) {
     }
   };
 
-  const greetingName = (user?.first_name || user?.name || '').split(' ')[0];
+  const onPrimary = () => {
+    if (activeWorkoutId) {
+      navigate('/workout', { state: { workoutId: activeWorkoutId } });
+      return;
+    }
+    startWorkout();
+  };
 
   return (
-    <IonPage>
-      <AppHeader />
-      <IonContent>
+    <IonPage className="rb-home-exercise-page">
+      <IonContent fullscreen scrollY={false} className="rb-home-exercise-content">
         <IonRefresher
           slot="fixed"
           onIonRefresh={async (e) => {
@@ -190,135 +198,114 @@ export default function HomePage({ user, setUser }) {
           <IonRefresherContent />
         </IonRefresher>
 
-        <main className="rb-main rb-home-progress">
-          <section className="rb-home-welcome">
-            <p className="rb-label" style={{ margin: 0 }}>
-              RunBonus
-            </p>
-            <h1 className="rb-headline font-display" style={{ margin: '6px 0 0' }}>
-              {greetingName ? `Привет, ${greetingName}!` : 'Добро пожаловать!'}
-            </h1>
-          </section>
+        <div className="rb-home-exercise">
+          <div className="rb-home-exercise__bg" aria-hidden>
+            <div className="rb-home-exercise__grid" />
+            <div className="rb-home-exercise__glow" />
+            <div className="rb-home-exercise__route" />
+          </div>
 
-          {showProgressCard && (
-            <section
-              className="rb-workout-challenge glass-card neon-glow"
-              style={{ marginBottom: 20 }}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate('/rewards')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  navigate('/rewards');
-                }
-              }}
-            >
-              <div className="rb-workout-challenge__head">
-                <Icon name="flag" filled />
-                <div>
-                  <span className="rb-label">
-                    {challenge.status === 'COMPLETED'
-                      ? 'Задание выполнено'
-                      : challenge.status === 'EXPIRED'
-                        ? 'Время истекло'
-                        : 'Ваше задание'}
-                  </span>
-                  <strong className="font-display">{challenge.name}</strong>
-                </div>
-              </div>
-              <div className="rb-workout-challenge__km font-display font-tabular">
-                <span className="rb-workout-challenge__value">{km(challenge.currentKm)}</span>
-                <span className="rb-workout-challenge__unit">/ {km(challenge.targetKm)} км</span>
-              </div>
-              <div className="rb-progress-bar" aria-label="Прогресс задания">
-                <span
-                  style={{
-                    width: `${Math.min(100, Math.max(0, Number(challenge.progressPercent) || 0))}%`,
-                  }}
-                />
-              </div>
-              <div className="rb-workout-challenge__meta">
-                <span>
-                  {challenge.status === 'COMPLETED'
-                    ? 'Награда'
-                    : challenge.status === 'EXPIRED'
-                      ? 'Статус'
-                      : 'Осталось времени'}
-                </span>
-                <strong>
-                  {challenge.status === 'COMPLETED'
-                    ? challenge.exampleReward || 'Заберите награду'
-                    : challenge.status === 'EXPIRED'
-                      ? 'Начать заново'
-                      : challenge.remaining?.label || '—'}
-                </strong>
-              </div>
-            </section>
-          )}
-
-          <PageAdSlots
-            page="home"
-            user={user}
-            runBonusPlacement="banner_home"
-            className="rb-ad-banner--home"
-            style={{ marginBottom: 24 }}
-          />
-
-          <section className="rb-home-cta">
-            {activeWorkoutId ? (
+          <div className="rb-home-exercise__ui">
+            <header className="rb-home-exercise__head">
+              <h1 className="rb-home-exercise__title font-display">Exercise</h1>
               <button
                 type="button"
-                className="rb-btn-primary"
-                onClick={() => navigate('/workout', { state: { workoutId: activeWorkoutId } })}
+                className="rb-home-exercise__bonus"
+                onClick={() => navigate('/rewards')}
               >
-                <Icon name="directions_run" filled style={{ fontSize: 32 }} />
-                Продолжить тренировку
+                <Icon name="star" filled />
+                BONUS
               </button>
-            ) : (
-              <button type="button" className="rb-btn-primary" disabled={starting} onClick={startWorkout}>
-                <Icon name="play_arrow" filled style={{ fontSize: 32 }} />
-                {starting ? 'Запуск…' : 'Начать тренировку'}
-              </button>
-            )}
-          </section>
+            </header>
 
-          <section className="rb-home-last">
-            <div className="rb-section-head">
-              <h2 className="rb-headline font-display">Последняя тренировка</h2>
-              <button type="button" className="rb-link rb-section-head__link" onClick={() => navigate('/workouts')}>
-                Все
+            <div className="rb-home-exercise__tabs" role="tablist">
+              <button type="button" role="tab" aria-selected className="rb-home-exercise__tab is-active">
+                Exercise
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={false}
+                className="rb-home-exercise__tab"
+                onClick={() => navigate('/rewards')}
+              >
+                Training
               </button>
             </div>
+            <div className="rb-home-exercise__rule" />
 
-            {lastWorkout ? (
+            <div className="rb-home-exercise__metric">
+              <span className="rb-home-exercise__value font-display font-tabular">
+                {kmNum(heroKm)}
+              </span>
+              <span className="rb-home-exercise__accent-line" aria-hidden />
+              <span className="rb-home-exercise__unit">KM</span>
+              {showProgress ? (
+                <button
+                  type="button"
+                  className="rb-home-exercise__progress-link"
+                  onClick={() => navigate('/rewards')}
+                >
+                  {kmNum(challenge.currentKm)} / {kmNum(challenge.targetKm)} ·{' '}
+                  {challenge.remaining?.label || challenge.name}
+                </button>
+              ) : (
+                <p className="rb-home-exercise__metric-hint">
+                  {activeWorkoutId
+                    ? 'Тренировка идёт'
+                    : lastWorkout
+                      ? 'Последняя тренировка'
+                      : 'Нажмите ▶ чтобы начать'}
+                </p>
+              )}
+            </div>
+
+            <div className="rb-home-exercise__fabs">
               <button
                 type="button"
-                className="glass-card rb-activity-card"
-                onClick={() => setSelectedWorkout(lastWorkout)}
+                className="rb-home-exercise__fab"
+                onClick={() => navigate('/profile')}
+                aria-label="Настройки"
               >
-                <div className="rb-activity-card__icon">
-                  <Icon name="directions_run" />
-                </div>
-                <div className="rb-activity-card__text">
-                  <h3>Бег</h3>
-                  <p className="rb-label rb-activity-card__meta">
-                    {formatWorkoutDate(lastWorkout.started_at)}
-                    {lastWorkout.distance_km != null
-                      ? ` · ${Number(lastWorkout.distance_km).toFixed(2)} км`
-                      : ''}
-                    {lastWorkout.duration_seconds
-                      ? ` · ${formatDuration(Number(lastWorkout.duration_seconds) || 0)}`
-                      : ''}
-                  </p>
-                </div>
-                <Icon name="chevron_right" />
+                <Icon name="settings" />
               </button>
-            ) : (
-              <p className="rb-text-muted">Пока нет тренировок</p>
-            )}
-          </section>
-        </main>
+
+              <button
+                type="button"
+                className="rb-home-exercise__fab rb-home-exercise__fab--primary"
+                disabled={starting}
+                onClick={onPrimary}
+                aria-label={activeWorkoutId ? 'Продолжить' : 'Начать тренировку'}
+              >
+                {starting ? (
+                  <Icon name="hourglass_empty" />
+                ) : activeWorkoutId ? (
+                  <Icon name="play_arrow" filled />
+                ) : (
+                  <span className="rb-home-exercise__fab-mark" aria-hidden>
+                    <span className="rb-home-exercise__fab-dots">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    <span className="rb-home-exercise__fab-inf">∞</span>
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="rb-home-exercise__fab"
+                onClick={() =>
+                  lastWorkout ? setSelectedWorkout(lastWorkout) : navigate('/workouts')
+                }
+                aria-label="История"
+              >
+                <Icon name="description" />
+              </button>
+            </div>
+          </div>
+        </div>
       </IonContent>
       <BottomNav />
       <WorkoutDetailModal workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />

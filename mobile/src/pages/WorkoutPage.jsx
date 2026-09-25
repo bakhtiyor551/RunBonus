@@ -32,7 +32,7 @@ import { disconnectWorkoutSocket } from '../services/workoutSocket';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
 import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
-import { PageAdSlots } from '../components/MobileAdSlot';
+import WorkoutResultScreen from '../components/WorkoutResultScreen';
 import { fetchChallengeState, startChallenge } from '../services/challenges';
 
 export default function WorkoutPage({ user, setUser }) {
@@ -252,6 +252,10 @@ export default function WorkoutPage({ user, setUser }) {
         /* ignore */
       }
       data.challenge = challengeForHome;
+      data.trackPoints = points;
+      data.steps_count = snapSteps;
+      data.avg_speed = snapAvgSpeed;
+      data.finished_at = new Date().toISOString();
 
       if (data.challenge_completed || challengeForHome?.status === 'COMPLETED') {
         navigate('/rewards', { replace: true, state: { challenge: challengeForHome } });
@@ -320,39 +324,24 @@ export default function WorkoutPage({ user, setUser }) {
   }
 
   if (result) {
+    const goHome = () =>
+      navigate('/', {
+        replace: true,
+        state: {
+          refreshHome: Date.now(),
+          challenge: result.challenge || null,
+        },
+      });
+
     return (
-      <IonPage>
-        <AppHeader showAvatar={false} />
-        <IonContent>
-          <main className="rb-main rb-workout-result">
-            <CelebrateBlock result={result} units={units} />
-            <ResultCards result={result} units={units} />
-            <PageAdSlots
-              key={`workout-ads-${result.workout_id ?? result.id ?? 'done'}`}
-              page="workout"
-              user={user}
-              runBonusPlacement="banner_workout"
-              className="rb-ad-banner--workout"
-              style={{ marginTop: 24 }}
-            />
-            <button
-              type="button"
-              className="rb-btn-pill"
-              style={{ width: '100%', marginTop: 32 }}
-              onClick={() =>
-                navigate('/', {
-                  replace: true,
-                  state: {
-                    refreshHome: Date.now(),
-                    challenge: result.challenge || null,
-                  },
-                })
-              }
-            >
-              Готово
-              <Icon name="arrow_forward" />
-            </button>
-          </main>
+      <IonPage className="rb-result-page">
+        <IonContent fullscreen scrollY className="rb-result-content">
+          <WorkoutResultScreen
+            result={result}
+            user={user}
+            trackPoints={result.trackPoints || []}
+            onDone={goHome}
+          />
         </IonContent>
       </IonPage>
     );
@@ -500,108 +489,3 @@ function MetricCard({ icon, label, value, area, accent = 'neon', hero = false, c
   );
 }
 
-function CelebrateBlock({ result, units }) {
-  return (
-    <div className="rb-celebrate rb-celebrate--result">
-      <div className="rb-celebrate__icon">
-        <Icon name="check_circle" />
-      </div>
-      <h1 className="rb-celebrate__title font-display">
-        {result.title || 'Тренировка завершена!'}
-      </h1>
-      <p className="rb-celebrate__summary">
-        {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
-      </p>
-    </div>
-  );
-}
-
-function ResultCards({ result, units }) {
-  const approved = result.status === 'approved';
-  const pending = !result.status || result.status === 'pending' || result.status === 'processing';
-  const checkLabel = approved
-    ? 'Засчитано'
-    : pending
-      ? 'Обрабатывается'
-      : result.reject_reason || result.message || 'Не засчитано';
-  const durationSec = Number(result.duration_seconds) || 0;
-  const avgSpeed =
-    durationSec > 0 && result.distance_km != null
-      ? (Number(result.distance_km) / durationSec) * 3600
-      : null;
-
-  return (
-    <div className="rb-workout-result-cards">
-      <div className="rb-workout-metric glass-card rb-workout-metric--cyan rb-workout-result-card">
-        <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name="straighten" />
-        </div>
-        <div className="rb-workout-metric__body">
-          <span className="rb-workout-metric__value font-display font-tabular">
-            {formatDistance(result.distance_km, units)}
-          </span>
-          <span className="rb-workout-metric__label">Расстояние</span>
-        </div>
-      </div>
-
-      <div className="rb-workout-metric glass-card rb-workout-metric--neon rb-workout-result-card">
-        <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name="timer" />
-        </div>
-        <div className="rb-workout-metric__body">
-          <span className="rb-workout-metric__value font-display font-tabular">
-            {formatDuration(durationSec)}
-          </span>
-          <span className="rb-workout-metric__label">Время</span>
-        </div>
-      </div>
-
-      {avgSpeed != null && avgSpeed > 0 && (
-        <div className="rb-workout-metric glass-card rb-workout-result-card">
-          <div className="rb-workout-metric__icon" aria-hidden>
-            <Icon name="speed" />
-          </div>
-          <div className="rb-workout-metric__body">
-            <span className="rb-workout-metric__value font-display font-tabular">
-              {avgSpeed.toFixed(1)}
-            </span>
-            <span className="rb-workout-metric__label">км/ч средняя</span>
-          </div>
-        </div>
-      )}
-
-      <div
-        className={[
-          'rb-workout-metric',
-          'glass-card',
-          'rb-workout-result-card',
-          approved ? '' : 'rb-workout-result-card--muted',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name={approved ? 'verified' : 'hourglass_top'} />
-        </div>
-        <div className="rb-workout-metric__body">
-          <span className="rb-workout-result-card__note">{checkLabel}</span>
-          <span className="rb-workout-metric__label">Проверка</span>
-        </div>
-      </div>
-
-      {Array.isArray(result.rewards_unlocked) && result.rewards_unlocked.length > 0 && (
-        <div className="glass-card rb-workout-result-unlock">
-          <div className="rb-workout-result-unlock__icon" aria-hidden>
-            <Icon name="redeem" />
-          </div>
-          <div>
-            <p className="rb-label" style={{ margin: 0 }}>Новые награды</p>
-            <p className="rb-workout-result-unlock__names">
-              {result.rewards_unlocked.map((r) => r.name || `${r.distance} км`).join(', ')}
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
