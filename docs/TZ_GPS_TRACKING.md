@@ -45,10 +45,15 @@ pm2 restart runbonus-api
 `GPS_JUMP`, `HIGH_SPEED`, `LOW_ACCURACY`, `GPS_GAP`, `INVALID_TIMESTAMP`, `DUPLICATE_POINTS`, `UNREALISTIC_DISTANCE`, `MOCK_LOCATION`, `AUTO_CLOSED`
 
 ## iOS Maps
-Нативный **MKMapView** — отдельный Capacitor plugin (опционально). Сейчас:
-- GPS = Core Location через Capacitor;
-- карта = Leaflet + Apple-like tiles на iOS;
-- маршрут = `MKPolyline`-аналог (Leaflet Polyline).
+На **iOS Workout Screen** — нативный **MapKit / MKMapView** (плагин `AppleMaps`):
+- GPS = Core Location через `@capacitor/geolocation` (CLLocation);
+- карта = Apple Maps (без Carto / Esri / OSM / Leaflet);
+- маршрут = `MKPolyline`;
+- позиция = стандартный `showsUserLocation`.
+
+На **Android / Web** остаётся Leaflet + Esri/OSM (не iOS).
+
+Admin Web: Leaflet / OSM — отдельные координаты из той же БД.
 
 ## Acceptance
 1. Без активированных кроссовок старт недоступен.

@@ -1,7 +1,9 @@
-import { memo, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
+import { memo, useEffect, useMemo, useRef } from 'react';
+import { MapContainer, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import { Capacitor } from '@capacitor/core';
 import 'leaflet/dist/leaflet.css';
+import { MapSizeFix, RobustTileLayer } from './mapTiles';
+import NativeAppleWorkoutMap from './NativeAppleWorkoutMap';
 
 function FollowLive({ lat, lng, interactive }) {
   const map = useMap();
@@ -12,23 +14,42 @@ function FollowLive({ lat, lng, interactive }) {
     if (!fittedRef.current) {
       map.setView([lat, lng], interactive ? 16 : 15, { animate: false });
       fittedRef.current = true;
+      map.invalidateSize({ animate: false });
       return;
     }
-    map.panTo([lat, lng], { animate: true, duration: 0.4 });
+    map.panTo([lat, lng], { animate: true, duration: 0.35 });
   }, [lat, lng, map, interactive]);
 
   return null;
 }
 
+/** Android / Web: Leaflet. iOS: нативный MapKit (без тайлов). */
 function WorkoutMap({ points = [], livePosition = null, interactive = true, className = '' }) {
-  const track = points.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
+  if (Capacitor.getPlatform() === 'ios') {
+    return (
+      <NativeAppleWorkoutMap
+        points={points}
+        livePosition={livePosition}
+        followUser={interactive}
+        className={className}
+      />
+    );
+  }
+
+  const track = useMemo(
+    () => points.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)),
+    [points]
+  );
   const hasLive =
     livePosition &&
     Number.isFinite(livePosition.latitude) &&
     Number.isFinite(livePosition.longitude);
   const displayTrack = track.length > 0 ? track : hasLive ? [livePosition] : [];
   const last = displayTrack[displayTrack.length - 1];
-  const positions = displayTrack.map((p) => [p.latitude, p.longitude]);
+  const positions = useMemo(
+    () => displayTrack.map((p) => [p.latitude, p.longitude]),
+    [displayTrack]
+  );
   const center = last ? [last.latitude, last.longitude] : [38.5598, 68.787];
   const followLat = hasLive ? livePosition.latitude : last?.latitude;
   const followLng = hasLive ? livePosition.longitude : last?.longitude;
@@ -43,18 +64,12 @@ function WorkoutMap({ points = [], livePosition = null, interactive = true, clas
         zoomControl={interactive}
         touchZoom={interactive}
         doubleClickZoom={interactive}
-        preferCanvas
-        style={{ height: '100%', width: '100%' }}
+        preferCanvas={false}
+        style={{ height: '100%', width: '100%', minHeight: 180 }}
+        attributionControl={false}
       >
-        <TileLayer
-          attribution='&copy; Apple / OSM'
-          url={
-            Capacitor.getPlatform() === 'ios'
-              ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-              : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-          }
-          subdomains="abcd"
-        />
+        <RobustTileLayer variant="dark" />
+        <MapSizeFix />
         {positions.length >= 2 && (
           <Polyline
             positions={positions}

@@ -6,6 +6,7 @@ class AppBridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(WorkoutTrackingPlugin())
-        NSLog("RunBonus: WorkoutTrackingPlugin registered")
+        bridge?.registerPluginInstance(AppleMapsPlugin())
+        NSLog("RunBonus: WorkoutTrackingPlugin + AppleMapsPlugin registered")
     }
 }

@@ -348,10 +348,22 @@ export default function WorkoutPage({ user, setUser }) {
   }
 
   const liveBadge = (
-    <div className={`rb-badge-live ${live.paused ? 'rb-badge-live--paused' : ''}`}>
+    <div
+      className={`rb-badge-live ${
+        live.autoPaused
+          ? 'rb-badge-live--autopause'
+          : live.manualPaused
+            ? 'rb-badge-live--paused'
+            : 'rb-badge-live--active'
+      }`}
+    >
       <span className="rb-badge-live__dot" />
       <span>
-        {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Пауза' : 'Активна'}
+        {live.autoPaused
+          ? 'АВТОПАУЗА'
+          : live.manualPaused
+            ? 'ПАУЗА'
+            : 'АКТИВНА'}
       </span>
     </div>
   );

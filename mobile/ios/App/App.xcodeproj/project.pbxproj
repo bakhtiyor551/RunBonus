@@ -24,6 +24,8 @@
 		RBVC0011FED79650016851F /* AppBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBVC0021FED79650016851F /* AppBridgeViewController.swift */; };
 		RBWT0011FED79650016851F /* WorkoutTrackingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */; };
 		RBWT0021FED79650016851F /* WorkoutTrackingPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */; };
+		RBAM0011FED79650016851F /* AppleMapsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = RBAM0031FED79650016851F /* AppleMapsPlugin.swift */; };
+		RBAM0021FED79650016851F /* AppleMapsPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = RBAM0041FED79650016851F /* AppleMapsPlugin.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +76,8 @@
 		RBVC0021FED79650016851F /* AppBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBridgeViewController.swift; sourceTree = "<group>"; };
 		RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackingPlugin.swift; sourceTree = "<group>"; };
 		RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WorkoutTrackingPlugin.m; sourceTree = "<group>"; };
+		RBAM0031FED79650016851F /* AppleMapsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMapsPlugin.swift; sourceTree = "<group>"; };
+		RBAM0041FED79650016851F /* AppleMapsPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppleMapsPlugin.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,8 +136,10 @@
 				RBSD0021FED79650016851F /* SceneDelegate.swift */,
 				RBVC0021FED79650016851F /* AppBridgeViewController.swift */,
 				RBWT0031FED79650016851F /* WorkoutTrackingPlugin.swift */,
-				RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */,
 				RBWT0041FED79650016851F /* WorkoutTrackingPlugin.m */,
+				RBAM0031FED79650016851F /* AppleMapsPlugin.swift */,
+				RBAM0041FED79650016851F /* AppleMapsPlugin.m */,
+				RBLA0221FED79650016851F /* WorkoutLiveActivityManager.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -321,6 +327,8 @@
 				RBVC0011FED79650016851F /* AppBridgeViewController.swift in Sources */,
 				RBWT0011FED79650016851F /* WorkoutTrackingPlugin.swift in Sources */,
 				RBWT0021FED79650016851F /* WorkoutTrackingPlugin.m in Sources */,
+				RBAM0011FED79650016851F /* AppleMapsPlugin.swift in Sources */,
+				RBAM0021FED79650016851F /* AppleMapsPlugin.m in Sources */,
 				RBLA0021FED79650016851F /* WorkoutActivityAttributes.swift in Sources */,
 				RBLA0201FED79650016851F /* WorkoutLiveActivityManager.swift in Sources */,
 			);

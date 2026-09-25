@@ -189,7 +189,8 @@ export async function startBackgroundTracking(onPosition) {
         enableHighAccuracy: true,
         timeout: 12000,
         maximumAge: isAndroid() ? 5000 : 3000,
-        minimumUpdateInterval: 1500,
+        // ~5–10 м при беге: частые фиксы без лишней нагрузки
+        minimumUpdateInterval: isAndroid() ? 2000 : 1500,
       },
       (pos, err) => {
         if (err) return;

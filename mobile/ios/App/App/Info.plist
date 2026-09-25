@@ -52,9 +52,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>RunBonus сканирует QR-код на кроссовках для активации.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>RunBonus продолжает учитывать дистанцию, когда приложение свёрнуто во время тренировки.</string>
+	<string>RunBonus использует вашу геопозицию во время тренировки для записи маршрута, расчёта дистанции и подтверждения километров — в том числе когда экран заблокирован.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>RunBonus записывает маршрут тренировки и начисляет бонусы за бег.</string>
+	<string>RunBonus использует вашу геопозицию во время тренировки для записи маршрута, расчёта дистанции и подтверждения километров.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>RunBonus считает шаги во время тренировки.</string>
 	<key>NSSupportsLiveActivities</key>

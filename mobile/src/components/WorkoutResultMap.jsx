@@ -1,6 +1,9 @@
 import { memo, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet';
+import { MapContainer, Polyline, CircleMarker, useMap } from 'react-leaflet';
+import { Capacitor } from '@capacitor/core';
 import 'leaflet/dist/leaflet.css';
+import { MapSizeFix, RobustTileLayer } from './mapTiles';
+import NativeAppleWorkoutMap from './NativeAppleWorkoutMap';
 
 const GRADIENT = ['#ff2d55', '#ff6b2d', '#ffcc00', '#c3f400', '#00e5bc', '#00d4ff'];
 
@@ -10,9 +13,10 @@ function FitTrack({ positions }) {
     if (!positions?.length) return;
     if (positions.length === 1) {
       map.setView(positions[0], 15, { animate: false });
-      return;
+    } else {
+      map.fitBounds(positions, { padding: [48, 48], maxZoom: 16, animate: false });
     }
-    map.fitBounds(positions, { padding: [48, 48], maxZoom: 16, animate: false });
+    map.invalidateSize({ animate: false });
   }, [map, positions]);
   return null;
 }
@@ -24,10 +28,18 @@ function segmentColor(i, total) {
   return GRADIENT[idx];
 }
 
-/**
- * Карта результата: тёмные тайлы + градиентный трек.
- */
 function WorkoutResultMap({ points = [], className = '' }) {
+  // iOS: та же нативная Apple Maps
+  if (Capacitor.getPlatform() === 'ios') {
+    return (
+      <NativeAppleWorkoutMap
+        points={points}
+        followUser={false}
+        className={`rb-result-map ${className}`.trim()}
+      />
+    );
+  }
+
   const track = useMemo(
     () => points.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)),
     [points]
@@ -62,14 +74,12 @@ function WorkoutResultMap({ points = [], className = '' }) {
         zoomControl={false}
         touchZoom
         doubleClickZoom={false}
-        preferCanvas
-        style={{ height: '100%', width: '100%' }}
+        preferCanvas={false}
+        style={{ height: '100%', width: '100%', minHeight: 200 }}
         attributionControl={false}
       >
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
-        />
+        <RobustTileLayer variant="dark" />
+        <MapSizeFix />
         {segments.map((seg) => (
           <Polyline
             key={seg.key}
