@@ -374,30 +374,27 @@ async function finishWorkout(workoutId, userId, clientPoints, clientMeta = {}) {
       distanceKm = clientDistanceKm;
     }
 
-    const minDurationSec = (settings?.min_duration_minutes ?? 5) * 60;
-    const minDistanceKm = settings?.min_distance_km ?? 0.5;
-
-    if (!validation.ok && validation.reason?.includes('GPS')) {
-      if (durationSeconds >= minDurationSec && distanceKm >= minDistanceKm) {
-        const avgSpeed =
-          durationSeconds > 0 ? (distanceKm / durationSeconds) * 3600 : 0;
-        validation = {
-          ok: true,
-          status: 'approved',
-          distanceKm,
-          avgSpeed,
-          maxSpeed: validation.maxSpeed ?? 0,
-        };
-      } else {
-        validation = {
-          ...validation,
-          distanceKm,
-          reason:
-            durationSeconds < minDurationSec
-              ? `Минимум ${settings?.min_duration_minutes ?? 5} мин (сейчас ${Math.floor(durationSeconds / 60)} мин)`
-              : `Минимум ${minDistanceKm} км (сейчас ${distanceKm.toFixed(2)} км)`,
-        };
-      }
+    // Мягкий GPS: только при слабом сигнале и реальной дистанции (>0).
+    // Не одобряем «Недостаточно GPS-точек» и нулевой пробег.
+    if (
+      !validation.ok &&
+      validation.reason === 'Слабый сигнал GPS' &&
+      distanceKm > 0
+    ) {
+      const avgSpeed =
+        durationSeconds > 0 ? (distanceKm / durationSeconds) * 3600 : 0;
+      validation = {
+        ok: true,
+        status: 'approved',
+        distanceKm,
+        avgSpeed,
+        maxSpeed: validation.maxSpeed ?? 0,
+      };
+    } else if (!validation.ok) {
+      validation = {
+        ...validation,
+        distanceKm: validation.distanceKm ?? distanceKm,
+      };
     }
     let pricePerKm = 0;
     let rawCalculatedBonus = 0;

@@ -15,8 +15,6 @@ const STALE_COORD_SEC = 120;
 const GPS_SPEED_TOLERANCE_KMH = 1;
 
 export function validateWorkout(points, durationSeconds, settings) {
-  const minDurationSec = (settings?.min_duration_minutes ?? 5) * 60;
-  const minDistanceKm = settings?.min_distance_km ?? 0.5;
   const maxSpeedKmh = Number(settings?.max_speed_kmh ?? 18);
   const runMax = maxSpeedKmh;
   const speedRejectAbove = maxSpeedKmh + GPS_SPEED_TOLERANCE_KMH;
@@ -33,22 +31,7 @@ export function validateWorkout(points, durationSeconds, settings) {
     };
   }
 
-  if (durationSeconds < minDurationSec) {
-    return {
-      ok: false,
-      status: 'rejected',
-      reason: `Тренировка меньше ${settings?.min_duration_minutes ?? 5} минут`,
-    };
-  }
-
   const distanceKm = calcDistanceFromPoints(track);
-  if (distanceKm < minDistanceKm) {
-    return {
-      ok: false,
-      status: 'rejected',
-      reason: `Минимум ${minDistanceKm} км`,
-    };
-  }
 
   let maxSpeed = 0;
   let invalidSpeedCount = 0;

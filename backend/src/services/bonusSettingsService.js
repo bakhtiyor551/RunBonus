@@ -5,8 +5,8 @@ const DEFAULTS = {
   price_per_km: Number(config.bonusPerKm || 3),
   daily_limit: Number(config.dailyBonusLimit || 10),
   total_limit_per_shoe: Number(config.shoeBonusLimit || 200),
-  min_distance_km: 0.5,
-  min_duration_minutes: 5,
+  min_distance_km: 0,
+  min_duration_minutes: 0,
   max_speed_kmh: 18,
 };
 
