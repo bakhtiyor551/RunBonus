@@ -85,6 +85,8 @@ docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 
 UI: `http://127.0.0.1:8080` (пробросьте SSH-туннель или отдельный внутренний proxy). Не открывайте 8080 в интернет без HTTPS и ACL.
 
+В `docker-compose.jenkins.yml` смонтированы `/var/jenkins_home` и `/opt/runbonus` (read-only) — агент видит production `.env`.
+
 Плагины: Pipeline, Git, Credentials Binding, Docker Pipeline, SSH Agent.
 
 ### Credentials (ID как в pipeline)
@@ -114,13 +116,25 @@ UI: `http://127.0.0.1:8080` (пробросьте SSH-туннель или от
 - `main` / `master` — CI + Deploy PRODUCTION (`remote-deploy.sh`: mysql up → backup → migration → up → health).
   Первый деплой без контейнера MySQL: backup пропускается с warning, не падает.
 
-На агенте должны быть файлы `.env` и `.env.staging` **вне Git** (в workspace или в `/opt/runbonus` — тогда укажите тот же checkout path).
-
-Staging:
+Секреты **не** кладите в workspace Jenkins (checkout их сотрёт). Один раз на VPS:
 
 ```bash
-cp .env.staging.example .env.staging
+# из текущего backend/.env (systemd) → Docker-совместимый файл
+sudo ./deploy/bootstrap-env-from-backend.sh /opt/runbonus/backend/.env /opt/runbonus/.env
+# или вручную:
+# sudo mkdir -p /opt/runbonus
+# sudo cp .env.example /opt/runbonus/.env   # затем заполните пароли
+# sudo chmod 600 /opt/runbonus/.env
 ```
+
+Staging (отдельный файл):
+
+```bash
+sudo cp .env.staging.example /opt/runbonus/.env.staging
+sudo chmod 600 /opt/runbonus/.env.staging
+```
+
+Pipeline копирует их в workspace через `deploy/prepare-env.sh` перед deploy.
 
 ## 3. Rollback
 

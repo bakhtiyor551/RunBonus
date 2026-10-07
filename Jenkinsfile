@@ -91,7 +91,8 @@ pipeline {
         script { env.DEPLOY_ENV = 'staging' }
         sh '''
           chmod +x deploy/*.sh
-          test -f .env.staging || { echo "Create .env.staging on the agent from .env.staging.example"; exit 1; }
+          export RUNBONUS_ENV_FILE="${RUNBONUS_ENV_FILE:-/opt/runbonus/.env.staging}"
+          ./deploy/prepare-env.sh .env.staging
           export COMPOSE_FILE=docker-compose.staging.yml
           export ENV_FILE=.env.staging
           export HEALTH_URL=http://127.0.0.1:8080/health
@@ -113,7 +114,8 @@ pipeline {
         script { env.DEPLOY_ENV = 'production' }
         sh '''
           chmod +x deploy/*.sh
-          test -f .env || { echo "Create .env on the agent from .env.example (never commit it)"; exit 1; }
+          # .env не в Git: постоянный файл /opt/runbonus/.env (или JENKINS_HOME/runbonus.env)
+          ./deploy/prepare-env.sh
           export COMPOSE_FILE=docker-compose.prod.yml
           export ENV_FILE=.env
           export HEALTH_URL=http://127.0.0.1/health
