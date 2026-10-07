@@ -7,10 +7,22 @@ cd "$ROOT"
 log() { echo "[runbonus] $*"; }
 die() { echo "[runbonus] ERROR: $*" >&2; exit 1; }
 
+compose_bin() {
+  if docker compose version >/dev/null 2>&1; then
+    echo "docker compose"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    echo "docker-compose"
+  else
+    die "Нет docker compose (установите docker-compose-v2 / CLI plugin)"
+  fi
+}
+
 compose_cmd() {
   local file="${COMPOSE_FILE:-docker-compose.prod.yml}"
-  local envf="${ENV_FILE:-.env}"
-  docker compose --env-file "$envf" -f "$file" "$@"
+  # .env уже в корне проекта (prepare-env.sh) — Compose подхватывает его сам.
+  # Не передаём --env-file: без CLI-plugin флаг ошибочно уходит в `docker`.
+  # shellcheck disable=SC2046
+  $(compose_bin) -f "$file" "$@"
 }
 
 require_env_file() {

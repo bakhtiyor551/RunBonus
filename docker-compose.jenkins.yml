@@ -16,5 +16,6 @@ services:
       - /opt/runbonus:/opt/runbonus:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
+      - /usr/libexec/docker/cli-plugins:/usr/libexec/docker/cli-plugins:ro
     environment:
       JAVA_OPTS: "-Djenkins.install.runSetupWizard=true"
