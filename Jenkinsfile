@@ -18,7 +18,7 @@ pipeline {
         script {
           env.GIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
           env.APP_VERSION = sh(
-            script: "node -p \"require('./backend/package.json').version\" 2>/dev/null || python3 -c \"import json; print(json.load(open('backend/package.json'))['version'])\"",
+            script: "node -p \"require('./backend/package.json').version\"",
             returnStdout: true
           ).trim()
           env.IMAGE_TAG = "${env.APP_VERSION}.${env.BUILD_NUMBER}"
