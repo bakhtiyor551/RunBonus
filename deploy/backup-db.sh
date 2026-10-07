@@ -64,6 +64,21 @@ if [[ "$DAY" == "01" ]]; then
   cp -f "$DAILY" "$BACKUP_ROOT/monthly/runbonus_${STAMP}.sql.gz"
 fi
 
-ls -1t "$BACKUP_ROOT/daily"/runbonus_*.sql.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
-ls -1t "$BACKUP_ROOT/weekly"/runbonus_*.sql.gz 2>/dev/null | tail -n +9 | xargs -r rm -f
-ls -1t "$BACKUP_ROOT/monthly"/runbonus_*.sql.gz 2>/dev/null | tail -n +13 | xargs -r rm -f
+rotate() {
+  local dir="$1"
+  local keep="$2"
+  local -a files=()
+  shopt -s nullglob
+  # shellcheck disable=SC2206
+  files=($(ls -1t "$dir"/runbonus_*.sql.gz 2>/dev/null || true))
+  shopt -u nullglob
+  local i
+  for ((i = keep; i < ${#files[@]}; i++)); do
+    rm -f "${files[$i]}"
+  done
+}
+
+rotate "$BACKUP_ROOT/daily" 14
+rotate "$BACKUP_ROOT/weekly" 8
+rotate "$BACKUP_ROOT/monthly" 12
+log "backup complete"

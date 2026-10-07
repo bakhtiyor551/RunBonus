@@ -1,4 +1,7 @@
-# Production. Не публикует 3000/3306/6379. Не использовать: docker compose down -v
+# Production. MySQL/Redis наружу не публикуются.
+# API только на localhost:3000 — хостовый nginx проксирует сюда.
+# Docker-nginx (80/443): docker compose --profile edge up -d
+# Не использовать: docker compose down -v
 name: runbonus
 
 services:
@@ -27,8 +30,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    expose:
-      - "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
     volumes:
       - api_uploads:/app/uploads
     read_only: false
@@ -65,6 +68,7 @@ services:
       - "6379"
 
   nginx:
+    profiles: ["edge"]
     image: nginx:alpine
     container_name: runbonus-nginx
     restart: unless-stopped

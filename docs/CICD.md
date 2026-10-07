@@ -55,20 +55,22 @@ IMAGE_TAG=1.0.0.0 ./deploy/remote-deploy.sh
 sudo ./deploy/install-backup-cron.sh
 ```
 
-SSL: скрипт копирует Let's Encrypt, если он уже есть, иначе ставит временный self-signed. Затем:
+По умолчанию API слушает **`127.0.0.1:3000`**. Хостовый nginx (уже на 80/443) должен проксировать на него.  
+Docker-nginx включается отдельно (когда готовы отдать ему 80/443):
 
 ```bash
-certbot certonly --nginx -d api.runbonus.tj -d runbonus.online
-cp -L /etc/letsencrypt/live/api.runbonus.tj/fullchain.pem docker/nginx/certs/fullchain.pem
-cp -L /etc/letsencrypt/live/api.runbonus.tj/privkey.pem docker/nginx/certs/privkey.pem
-docker compose -f docker-compose.prod.yml restart nginx
+docker compose -f docker-compose.prod.yml --profile edge up -d
 ```
 
-Существующий systemd `runbonus-api` остановите **после** успешного health нового стека:
+Health: `curl -f http://127.0.0.1:3000/health`
+
+Существующий systemd `runbonus-api` остановите **после** успешного health нового стека (и смены proxy_pass на `:3000`):
 
 ```bash
 sudo systemctl disable --now runbonus-api
 ```
+
+Docker MariaDB — **отдельная** БД (volume `mysql_data`). Данные с хостового MySQL перенесите дампом перед cutover.
 
 Данные хостового MySQL перенесите дампом в контейнер `runbonus-mysql` до отключения старой БД.
 

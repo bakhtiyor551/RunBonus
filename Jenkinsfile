@@ -118,8 +118,9 @@ pipeline {
           ./deploy/prepare-env.sh
           export COMPOSE_FILE=docker-compose.prod.yml
           export ENV_FILE=.env
-          export HEALTH_URL=http://127.0.0.1/health
-          # remote-deploy: mysql up → backup (skip ok) → migration → up all → health
+          # API на 127.0.0.1:3000 (хостовый nginx уже на 80/443)
+          export HEALTH_URL=http://127.0.0.1:3000/health
+          # remote-deploy: mysql up → backup → migration → up all → health
           ./deploy/remote-deploy.sh
         '''
         script { env.DEPLOY_STARTED = '1' }
@@ -137,9 +138,9 @@ pipeline {
       }
       steps {
         script {
-          def url = (env.IS_PRODUCTION == '1') ? 'http://127.0.0.1/health' : 'http://127.0.0.1:8080/health'
+          def url = (env.IS_PRODUCTION == '1') ? 'http://127.0.0.1:3000/health' : 'http://127.0.0.1:8080/health'
           if (env.IS_PRODUCTION != '1' && env.IS_STAGING != '1') {
-            url = 'http://127.0.0.1/health'
+            url = 'http://127.0.0.1:3000/health'
           }
           sh "./deploy/health-wait.sh ${url}"
         }
