@@ -68,13 +68,17 @@ rotate() {
   local dir="$1"
   local keep="$2"
   local -a files=()
+  local -a sorted=()
+  [[ -d "$dir" ]] || return 0
   shopt -s nullglob
-  # shellcheck disable=SC2206
-  files=($(ls -1t "$dir"/runbonus_*.sql.gz 2>/dev/null || true))
+  files=("$dir"/runbonus_*.sql.gz)
   shopt -u nullglob
+  # Пустой glob → не вызывать ls без аргументов (иначе ls листит CWD и rm бьёт по database/).
+  ((${#files[@]} == 0)) && return 0
+  mapfile -t sorted < <(ls -1t "${files[@]}")
   local i
-  for ((i = keep; i < ${#files[@]}; i++)); do
-    rm -f "${files[$i]}"
+  for ((i = keep; i < ${#sorted[@]}; i++)); do
+    rm -f "${sorted[i]}"
   done
 }
 
