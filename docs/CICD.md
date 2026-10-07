@@ -70,7 +70,15 @@ Health: `curl -f http://127.0.0.1:3000/health`
 sudo systemctl disable --now runbonus-api
 ```
 
-Docker MariaDB — **отдельная** БД (volume `mysql_data`). Данные с хостового MySQL перенесите дампом перед cutover.
+Docker MariaDB — **отдельная** БД (volume `mysql_data`). На пустой БД `migrate` сначала применяет `database/schema.sql`, затем SQL-миграции.
+
+Данные с хостового MySQL перенесите дампом **перед** cutover (иначе будет пустая схема):
+
+```bash
+# пример: дамп хоста → в контейнер
+mysqldump -u... -p... runbonus | gzip > /tmp/host.sql.gz
+gunzip -c /tmp/host.sql.gz | docker exec -i runbonus-mysql mariadb -urunbonus -p... runbonus
+```
 
 Данные хостового MySQL перенесите дампом в контейнер `runbonus-mysql` до отключения старой БД.
 

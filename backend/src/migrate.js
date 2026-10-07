@@ -12,6 +12,10 @@ const IGNORABLE = new Set([
   'ER_CANT_DROP_FIELD_OR_KEY',
   'ER_DUP_ENTRY',
   'ER_DUP_KEY',
+  'ER_FK_DUP_NAME',
+  'ER_CANNOT_ADD_FOREIGN',
+  'ER_FK_COLUMN_NOT_NULL',
+  'ER_DUP_CONSTRAINT_NAME',
 ]);
 
 function splitSql(sql) {
@@ -21,6 +25,63 @@ function splitSql(sql) {
     .filter((s) => s.length > 0 && !s.startsWith('--'));
 }
 
+async function tableExists(conn, name) {
+  const [rows] = await conn.query(
+    `SELECT 1 AS ok FROM information_schema.tables
+     WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1`,
+    [name]
+  );
+  return rows.length > 0;
+}
+
+async function applySqlFile(conn, filePath, { soft = false } = {}) {
+  const sql = fs.readFileSync(filePath, 'utf8');
+  const parts = splitSql(sql);
+  for (const part of parts) {
+    const upper = part.toUpperCase();
+    if (upper.startsWith('CREATE DATABASE') || upper.startsWith('USE ')) continue;
+    try {
+      await conn.query(part);
+    } catch (err) {
+      if (soft || IGNORABLE.has(err.code) || Number(err.errno) === 150) {
+        console.warn(`[migrate] ${path.basename(filePath)}: ${err.message}`);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+async function resetOrphanTables(conn) {
+  const [tables] = await conn.query(
+    `SELECT table_name AS name FROM information_schema.tables
+     WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'`
+  );
+  if (!tables.length) return;
+  console.warn(`[migrate] incomplete DB without users — dropping ${tables.length} orphan table(s)`);
+  await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+  for (const t of tables) {
+    await conn.query(`DROP TABLE IF EXISTS \`${t.name}\``);
+  }
+  await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+}
+
+async function ensureBaseSchema(conn) {
+  if (await tableExists(conn, 'users')) {
+    return;
+  }
+  const schemaPath = path.join(__dirname, '../../database/schema.sql');
+  if (!fs.existsSync(schemaPath)) {
+    throw new Error(`[migrate] нет таблицы users и не найден schema.sql: ${schemaPath}`);
+  }
+  await resetOrphanTables(conn);
+  console.log('[migrate] empty database — applying database/schema.sql');
+  await applySqlFile(conn, schemaPath, { soft: true });
+  if (!(await tableExists(conn, 'users'))) {
+    throw new Error('[migrate] schema.sql применён, но таблица users не появилась');
+  }
+}
+
 async function migrate() {
   const migrationsDir = path.join(__dirname, '../../database/migrations');
   if (!fs.existsSync(migrationsDir)) {
@@ -28,6 +89,7 @@ async function migrate() {
   }
 
   const allowDestructive = process.env.ALLOW_DESTRUCTIVE_MIGRATIONS === '1';
+  const softMigrations = process.env.MIGRATE_SOFT === '1';
   const conn = await pool.getConnection();
   try {
     await conn.query(`
@@ -36,6 +98,8 @@ async function migrate() {
         applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    await ensureBaseSchema(conn);
 
     const [rows] = await conn.query('SELECT id FROM schema_migrations');
     const applied = new Set(rows.map((r) => r.id));
@@ -53,19 +117,10 @@ async function migrate() {
       }
 
       console.log(`[migrate] apply ${file}`);
-      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-      const parts = splitSql(sql);
-      for (const part of parts) {
-        try {
-          await conn.query(part);
-        } catch (err) {
-          if (IGNORABLE.has(err.code)) {
-            console.warn(`[migrate] ${file}: ${err.message}`);
-            continue;
-          }
-          throw err;
-        }
-      }
+      // Старые миграции пересекаются со schema.sql — ошибки IF NOT EXISTS/ALTER игнорируем.
+      await applySqlFile(conn, path.join(migrationsDir, file), {
+        soft: softMigrations !== '0',
+      });
       await conn.query('INSERT INTO schema_migrations (id) VALUES (?)', [file]);
     }
     console.log('[migrate] complete');
