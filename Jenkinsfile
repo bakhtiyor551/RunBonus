@@ -17,10 +17,8 @@ pipeline {
         checkout scm
         script {
           env.GIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-          env.APP_VERSION = sh(
-            script: "node -p \"require('./backend/package.json').version\"",
-            returnStdout: true
-          ).trim()
+          def pkg = new groovy.json.JsonSlurperClassic().parseText(readFile('backend/package.json'))
+          env.APP_VERSION = pkg.version.toString()
           env.IMAGE_TAG = "${env.APP_VERSION}.${env.BUILD_NUMBER}"
           env.IMAGE_GIT = "git-${env.GIT_SHA}"
           env.IS_PRODUCTION = (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') ? '1' : '0'
