@@ -1,6 +1,6 @@
 # Быстрый старт
 
-Пошаговая установка RunBonus на локальной машине (Windows). Docker не используется.
+Пошаговая установка RunBonus на локальной машине (Windows). Для production Docker см. [CICD.md](CICD.md).
 
 ## 1. MySQL
 

@@ -1,0 +1,21 @@
+# Jenkins отдельно от production. Не включайте этот файл в docker-compose.prod.yml.
+name: runbonus-jenkins
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins
+    restart: unless-stopped
+    user: root
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
+    environment:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=true"
+
+volumes:
+  jenkins_home:

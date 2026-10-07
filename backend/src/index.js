@@ -26,8 +26,9 @@ import adminChallengesRoutes from './routes/adminChallenges.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import telegramRoutes from './routes/telegram.js';
 import { buildDailyTelegramReport } from './services/reportsService.js';
-import { sendTelegramMessage } from './services/telegramService.js';
+import { sendTelegramMessage, ensureTelegramWebhook } from './services/telegramService.js';
 import { autoCloseStaleWorkouts } from './services/workoutAutoClose.js';
+import { checkHealth } from './services/healthService.js';
 
 const app = express();
 
@@ -49,9 +50,23 @@ app.use(express.json({ limit: '12mb' }));
 app.use('/uploads', express.static(UPLOADS_ROOT));
 app.use('/api/uploads', express.static(UPLOADS_ROOT));
 
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'runbonus-api' });
-});
+async function healthHandler(_req, res) {
+  try {
+    const payload = await checkHealth();
+    res.status(payload.status === 'ok' ? 200 : 503).json(payload);
+  } catch {
+    res.status(503).json({
+      status: 'error',
+      service: 'runbonus-api',
+      database: 'error',
+      redis: 'error',
+      ok: false,
+    });
+  }
+}
+
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/shoes', shoesRoutes);

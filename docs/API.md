@@ -23,7 +23,8 @@ Authorization: Bearer <admin_jwt>
 
 | Метод | Путь | Описание |
 |-------|------|----------|
-| GET | `/api/health` | Статус API |
+| GET | `/health` | Статус API + БД + Redis |
+| GET | `/api/health` | То же (совместимость с приложением) |
 
 ---
 

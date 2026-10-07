@@ -1,0 +1,83 @@
+# Production. Не публикует 3000/3306/6379. Не использовать: docker compose down -v
+name: runbonus
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        APP_VERSION: ${IMAGE_TAG:-git-local}
+    image: runbonus-api:${IMAGE_TAG:-git-local}
+    container_name: runbonus-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    expose:
+      - "3000"
+    volumes:
+      - api_uploads:/app/uploads
+    read_only: false
+    security_opt:
+      - no-new-privileges:true
+
+  mysql:
+    image: mariadb:11.4
+    container_name: runbonus-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    expose:
+      - "3306"
+
+  redis:
+    image: redis:7-alpine
+    container_name: runbonus-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+
+  nginx:
+    image: nginx:alpine
+    container_name: runbonus-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+
+volumes:
+  mysql_data:
+  redis_data:
+  api_uploads:

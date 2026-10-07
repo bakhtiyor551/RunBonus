@@ -1,0 +1,76 @@
+# Staging: отдельные контейнеры и volumes. Порты 8080/8443, чтобы не конфликтовать с production на одном VPS.
+name: runbonus-stage
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: runbonus-api:${IMAGE_TAG:-git-local}
+    container_name: runbonus-api-stage
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${MYSQL_USER:-runbonus_stage}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-runbonus_stage}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    expose:
+      - "3000"
+    volumes:
+      - api_uploads_stage:/app/uploads
+
+  mysql:
+    image: mariadb:11.4
+    container_name: runbonus-mysql-stage
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-runbonus_stage}
+      MYSQL_USER: ${MYSQL_USER:-runbonus_stage}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data_stage:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    expose:
+      - "3306"
+
+  redis:
+    image: redis:7-alpine
+    container_name: runbonus-redis-stage
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data_stage:/data
+    expose:
+      - "6379"
+
+  nginx:
+    image: nginx:alpine
+    container_name: runbonus-nginx-stage
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx/nginx.staging.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+
+volumes:
+  mysql_data_stage:
+  redis_data_stage:
+  api_uploads_stage:

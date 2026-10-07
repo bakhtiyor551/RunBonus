@@ -1,0 +1,66 @@
+// Отдельный pipeline от backend. Job в Jenkins: RunBonus-Mobile, script path Jenkinsfile.mobile
+pipeline {
+  agent none
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+
+  stages {
+    stage('Android') {
+      agent { label 'linux' }
+      when {
+        anyOf {
+          branch 'main'
+          branch 'master'
+          branch 'develop'
+          branch 'dev_run'
+          changeset 'mobile/**'
+        }
+      }
+      steps {
+        checkout scm
+        dir('mobile') {
+          sh 'npm ci'
+          sh 'npm run build:release'
+        }
+        dir('mobile/android') {
+          sh './gradlew bundleRelease --no-daemon'
+        }
+        archiveArtifacts artifacts: 'mobile/android/app/build/outputs/bundle/release/*.aab', fingerprint: true
+      }
+    }
+
+    stage('iOS') {
+      agent { label 'macos' }
+      when {
+        anyOf {
+          branch 'main'
+          branch 'master'
+        }
+      }
+      steps {
+        checkout scm
+        dir('mobile') {
+          sh 'npm ci'
+          sh 'npm run build:ios'
+        }
+        dir('mobile/ios/App') {
+          sh '''
+            pod install
+            xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+              -archivePath build/App.xcarchive archive CODE_SIGNING_ALLOWED=NO
+          '''
+        }
+        echo 'Подпись и загрузка в TestFlight — на macOS agent с Apple credentials (не хранить в Git)'
+      }
+    }
+  }
+
+  post {
+    success { echo 'RunBonus mobile pipeline successful' }
+    failure { echo 'RunBonus mobile pipeline failed' }
+  }
+}

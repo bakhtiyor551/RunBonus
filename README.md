@@ -1,7 +1,7 @@
 # RunBonus — «Бегай и получай бонусы»
 
 MVP платформы лояльности: мобильное приложение, REST API и админ-панель.  
-**Docker не используется** — локальный MySQL.
+Backend в production запускается **Docker Compose** (API + MariaDB + Redis + Nginx). Локально по-прежнему можно работать без Docker — MySQL на хосте. CI/CD: [docs/CICD.md](docs/CICD.md).
 
 ## Документация
 
@@ -34,7 +34,10 @@ RunBonus/
 ├── mobile/        Ionic React + Capacitor (Android / iOS)
 ├── admin/         React админ-панель (Vite)
 ├── database/      schema.sql + migrations/
-├── deploy/        iOS, DNS
+├── deploy/        CI/CD скрипты, iOS, DNS
+├── docker/        Nginx
+├── docker-compose*.yml
+├── Jenkinsfile    Backend pipeline
 └── docs/          Документация
 ```
 

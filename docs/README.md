@@ -15,6 +15,7 @@
 | [Тренировки и GPS](WORKOUTS.md) | Трекинг, фильтрация GPS, anti-fraud |
 | [База данных](DATABASE.md) | Схема, миграции, основные таблицы |
 | [Деплой](DEPLOYMENT.md) | Продакшен, iOS, DNS, переменные окружения |
+| [CI/CD](CICD.md) | Docker Compose, Jenkins, backup, rollback |
 
 ## Кратко о проекте
 
@@ -34,7 +35,7 @@ RunBonus/
 ├── mobile/      Клиентское приложение (Ionic React + Capacitor)
 ├── admin/       Панель администратора (React + Vite)
 ├── database/    schema.sql и миграции
-├── deploy/      Заметки по iOS и DNS
+├── deploy/      CI/CD, iOS, DNS
 └── docs/        Эта документация
 ```
 

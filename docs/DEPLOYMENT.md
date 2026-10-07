@@ -21,14 +21,18 @@ npm run seed   # только первый раз
 npm start
 ```
 
-### PM2 (рекомендуется)
+### Docker (рекомендуется)
+
+PM2 для API внутри Docker **не используется**: политику restart задаёт Compose (`restart: unless-stopped`).
+
+Полная схема: [CICD.md](CICD.md).
 
 ```bash
-npm install -g pm2
-pm2 start src/index.js --name runbonus-api
-pm2 save
-pm2 startup
+cp .env.example .env
+IMAGE_TAG=1.0.0.0 ./deploy/remote-deploy.sh
 ```
+
+Логи: `docker logs runbonus-api`. Rollback: `./deploy/rollback.sh`.
 
 ### nginx (пример)
 
@@ -129,8 +133,8 @@ location /admin/ {
 
 ## Мониторинг
 
-- Health check: `GET /api/health`
-- Логи PM2: `pm2 logs runbonus-api`
+- Health check: `GET /health` и `GET /api/health`
+- Логи: `docker logs runbonus-api`
 - Ежедневный отчёт в Telegram: 08:00 (если настроен `TELEGRAM_*`)
 
 ```bash

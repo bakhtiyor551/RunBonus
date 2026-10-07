@@ -6,6 +6,11 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "lint": "node scripts/syntax-check.mjs",
+    "test": "node --test test/**/*.test.js",
+    "build": "node scripts/syntax-check.mjs",
+    "migration": "node src/migrate.js",
+    "migrate": "node src/migrate.js",
     "db:setup": "node src/setupDb.js",
     "seed": "node src/seed.js",
     "db:init": "npm run db:setup && npm run seed",
