@@ -16,6 +16,7 @@ const IGNORABLE = new Set([
   'ER_CANNOT_ADD_FOREIGN',
   'ER_FK_COLUMN_NOT_NULL',
   'ER_DUP_CONSTRAINT_NAME',
+  'ER_CANT_CREATE_TABLE',
 ]);
 
 function splitSql(sql) {
@@ -32,6 +33,15 @@ async function tableExists(conn, name) {
     [name]
   );
   return rows.length > 0;
+}
+
+async function ensureMigrationsTable(conn) {
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      id VARCHAR(255) NOT NULL PRIMARY KEY,
+      applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
 }
 
 async function applySqlFile(conn, filePath, { soft = false } = {}) {
@@ -61,7 +71,8 @@ async function resetOrphanTables(conn) {
   console.warn(`[migrate] incomplete DB without users — dropping ${tables.length} orphan table(s)`);
   await conn.query('SET FOREIGN_KEY_CHECKS = 0');
   for (const t of tables) {
-    await conn.query(`DROP TABLE IF EXISTS \`${t.name}\``);
+    const name = t.name || t.TABLE_NAME || t.table_name;
+    await conn.query(`DROP TABLE IF EXISTS \`${name}\``);
   }
   await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 }
@@ -76,7 +87,14 @@ async function ensureBaseSchema(conn) {
   }
   await resetOrphanTables(conn);
   console.log('[migrate] empty database — applying database/schema.sql');
-  await applySqlFile(conn, schemaPath, { soft: true });
+  await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+  try {
+    await applySqlFile(conn, schemaPath, { soft: true });
+  } finally {
+    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+  }
+  // resetOrphanTables мог удалить schema_migrations
+  await ensureMigrationsTable(conn);
   if (!(await tableExists(conn, 'users'))) {
     throw new Error('[migrate] schema.sql применён, но таблица users не появилась');
   }
@@ -89,17 +107,12 @@ async function migrate() {
   }
 
   const allowDestructive = process.env.ALLOW_DESTRUCTIVE_MIGRATIONS === '1';
-  const softMigrations = process.env.MIGRATE_SOFT === '1';
+  const softMigrations = process.env.MIGRATE_SOFT !== '0';
   const conn = await pool.getConnection();
   try {
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        id VARCHAR(255) NOT NULL PRIMARY KEY,
-        applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-
+    await ensureMigrationsTable(conn);
     await ensureBaseSchema(conn);
+    await ensureMigrationsTable(conn);
 
     const [rows] = await conn.query('SELECT id FROM schema_migrations');
     const applied = new Set(rows.map((r) => r.id));
@@ -117,10 +130,12 @@ async function migrate() {
       }
 
       console.log(`[migrate] apply ${file}`);
-      // Старые миграции пересекаются со schema.sql — ошибки IF NOT EXISTS/ALTER игнорируем.
-      await applySqlFile(conn, path.join(migrationsDir, file), {
-        soft: softMigrations !== '0',
-      });
+      await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+      try {
+        await applySqlFile(conn, path.join(migrationsDir, file), { soft: softMigrations });
+      } finally {
+        await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+      }
       await conn.query('INSERT INTO schema_migrations (id) VALUES (?)', [file]);
     }
     console.log('[migrate] complete');
