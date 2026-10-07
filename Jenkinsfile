@@ -95,40 +95,10 @@ pipeline {
           export COMPOSE_FILE=docker-compose.staging.yml
           export ENV_FILE=.env.staging
           export HEALTH_URL=http://127.0.0.1:8080/health
-          export SKIP_BACKUP=1
+          export MYSQL_CONTAINER=runbonus-mysql-stage
           ./deploy/remote-deploy.sh
         '''
         script { env.DEPLOY_STARTED = '1' }
-      }
-    }
-
-    stage('Backup DB') {
-      when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
-      }
-      steps {
-        sh '''
-          chmod +x deploy/*.sh
-          ./deploy/backup-db.sh
-        '''
-      }
-    }
-
-    stage('Migration') {
-      when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
-      }
-      steps {
-        sh '''
-          IMAGE_TAG="$IMAGE_TAG" docker compose --env-file .env -f docker-compose.prod.yml \
-            run --rm --no-deps api node src/migrate.js
-        '''
       }
     }
 
@@ -147,8 +117,7 @@ pipeline {
           export COMPOSE_FILE=docker-compose.prod.yml
           export ENV_FILE=.env
           export HEALTH_URL=http://127.0.0.1/health
-          export SKIP_BACKUP=1
-          export SKIP_MIGRATE=1
+          # remote-deploy: mysql up → backup (skip ok) → migration → up all → health
           ./deploy/remote-deploy.sh
         '''
         script { env.DEPLOY_STARTED = '1' }

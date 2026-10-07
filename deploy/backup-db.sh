@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Daily/weekly/monthly dumps. Не печатает пароли.
+# На первом деплое (нет runbonus-mysql и нет источника) — warning и exit 0.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck disable=SC1091
@@ -9,7 +10,8 @@ BACKUP_ROOT="${BACKUP_ROOT:-/backup/runbonus}"
 STAMP="$(date -u +%Y-%m-%d)"
 DAY="$(date -u +%d)"
 WEEKDAY="$(date -u +%u)"
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+CONTAINER="${MYSQL_CONTAINER:-runbonus-mysql}"
+ALLOW_SKIP="${ALLOW_SKIP_BACKUP:-1}"
 
 mkdir -p "$BACKUP_ROOT/daily" "$BACKUP_ROOT/weekly" "$BACKUP_ROOT/monthly"
 
@@ -23,18 +25,23 @@ fi
 MYSQL_DATABASE="${MYSQL_DATABASE:-runbonus}"
 MYSQL_USER="${MYSQL_USER:-runbonus}"
 MYSQL_PASSWORD="${MYSQL_PASSWORD:-}"
-CONTAINER="${MYSQL_CONTAINER:-runbonus-mysql}"
+
+has_container() {
+  docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"
+}
 
 dump_one() {
   local dest="$1"
-  if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
-    docker exec "$CONTAINER" sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --single-transaction --routines --databases "$MYSQL_DATABASE"' \
+  if has_container; then
+    docker exec -e MYSQL_PWD="$MYSQL_PASSWORD" "$CONTAINER" \
+      mysqldump -u"$MYSQL_USER" --single-transaction --routines --databases "$MYSQL_DATABASE" \
       >"$dest.tmp"
   elif command -v mysqldump >/dev/null 2>&1; then
-    mysqldump -h"${DB_HOST:-127.0.0.1}" -P"${DB_PORT:-3306}" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" \
+    MYSQL_PWD="$MYSQL_PASSWORD" mysqldump \
+      -h"${DB_HOST:-127.0.0.1}" -P"${DB_PORT:-3306}" -u"$MYSQL_USER" \
       --single-transaction --routines --databases "$MYSQL_DATABASE" >"$dest.tmp"
   else
-    die "Нет контейнера $CONTAINER и нет mysqldump на хосте"
+    return 2
   fi
   gzip -c "$dest.tmp" >"$dest"
   rm -f "$dest.tmp"
@@ -42,7 +49,13 @@ dump_one() {
 }
 
 DAILY="$BACKUP_ROOT/daily/runbonus_${STAMP}.sql.gz"
-dump_one "$DAILY"
+if ! dump_one "$DAILY"; then
+  if [[ "$ALLOW_SKIP" == "1" ]]; then
+    log "backup skipped: нет контейнера $CONTAINER и нет mysqldump (первый деплой — ок)"
+    exit 0
+  fi
+  die "Нет контейнера $CONTAINER и нет mysqldump на хосте"
+fi
 
 if [[ "$WEEKDAY" == "7" ]]; then
   cp -f "$DAILY" "$BACKUP_ROOT/weekly/runbonus_${STAMP}.sql.gz"
@@ -51,7 +64,6 @@ if [[ "$DAY" == "01" ]]; then
   cp -f "$DAILY" "$BACKUP_ROOT/monthly/runbonus_${STAMP}.sql.gz"
 fi
 
-# Ротация: 14 daily, 8 weekly, 12 monthly
 ls -1t "$BACKUP_ROOT/daily"/runbonus_*.sql.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
 ls -1t "$BACKUP_ROOT/weekly"/runbonus_*.sql.gz 2>/dev/null | tail -n +9 | xargs -r rm -f
 ls -1t "$BACKUP_ROOT/monthly"/runbonus_*.sql.gz 2>/dev/null | tail -n +13 | xargs -r rm -f

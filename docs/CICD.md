@@ -111,7 +111,8 @@ UI: `http://127.0.0.1:8080` (пробросьте SSH-туннель или от
 
 - `feature/*`, `fix/*` — только CI (lint/test/build/image).
 - `develop` / `dev_run` — CI + staging (`api-stage`, порт 8080).
-- `main` / `master` — CI + backup + migration + production.
+- `main` / `master` — CI + Deploy PRODUCTION (`remote-deploy.sh`: mysql up → backup → migration → up → health).
+  Первый деплой без контейнера MySQL: backup пропускается с warning, не падает.
 
 На агенте должны быть файлы `.env` и `.env.staging` **вне Git** (в workspace или в `/opt/runbonus` — тогда укажите тот же checkout path).
 
