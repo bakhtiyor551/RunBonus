@@ -75,10 +75,13 @@ sudo systemctl disable --now runbonus-api
 ## 2. Jenkins (отдельный compose)
 
 ```bash
+sudo mkdir -p /var/jenkins_home
 docker compose -f docker-compose.jenkins.yml up -d
 # пароль администратора:
 docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 ```
+
+Каталог Jenkins должен быть **`/var/jenkins_home` и на хосте, и в контейнере**. Иначе `docker run -v $PWD/backend:/app` монтирует пустую папку хоста, и `npm ci` не видит `package-lock.json`.
 
 UI: `http://127.0.0.1:8080` (пробросьте SSH-туннель или отдельный внутренний proxy). Не открывайте 8080 в интернет без HTTPS и ACL.
 

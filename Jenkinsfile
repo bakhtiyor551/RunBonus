@@ -14,7 +14,6 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        checkout scm
         script {
           env.GIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
           env.APP_VERSION = sh(
@@ -32,49 +31,25 @@ pipeline {
 
     stage('Install') {
       steps {
-        sh '''
-          docker run --rm \
-            -v "$PWD/backend":/app \
-            -w /app \
-            node:22-bookworm \
-            npm ci
-        '''
+        sh 'chmod +x deploy/ci-node.sh && ./deploy/ci-node.sh npm ci'
       }
     }
 
     stage('Lint') {
       steps {
-        sh '''
-          docker run --rm \
-            -v "$PWD/backend":/app \
-            -w /app \
-            node:22-bookworm \
-            npm run lint
-        '''
+        sh './deploy/ci-node.sh npm run lint'
       }
     }
 
     stage('Test') {
       steps {
-        sh '''
-          docker run --rm \
-            -v "$PWD/backend":/app \
-            -w /app \
-            node:22-bookworm \
-            npm test
-        '''
+        sh './deploy/ci-node.sh npm test'
       }
     }
 
     stage('Build') {
       steps {
-        sh '''
-          docker run --rm \
-            -v "$PWD/backend":/app \
-            -w /app \
-            node:22-bookworm \
-            npm run build
-        '''
+        sh './deploy/ci-node.sh npm run build'
       }
     }
 

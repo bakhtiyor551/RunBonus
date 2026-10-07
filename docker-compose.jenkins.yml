@@ -11,11 +11,9 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:50000:50000"
     volumes:
-      - jenkins_home:/var/jenkins_home
+      # Тот же путь на хосте и в контейнере: docker run -v $PWD/... видит workspace.
+      - /var/jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
     environment:
       JAVA_OPTS: "-Djenkins.install.runSetupWizard=true"
-
-volumes:
-  jenkins_home:
