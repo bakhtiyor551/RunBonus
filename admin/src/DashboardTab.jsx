@@ -174,7 +174,6 @@ export default function DashboardTab({ onNavigate }) {
           label="Выбрано наград"
           value={formatNumber(rewardStats?.selectedCount || 0)}
         />
-        <StatCard icon="qr_code_2" label="Кодов кроссовок" value={formatNumber(shoes.length)} />
       </section>
 
       <section className="bento-grid bento-grid--main">
