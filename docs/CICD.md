@@ -62,7 +62,8 @@ Docker-nginx включается отдельно (когда готовы от
 docker compose -f docker-compose.prod.yml --profile edge up -d
 ```
 
-Health: `curl -f http://127.0.0.1:3000/health`
+Health с хоста: `curl -f http://127.0.0.1:3000/health`  
+Из Jenkins: `docker exec runbonus-api curl -fsS http://127.0.0.1:3000/health` (`deploy/health-wait.sh`).
 
 Существующий systemd `runbonus-api` остановите **после** успешного health нового стека (и смены proxy_pass на `:3000`):
 

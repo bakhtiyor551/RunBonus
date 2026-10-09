@@ -96,6 +96,7 @@ pipeline {
           export COMPOSE_FILE=docker-compose.staging.yml
           export ENV_FILE=.env.staging
           export HEALTH_URL=http://127.0.0.1:8080/health
+          export HEALTH_CONTAINER=runbonus-api-stage
           export MYSQL_CONTAINER=runbonus-mysql-stage
           ./deploy/remote-deploy.sh
         '''
@@ -118,9 +119,9 @@ pipeline {
           ./deploy/prepare-env.sh
           export COMPOSE_FILE=docker-compose.prod.yml
           export ENV_FILE=.env
-          # API на 127.0.0.1:3000 (хостовый nginx уже на 80/443)
+          # Health через docker exec (Jenkins в контейнере не видит host 127.0.0.1:3000)
           export HEALTH_URL=http://127.0.0.1:3000/health
-          # remote-deploy: mysql up → backup → migration → up all → health
+          export HEALTH_CONTAINER=runbonus-api
           ./deploy/remote-deploy.sh
         '''
         script { env.DEPLOY_STARTED = '1' }
@@ -137,13 +138,13 @@ pipeline {
         }
       }
       steps {
-        script {
-          def url = (env.IS_PRODUCTION == '1') ? 'http://127.0.0.1:3000/health' : 'http://127.0.0.1:8080/health'
-          if (env.IS_PRODUCTION != '1' && env.IS_STAGING != '1') {
-            url = 'http://127.0.0.1:3000/health'
-          }
-          sh "./deploy/health-wait.sh ${url}"
-        }
+        sh '''
+          export HEALTH_CONTAINER="${HEALTH_CONTAINER:-runbonus-api}"
+          if [ "${IS_STAGING}" = "1" ]; then
+            export HEALTH_CONTAINER=runbonus-api-stage
+          fi
+          ./deploy/health-wait.sh
+        '''
       }
     }
   }
