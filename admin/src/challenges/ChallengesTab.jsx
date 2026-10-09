@@ -1,41 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminApi } from '../api';
+import ChallengeLevelCard from './ChallengeLevelCard';
+import ChallengeClaimsPanel from './ChallengeClaimsPanel';
+import {
+  emptyLevel,
+  formatKm,
+  isOpenClaim,
+  sortLevels,
+  TYPE_LABELS,
+} from './challengeUtils';
 
-const emptyLevel = {
-  id: null,
-  level_num: '',
-  name: '',
-  target_km: '',
-  deadline_days: '',
-  description: '',
-  example_reward: '',
-  sort_order: '10',
-  status: 'active',
-  reward_ids: [],
-};
-
-const CLAIM_STATUSES = [
-  { id: 'CLAIMED', label: 'Заявка' },
-  { id: 'PROCESSING', label: 'В работе' },
-  { id: 'READY', label: 'Готово' },
-  { id: 'DELIVERED', label: 'Выдано' },
-  { id: 'CANCELLED', label: 'Отмена' },
+const STAT_ITEMS = [
+  { key: 'levels', label: 'Уровней', icon: 'stairs' },
+  { key: 'active', label: 'Активных', icon: 'bolt' },
+  { key: 'claims', label: 'Заявки в работе', icon: 'inbox', accent: true },
+  { key: 'catalog', label: 'В каталоге', icon: 'redeem' },
 ];
-
-const TYPE_LABELS = {
-  PRODUCT: 'Товар',
-  DISCOUNT: 'Скидка',
-  SPECIAL: 'Special',
-  VIP: 'VIP',
-};
-
-function claimTone(status) {
-  if (status === 'DELIVERED') return 'ok';
-  if (status === 'CANCELLED') return 'bad';
-  if (status === 'READY') return 'ready';
-  if (status === 'PROCESSING') return 'busy';
-  return 'new';
-}
 
 export default function ChallengesTab() {
   const [section, setSection] = useState('levels');
@@ -45,7 +25,9 @@ export default function ChallengesTab() {
   const [form, setForm] = useState(emptyLevel);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [rewardQuery, setRewardQuery] = useState('');
+  const [formCollapsed, setFormCollapsed] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
@@ -70,15 +52,36 @@ export default function ChallengesTab() {
     load();
   }, [load]);
 
+  const sortedLevels = useMemo(() => sortLevels(levels), [levels]);
+
   const openClaims = useMemo(
-    () => claims.filter((c) => !['DELIVERED', 'CANCELLED'].includes(c.status)).length,
+    () => claims.filter((c) => isOpenClaim(c.status)).length,
     [claims]
+  );
+
+  const statValues = useMemo(
+    () => ({
+      levels: levels.length,
+      active: levels.filter((l) => l.status === 'active').length,
+      claims: openClaims,
+      catalog: catalog.length,
+    }),
+    [levels, openClaims, catalog.length]
   );
 
   const selectedRewards = useMemo(
     () => catalog.filter((r) => form.reward_ids.includes(r.id)),
     [catalog, form.reward_ids]
   );
+
+  const filteredCatalog = useMemo(() => {
+    const q = rewardQuery.trim().toLowerCase();
+    if (!q) return catalog;
+    return catalog.filter((r) => {
+      const hay = `${r.name || ''} ${r.type || ''} ${r.id}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [catalog, rewardQuery]);
 
   const edit = (level) => {
     setForm({
@@ -93,8 +96,15 @@ export default function ChallengesTab() {
       status: level.status || 'active',
       reward_ids: level.reward_ids || [],
     });
+    setFormCollapsed(false);
     setSection('levels');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('.challenges-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const startNewLevel = () => {
+    setForm(emptyLevel);
+    setFormCollapsed(false);
+    setSection('levels');
   };
 
   const toggleReward = (id) => {
@@ -156,10 +166,13 @@ export default function ChallengesTab() {
 
   return (
     <div className="page-content challenges-page">
-      <div className="page-head challenges-page__head">
-        <div>
-          <h1>Задания</h1>
-          <p className="muted">Последовательные челленджи с таймером и наградами из каталога</p>
+      <div className="challenges-hero glass-card">
+        <div className="challenges-hero__text">
+          <p className="challenges-hero__eyebrow">Челленджи RunBonus</p>
+          <p className="challenges-hero__lead muted">
+            Настройте лестницу уровней с дедлайнами и наградами из каталога. Клиенты проходят
+            задания последовательно в приложении.
+          </p>
         </div>
         <button type="button" className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>
           <span className="material-symbols-outlined" aria-hidden>
@@ -170,24 +183,21 @@ export default function ChallengesTab() {
       </div>
 
       <div className="challenges-stats">
-        <div className="challenges-stat glass-card">
-          <span className="challenges-stat__label">Уровней</span>
-          <strong className="challenges-stat__value">{levels.length}</strong>
-        </div>
-        <div className="challenges-stat glass-card">
-          <span className="challenges-stat__label">Активных</span>
-          <strong className="challenges-stat__value">
-            {levels.filter((l) => l.status === 'active').length}
-          </strong>
-        </div>
-        <div className="challenges-stat glass-card">
-          <span className="challenges-stat__label">Заявки в работе</span>
-          <strong className="challenges-stat__value challenges-stat__value--accent">{openClaims}</strong>
-        </div>
-        <div className="challenges-stat glass-card">
-          <span className="challenges-stat__label">В каталоге</span>
-          <strong className="challenges-stat__value">{catalog.length}</strong>
-        </div>
+        {STAT_ITEMS.map((item) => (
+          <div key={item.key} className="challenges-stat glass-card">
+            <span className="challenges-stat__icon material-symbols-outlined" aria-hidden>
+              {item.icon}
+            </span>
+            <span className="challenges-stat__label">{item.label}</span>
+            <strong
+              className={`challenges-stat__value${
+                item.accent ? ' challenges-stat__value--accent' : ''
+              }`}
+            >
+              {loading ? '…' : statValues[item.key]}
+            </strong>
+          </div>
+        ))}
       </div>
 
       <nav className="reports-subnav challenges-page__nav" aria-label="Разделы заданий">
@@ -196,6 +206,9 @@ export default function ChallengesTab() {
           className={`chip chip--pill${section === 'levels' ? ' chip--accent' : ''}`}
           onClick={() => setSection('levels')}
         >
+          <span className="material-symbols-outlined challenges-page__nav-icon" aria-hidden>
+            flag
+          </span>
           Уровни
         </button>
         <button
@@ -203,6 +216,9 @@ export default function ChallengesTab() {
           className={`chip chip--pill${section === 'claims' ? ' chip--accent' : ''}`}
           onClick={() => setSection('claims')}
         >
+          <span className="material-symbols-outlined challenges-page__nav-icon" aria-hidden>
+            inventory
+          </span>
           Заявки на награды
           {openClaims > 0 ? <span className="challenges-nav-badge">{openClaims}</span> : null}
         </button>
@@ -212,279 +228,257 @@ export default function ChallengesTab() {
 
       {section === 'levels' && (
         <div className="challenges-layout">
-          <form className="glass-card challenges-form" onSubmit={save}>
-            <div className="challenges-form__title">
-              <div>
-                <h2>{form.id ? `Редактировать L${form.level_num || ''}` : 'Новый уровень'}</h2>
-                <p className="muted">
-                  {form.id
-                    ? 'Измените параметры и набор наград'
-                    : 'Создайте следующий шаг челленджа'}
-                </p>
-              </div>
-              {form.id ? (
-                <span className="chip chip--accent">#{form.id}</span>
-              ) : (
-                <span className="chip">NEW</span>
-              )}
-            </div>
-
-            <div className="challenges-form__grid">
-              <label>
-                Номер уровня
-                <input
-                  value={form.level_num}
-                  onChange={(e) => setForm({ ...form, level_num: e.target.value })}
-                  required
-                  inputMode="numeric"
-                />
-              </label>
-              <label>
-                Название
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                  placeholder="Задание 50 км"
-                />
-              </label>
-              <label>
-                Цель (км)
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.target_km}
-                  onChange={(e) => setForm({ ...form, target_km: e.target.value })}
-                  required
-                />
-              </label>
-              <label>
-                Срок (дней)
-                <input
-                  type="number"
-                  value={form.deadline_days}
-                  onChange={(e) => setForm({ ...form, deadline_days: e.target.value })}
-                  required
-                />
-              </label>
-              <label className="challenges-form__span2">
-                Пример награды
-                <input
-                  value={form.example_reward}
-                  onChange={(e) => setForm({ ...form, example_reward: e.target.value })}
-                  placeholder="T-Shirt / скидка 30%"
-                />
-              </label>
-              <label className="challenges-form__span2">
-                Описание
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  rows={3}
-                  placeholder="Коротко опишите задание для клиента"
-                />
-              </label>
-              <label>
-                Порядок
-                <input
-                  value={form.sort_order}
-                  onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
-                />
-              </label>
-              <label>
-                Статус
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
-                  <option value="active">Активен</option>
-                  <option value="inactive">Выключен</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="challenges-rewards">
-              <div className="challenges-rewards__head">
-                <h3>Награды уровня</h3>
-                <span className="muted">
-                  выбрано {selectedRewards.length} из {catalog.length}
-                </span>
-              </div>
-              {selectedRewards.length > 0 && (
-                <div className="challenges-rewards__selected">
-                  {selectedRewards.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className="challenges-reward-chip is-on"
-                      onClick={() => toggleReward(r.id)}
-                      title="Убрать"
-                    >
-                      {r.name}
-                      <span aria-hidden>×</span>
-                    </button>
-                  ))}
+          <form
+            className={`glass-card challenges-form${formCollapsed ? ' challenges-form--collapsed' : ''}`}
+            onSubmit={save}
+          >
+            <button
+              type="button"
+              className="challenges-form__collapse"
+              onClick={() => setFormCollapsed((v) => !v)}
+              aria-expanded={!formCollapsed}
+            >
+              <div className="challenges-form__title">
+                <div>
+                  <h2>{form.id ? `Редактировать L${form.level_num || '?'}` : 'Новый уровень'}</h2>
+                  <p className="muted">
+                    {form.id
+                      ? `${form.name || 'Без названия'} · ${formatKm(form.target_km || 0)} км`
+                      : 'Создайте следующий шаг челленджа'}
+                  </p>
                 </div>
-              )}
-              <div className="challenges-rewards__list">
-                {catalog.map((r) => {
-                  const on = form.reward_ids.includes(r.id);
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className={`challenges-reward-card${on ? ' is-on' : ''}`}
-                      onClick={() => toggleReward(r.id)}
-                    >
-                      <span className="challenges-reward-card__check" aria-hidden>
-                        {on ? '✓' : ''}
-                      </span>
-                      <span className="challenges-reward-card__body">
-                        <strong>{r.name}</strong>
-                        <span className="muted">
-                          #{r.id} · {TYPE_LABELS[r.type] || r.type}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-                {!catalog.length && <p className="muted">Каталог наград пуст</p>}
+                {form.id ? (
+                  <span className="chip chip--accent">#{form.id}</span>
+                ) : (
+                  <span className="chip">NEW</span>
+                )}
               </div>
-            </div>
+              <span className="material-symbols-outlined" aria-hidden>
+                {formCollapsed ? 'expand_more' : 'expand_less'}
+              </span>
+            </button>
 
-            <div className="challenges-form__actions">
-              <button type="submit" className="btn btn--primary" disabled={saving}>
-                {saving ? 'Сохранение…' : form.id ? 'Сохранить изменения' : 'Создать уровень'}
-              </button>
-              <button type="button" className="btn btn--ghost" onClick={() => setForm(emptyLevel)}>
-                Сброс
-              </button>
-            </div>
+            {!formCollapsed && (
+              <>
+                <div className="challenges-form__section">
+                  <h3 className="challenges-form__section-title">Параметры</h3>
+                  <div className="challenges-form__grid">
+                    <label>
+                      Номер уровня
+                      <input
+                        value={form.level_num}
+                        onChange={(e) => setForm({ ...form, level_num: e.target.value })}
+                        required
+                        inputMode="numeric"
+                      />
+                    </label>
+                    <label>
+                      Название
+                      <input
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        required
+                        placeholder="Задание 50 км"
+                      />
+                    </label>
+                    <label>
+                      Цель (км)
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={form.target_km}
+                        onChange={(e) => setForm({ ...form, target_km: e.target.value })}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Срок (дней)
+                      <input
+                        type="number"
+                        value={form.deadline_days}
+                        onChange={(e) => setForm({ ...form, deadline_days: e.target.value })}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Порядок
+                      <input
+                        value={form.sort_order}
+                        onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      Статус
+                      <select
+                        value={form.status}
+                        onChange={(e) => setForm({ ...form, status: e.target.value })}
+                      >
+                        <option value="active">Активен</option>
+                        <option value="inactive">Выключен</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="challenges-form__section">
+                  <h3 className="challenges-form__section-title">Тексты для клиента</h3>
+                  <div className="challenges-form__grid">
+                    <label className="challenges-form__span2">
+                      Пример награды
+                      <input
+                        value={form.example_reward}
+                        onChange={(e) => setForm({ ...form, example_reward: e.target.value })}
+                        placeholder="T-Shirt / скидка 30%"
+                      />
+                    </label>
+                    <label className="challenges-form__span2">
+                      Описание
+                      <textarea
+                        value={form.description}
+                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                        rows={3}
+                        placeholder="Коротко опишите задание для клиента"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="challenges-rewards">
+                  <div className="challenges-rewards__head">
+                    <h3>Награды уровня</h3>
+                    <span className="muted">
+                      выбрано {selectedRewards.length} из {catalog.length}
+                    </span>
+                  </div>
+                  {selectedRewards.length > 0 && (
+                    <div className="challenges-rewards__selected">
+                      {selectedRewards.map((r) => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          className="challenges-reward-chip is-on"
+                          onClick={() => toggleReward(r.id)}
+                          title="Убрать"
+                        >
+                          {r.name}
+                          <span aria-hidden>×</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <label className="challenges-rewards__search">
+                    <span className="material-symbols-outlined" aria-hidden>
+                      search
+                    </span>
+                    <input
+                      type="search"
+                      value={rewardQuery}
+                      onChange={(e) => setRewardQuery(e.target.value)}
+                      placeholder="Поиск в каталоге…"
+                    />
+                  </label>
+                  <div className="challenges-rewards__list">
+                    {filteredCatalog.map((r) => {
+                      const on = form.reward_ids.includes(r.id);
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          className={`challenges-reward-card${on ? ' is-on' : ''}`}
+                          onClick={() => toggleReward(r.id)}
+                          aria-pressed={on}
+                        >
+                          <span className="challenges-reward-card__check" aria-hidden>
+                            {on ? '✓' : ''}
+                          </span>
+                          <span className="challenges-reward-card__body">
+                            <strong>{r.name}</strong>
+                            <span className="muted">
+                              #{r.id} · {TYPE_LABELS[r.type] || r.type}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {!catalog.length && <p className="muted">Каталог наград пуст</p>}
+                    {catalog.length > 0 && !filteredCatalog.length && (
+                      <p className="muted">Ничего не найдено по запросу</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="challenges-form__actions">
+                  <button type="submit" className="btn btn--primary" disabled={saving}>
+                    {saving ? 'Сохранение…' : form.id ? 'Сохранить изменения' : 'Создать уровень'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => {
+                      setForm(emptyLevel);
+                      setRewardQuery('');
+                    }}
+                  >
+                    Сброс
+                  </button>
+                </div>
+              </>
+            )}
           </form>
 
           <div className="challenges-list">
             <div className="challenges-list__head">
-              <h2>Уровни</h2>
-              <p className="muted">Последовательность для клиентов в приложении</p>
+              <div>
+                <h2>Лестница уровней</h2>
+                <p className="muted">Как клиенты видят последовательность в приложении</p>
+              </div>
+              <button type="button" className="btn btn--primary btn--sm" onClick={startNewLevel}>
+                <span className="material-symbols-outlined" aria-hidden>
+                  add
+                </span>
+                Новый уровень
+              </button>
             </div>
 
-            {!levels.length && !loading && (
-              <div className="glass-card challenges-empty">Пока нет уровней — создайте первый слева</div>
+            {loading && (
+              <div className="challenges-ladder challenges-ladder--loading">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="challenges-skeleton glass-card" />
+                ))}
+              </div>
             )}
 
-            <div className="challenges-level-cards">
-              {levels.map((l) => (
-                <article key={l.id} className="glass-card challenges-level-card">
-                  <div className="challenges-level-card__top">
-                    <div className="challenges-level-card__badge">L{l.level_num}</div>
-                    <div className="challenges-level-card__meta">
-                      <h3>{l.name}</h3>
-                      <div className="challenges-level-card__tags">
-                        <span className="chip chip--accent">{Number(l.target_km)} км</span>
-                        <span className="chip">{l.deadline_days} дн.</span>
-                        <span
-                          className={`challenges-status challenges-status--${
-                            l.status === 'active' ? 'ok' : 'off'
-                          }`}
-                        >
-                          {l.status === 'active' ? 'active' : 'inactive'}
-                        </span>
-                      </div>
-                    </div>
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => edit(l)}>
-                      Изменить
-                    </button>
-                  </div>
+            {!loading && !sortedLevels.length && (
+              <div className="glass-card challenges-empty">
+                <span className="material-symbols-outlined challenges-empty__icon" aria-hidden>
+                  flag
+                </span>
+                <p>Пока нет уровней — создайте первый в форме слева</p>
+              </div>
+            )}
 
-                  {l.example_reward ? (
-                    <p className="challenges-level-card__example">🎁 {l.example_reward}</p>
-                  ) : null}
-
-                  <div className="challenges-level-card__rewards">
-                    {(l.rewards || []).length ? (
-                      (l.rewards || []).map((r) => (
-                        <span key={r.id || r.name} className="challenges-reward-chip">
-                          {r.name}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="muted">Награды не привязаны</span>
-                    )}
+            {!loading && sortedLevels.length > 0 && (
+              <div className="challenges-ladder">
+                {sortedLevels.map((l, index) => (
+                  <div key={l.id} className="challenges-ladder__item">
+                    {index < sortedLevels.length - 1 ? (
+                      <span className="challenges-ladder__connector" aria-hidden />
+                    ) : null}
+                    <ChallengeLevelCard
+                      level={l}
+                      isEditing={form.id === l.id}
+                      onEdit={edit}
+                    />
                   </div>
-                </article>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {section === 'claims' && (
-        <div className="glass-card challenges-claims">
-          <div className="challenges-list__head">
-            <h2>Заявки на награды</h2>
-            <p className="muted">Обработка выдачи после выполнения задания</p>
-          </div>
-
-          {!claims.length ? (
-            <div className="challenges-empty">Заявок пока нет</div>
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table challenges-claims-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Клиент</th>
-                    <th>Уровень</th>
-                    <th>Награда</th>
-                    <th>Статус</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {claims.map((c) => (
-                    <tr key={c.id}>
-                      <td className="mono">#{c.id}</td>
-                      <td>
-                        <strong>{c.first_name || c.user_name || '—'}</strong>
-                        <div className="muted">{c.user_phone}</div>
-                      </td>
-                      <td>
-                        <span className="chip chip--accent">L{c.level_num}</span>
-                        <div className="muted" style={{ marginTop: 4 }}>
-                          {c.level_name}
-                        </div>
-                      </td>
-                      <td>
-                        {c.reward_name}
-                        {c.size ? <div className="muted">Размер: {c.size}</div> : null}
-                        {c.promo_code ? <div className="muted">Промо: {c.promo_code}</div> : null}
-                      </td>
-                      <td>
-                        <span className={`challenges-status challenges-status--${claimTone(c.status)}`}>
-                          {CLAIM_STATUSES.find((s) => s.id === c.status)?.label || c.status}
-                        </span>
-                      </td>
-                      <td>
-                        <select
-                          className="challenges-claims-select"
-                          value={c.status}
-                          onChange={(e) => setClaimStatus(c.id, e.target.value)}
-                          aria-label="Сменить статус"
-                        >
-                          {CLAIM_STATUSES.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <ChallengeClaimsPanel claims={claims} onStatusChange={setClaimStatus} />
       )}
     </div>
   );

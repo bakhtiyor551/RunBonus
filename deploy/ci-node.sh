@@ -4,10 +4,11 @@
 set -euo pipefail
 
 IMAGE="${NODE_CI_IMAGE:-node:22-bookworm}"
-WORKDIR="${PWD}/backend"
+CI_DIR="${CI_DIR:-backend}"
+WORKDIR="${PWD}/${CI_DIR}"
 
-if [[ ! -f "${WORKDIR}/package-lock.json" ]]; then
-  echo "ci-node: нет ${WORKDIR}/package-lock.json" >&2
+if [[ ! -f "${WORKDIR}/package-lock.json" && ! -f "${WORKDIR}/package.json" ]]; then
+  echo "ci-node: нет package.json в ${WORKDIR}" >&2
   ls -la "${WORKDIR}" >&2 || true
   exit 1
 fi

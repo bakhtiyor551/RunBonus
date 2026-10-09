@@ -12,6 +12,25 @@ SKIP_BACKUP="${SKIP_BACKUP:-0}"
 SKIP_MIGRATE="${SKIP_MIGRATE:-0}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1/health}"
 ENV_FILE="${ENV_FILE:-.env}"
+NOTIFY_DEPLOY_STAGES="${NOTIFY_DEPLOY_STAGES:-0}"
+
+notify_stage() {
+  local status="$1"
+  local stage="$2"
+  if [[ "$NOTIFY_DEPLOY_STAGES" != "1" ]]; then
+    return 0
+  fi
+  if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
+    return 0
+  fi
+  STATUS="$status" \
+    STAGE="$stage" \
+    ENVIRONMENT="${DEPLOY_ENV:-${ENVIRONMENT:-production}}" \
+    VERSION="${VERSION:-$IMAGE_TAG}" \
+    COMMIT="${COMMIT:-${GIT_SHA:-}}" \
+    BUILD_URL="${BUILD_URL:-}" \
+    "$ROOT/deploy/jenkins-notify.sh" || true
+}
 
 require_env_file "$ENV_FILE"
 "$ROOT/deploy/ensure-certs.sh"
@@ -58,12 +77,28 @@ if [[ "$SKIP_BACKUP" != "1" ]]; then
 fi
 
 if [[ "$SKIP_MIGRATE" != "1" ]]; then
+  notify_stage RUNNING "Миграции БД"
   log "migration"
-  IMAGE_TAG="$IMAGE_TAG" compose_cmd run --rm --no-deps api node src/migrate.js
+  if IMAGE_TAG="$IMAGE_TAG" compose_cmd run --rm --no-deps api node src/migrate.js; then
+    notify_stage STAGE_OK "Миграции БД"
+  else
+    notify_stage STAGE_FAIL "Миграции БД"
+    exit 1
+  fi
 fi
 
+notify_stage RUNNING "Деплой"
 log "up all services (без удаления volumes)"
-IMAGE_TAG="$IMAGE_TAG" compose_cmd up -d
-"$ROOT/deploy/save-release.sh"
-"$ROOT/deploy/health-wait.sh" "$HEALTH_URL"
+if IMAGE_TAG="$IMAGE_TAG" compose_cmd up -d \
+  && "$ROOT/deploy/save-release.sh"; then
+  notify_stage STAGE_OK "Деплой"
+else
+  notify_stage STAGE_FAIL "Деплой"
+  exit 1
+fi
+
+# Health Check stage в Jenkinsfile дублирует проверку; здесь оставляем для ручных запусков
+if [[ "${SKIP_HEALTH_IN_DEPLOY:-0}" != "1" ]]; then
+  "$ROOT/deploy/health-wait.sh" "$HEALTH_URL"
+fi
 log "deploy complete $IMAGE_TAG"

@@ -14,8 +14,31 @@ services:
       # Тот же путь на хосте и в контейнере: docker run -v $PWD/... видит workspace.
       - /var/jenkins_home:/var/jenkins_home
       - /opt/runbonus:/opt/runbonus:ro
+      # RW только dist admin — Jenkins публикует статику для host nginx
+      - /opt/runbonus/admin/dist:/opt/runbonus/admin/dist
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
       - /usr/libexec/docker/cli-plugins:/usr/libexec/docker/cli-plugins:ro
     environment:
       JAVA_OPTS: "-Djenkins.install.runSetupWizard=true"
+    networks:
+      - jenkins_net
+
+  telegram-ci-bot:
+    build:
+      context: ./telegram-ci-bot
+    image: runbonus-telegram-ci-bot:1.0.0
+    container_name: runbonus-telegram-ci-bot
+    restart: unless-stopped
+    env_file:
+      - /opt/runbonus/telegram-ci.env
+    environment:
+      JENKINS_URL: http://jenkins:8080
+    depends_on:
+      - jenkins
+    networks:
+      - jenkins_net
+
+networks:
+  jenkins_net:
+    name: runbonus_jenkins_net

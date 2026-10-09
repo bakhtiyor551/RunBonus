@@ -7,12 +7,14 @@
 ```
 git push
   → Jenkins
-    → Checkout → npm ci → Lint → Tests → Build → Docker Build
-      develop / dev_run → Deploy STAGING → Health
-      main / master     → Backup DB → Migration → Deploy PRODUCTION → Health
+    → Checkout → npm ci → Lint → Tests → Build → Admin Build → Docker Build
+      develop / dev_run → Deploy STAGING → Admin → Health
+      main / master     → Backup DB → Migration → Deploy API → Admin (nginx dist) → Health
         ✅ Telegram SUCCESS
         ❌ stop + rollback (production) + Telegram FAILED
 ```
+
+Admin — статическая Vite-сборка в `/opt/runbonus/admin/dist` (host nginx). Раньше pipeline обновлял только API — из‑за этого правки в `admin/` на сайте не появлялись.
 
 Production не обновляется, если lint, tests, build, migration или health завершились ошибкой.
 
@@ -108,10 +110,35 @@ UI: `http://127.0.0.1:8080` (пробросьте SSH-туннель или от
 | `PRODUCTION_SSH_KEY` | SSH Username with private key | Если Jenkins не на том же VPS |
 | `DOCKER_REGISTRY` | Username/password | Опциональный push образа |
 | `DATABASE_SECRET` | Secret text | Не писать в Jenkinsfile; `.env` на VPS |
-| `TELEGRAM_BOT_TOKEN` | Secret text | Уведомления |
-| `TELEGRAM_CHAT_ID` | Secret text | Уведомления |
+| `TELEGRAM_BOT_TOKEN` | Secret text | Уведомления этапов / итог (лучше токен CI-бота) |
+| `TELEGRAM_CHAT_ID` | Secret text | Chat id админа |
 
 Запрещено: пароли в `Jenkinsfile`.
+
+## Telegram-кнопка «Собрать сейчас»
+
+Отдельный Node.js сервис `telegram-ci-bot` (long polling) рядом с Jenkins:
+
+1. `/start` → кнопка **▶ Собрать сейчас**
+2. Запуск Multibranch job `RunBonus/master` через Jenkins REST API
+3. Блокировка, если сборка уже идёт (`disableConcurrentBuilds` + проверка bot’ом)
+4. Только `TELEGRAM_ALLOWED_CHAT_IDS`
+5. Этапы pipeline шлют ⏳ / ✅ / ❌ через `deploy/jenkins-notify.sh`
+
+```bash
+# 1) API token пользователя Jenkins (Manage Users → Configure → API Token)
+# 2) Файл секретов (не в Git):
+sudo cp telegram-ci-bot/.env.example /opt/runbonus/telegram-ci.env
+sudo chmod 600 /opt/runbonus/telegram-ci.env
+# заполните TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS, JENKINS_USER, JENKINS_API_TOKEN
+
+# 3) Те же TELEGRAM_* в Jenkins Credentials (для уведомлений этапов)
+
+# 4) Запуск бота с Jenkins
+docker compose -f docker-compose.jenkins.yml up -d --build telegram-ci-bot
+```
+
+Jenkins остаётся на `127.0.0.1:8080`. Бот ходит к нему по внутренней сети Docker (`http://jenkins:8080`).
 
 ### Job backend
 
@@ -221,6 +248,7 @@ Jenkins хранит лог сборки, тестов, docker build, migration,
 - [ ] Backup перед migration
 - [ ] `/health` после deploy
 - [ ] Rollback проверен
-- [ ] Telegram success/fail
+- [ ] Telegram success/fail + этапы ⏳/✅/❌
+- [ ] Telegram-кнопка «Собрать сейчас» (`telegram-ci-bot`)
 - [ ] MySQL/Redis не торчат в интернет
 - [ ] Android/iOS — отдельные job/agents

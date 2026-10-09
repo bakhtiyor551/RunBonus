@@ -53,29 +53,46 @@ pipeline {
       }
     }
 
+    stage('Admin Build') {
+      steps {
+        script {
+          runStage('Admin Build', {
+            sh '''
+              chmod +x deploy/ci-node.sh deploy/deploy-admin.sh
+              CI_DIR=admin ./deploy/ci-node.sh npm ci
+              CI_DIR=admin ./deploy/ci-node.sh npm run build
+              test -f admin/dist/index.html
+            '''
+          })
+        }
+      }
+    }
+
     stage('Docker Build') {
       steps {
-        sh '''
-          docker build -f backend/Dockerfile \
-            -t "runbonus-api:${IMAGE_TAG}" \
-            -t "runbonus-api:${IMAGE_GIT}" \
-            -t "runbonus-api:${APP_VERSION}" \
-            .
-        '''
         script {
-          try {
-            withCredentials([usernamePassword(credentialsId: 'DOCKER_REGISTRY', usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
-              sh '''
-                echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin
-                docker tag "runbonus-api:${IMAGE_TAG}" "$REG_USER/runbonus-api:${IMAGE_TAG}"
-                docker tag "runbonus-api:${IMAGE_TAG}" "$REG_USER/runbonus-api:${IMAGE_GIT}"
-                docker push "$REG_USER/runbonus-api:${IMAGE_TAG}"
-                docker push "$REG_USER/runbonus-api:${IMAGE_GIT}"
-              '''
+          runStage('Docker Build', {
+            sh '''
+              docker build -f backend/Dockerfile \
+                -t "runbonus-api:${IMAGE_TAG}" \
+                -t "runbonus-api:${IMAGE_GIT}" \
+                -t "runbonus-api:${APP_VERSION}" \
+                .
+            '''
+            try {
+              withCredentials([usernamePassword(credentialsId: 'DOCKER_REGISTRY', usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
+                sh '''
+                  echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin
+                  docker tag "runbonus-api:${IMAGE_TAG}" "$REG_USER/runbonus-api:${IMAGE_TAG}"
+                  docker tag "runbonus-api:${IMAGE_TAG}" "$REG_USER/runbonus-api:${IMAGE_GIT}"
+                  docker push "$REG_USER/runbonus-api:${IMAGE_TAG}"
+                  docker push "$REG_USER/runbonus-api:${IMAGE_GIT}"
+                '''
+              }
+            } catch (ignored) {
+              echo 'DOCKER_REGISTRY credential not configured — using local images'
             }
-          } catch (ignored) {
-            echo 'DOCKER_REGISTRY credential not configured — using local images'
-          }
+          })
         }
       }
     }
@@ -88,19 +105,31 @@ pipeline {
         }
       }
       steps {
-        script { env.DEPLOY_ENV = 'staging' }
-        sh '''
-          chmod +x deploy/*.sh
-          export RUNBONUS_ENV_FILE="${RUNBONUS_ENV_FILE:-/opt/runbonus/.env.staging}"
-          ./deploy/prepare-env.sh .env.staging
-          export COMPOSE_FILE=docker-compose.staging.yml
-          export ENV_FILE=.env.staging
-          export HEALTH_URL=http://127.0.0.1:8080/health
-          export HEALTH_CONTAINER=runbonus-api-stage
-          export MYSQL_CONTAINER=runbonus-mysql-stage
-          ./deploy/remote-deploy.sh
-        '''
-        script { env.DEPLOY_STARTED = '1' }
+        script {
+          env.DEPLOY_ENV = 'staging'
+          withTelegramCreds {
+            runStage('Деплой STAGING', {
+              sh '''
+                chmod +x deploy/*.sh
+                export RUNBONUS_ENV_FILE="${RUNBONUS_ENV_FILE:-/opt/runbonus/.env.staging}"
+                ./deploy/prepare-env.sh .env.staging
+                export COMPOSE_FILE=docker-compose.staging.yml
+                export ENV_FILE=.env.staging
+                export HEALTH_URL=http://127.0.0.1:8080/health
+                export HEALTH_CONTAINER=runbonus-api-stage
+                export MYSQL_CONTAINER=runbonus-mysql-stage
+                export DEPLOY_ENV=staging
+                export VERSION="${IMAGE_TAG}"
+                export COMMIT="${GIT_SHA}"
+                export BUILD_URL="${BUILD_URL}"
+                export NOTIFY_DEPLOY_STAGES=1
+                export SKIP_HEALTH_IN_DEPLOY=1
+                ./deploy/remote-deploy.sh
+              '''
+              env.DEPLOY_STARTED = '1'
+            })
+          }
+        }
       }
     }
 
@@ -112,19 +141,34 @@ pipeline {
         }
       }
       steps {
-        script { env.DEPLOY_ENV = 'production' }
-        sh '''
-          chmod +x deploy/*.sh
-          # .env не в Git: постоянный файл /opt/runbonus/.env (или JENKINS_HOME/runbonus.env)
-          ./deploy/prepare-env.sh
-          export COMPOSE_FILE=docker-compose.prod.yml
-          export ENV_FILE=.env
-          # Health через docker exec (Jenkins в контейнере не видит host 127.0.0.1:3000)
-          export HEALTH_URL=http://127.0.0.1:3000/health
-          export HEALTH_CONTAINER=runbonus-api
-          ./deploy/remote-deploy.sh
-        '''
-        script { env.DEPLOY_STARTED = '1' }
+        script {
+          env.DEPLOY_ENV = 'production'
+          withTelegramCreds {
+            sh '''
+              chmod +x deploy/*.sh
+              ./deploy/prepare-env.sh
+              export COMPOSE_FILE=docker-compose.prod.yml
+              export ENV_FILE=.env
+              export HEALTH_URL=http://127.0.0.1:3000/health
+              export HEALTH_CONTAINER=runbonus-api
+              export DEPLOY_ENV=production
+              export VERSION="${IMAGE_TAG}"
+              export COMMIT="${GIT_SHA}"
+              export BUILD_URL="${BUILD_URL}"
+              export NOTIFY_DEPLOY_STAGES=1
+              export SKIP_HEALTH_IN_DEPLOY=1
+              ./deploy/remote-deploy.sh
+            '''
+            runStage('Admin Deploy', {
+              sh '''
+                chmod +x deploy/deploy-admin.sh
+                export ADMIN_DIST_DIR=/opt/runbonus/admin/dist
+                ./deploy/deploy-admin.sh
+              '''
+            })
+            env.DEPLOY_STARTED = '1'
+          }
+        }
       }
     }
 
@@ -138,13 +182,18 @@ pipeline {
         }
       }
       steps {
-        sh '''
-          export HEALTH_CONTAINER="${HEALTH_CONTAINER:-runbonus-api}"
-          if [ "${IS_STAGING}" = "1" ]; then
-            export HEALTH_CONTAINER=runbonus-api-stage
-          fi
-          ./deploy/health-wait.sh
-        '''
+        script {
+          runStage('Health Check', {
+            sh '''
+              export HEALTH_CONTAINER="${HEALTH_CONTAINER:-runbonus-api}"
+              if [ "${IS_STAGING}" = "1" ]; then
+                export HEALTH_CONTAINER=runbonus-api-stage
+              fi
+              export HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/health}"
+              ./deploy/health-wait.sh
+            '''
+          })
+        }
       }
     }
   }
@@ -167,6 +216,36 @@ pipeline {
     always {
       sh 'docker image prune -f || true'
     }
+  }
+}
+
+def runStage(String name, Closure body) {
+  notifyTelegram('RUNNING', name)
+  try {
+    body()
+    notifyTelegram('STAGE_OK', name)
+  } catch (err) {
+    notifyTelegram('STAGE_FAIL', name)
+    throw err
+  }
+}
+
+def withTelegramCreds(Closure body) {
+  def started = false
+  try {
+    withCredentials([
+      string(credentialsId: 'TELEGRAM_BOT_TOKEN', variable: 'TELEGRAM_BOT_TOKEN'),
+      string(credentialsId: 'TELEGRAM_CHAT_ID', variable: 'TELEGRAM_CHAT_ID')
+    ]) {
+      started = true
+      body()
+    }
+  } catch (err) {
+    if (started) {
+      throw err
+    }
+    echo 'Telegram credentials not configured — deploy continues without stage notifies'
+    body()
   }
 }
 

@@ -14,13 +14,33 @@ if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
   exit 0
 fi
 
-if [[ "$STATUS" == "SUCCESS" ]]; then
-  TEXT=$(printf '🚀 RunBonus Deploy\n\nEnvironment: %s\n\nVersion:\n%s\n\nStatus:\n✅ SUCCESS\n\nCommit:\n%s\n' \
-    "$ENVIRONMENT" "$VERSION" "$COMMIT")
-else
-  TEXT=$(printf '🚨 RunBonus Deploy FAILED\n\nEnvironment:\n%s\n\nStage:\n%s\n\nCommit:\n%s\n\nStatus:\n❌ FAILED\n' \
-    "$ENVIRONMENT" "${STAGE:-unknown}" "$COMMIT")
-fi
+case "$STATUS" in
+  RUNNING|START)
+    TEXT=$(printf '⏳ %s\n\nЭтап выполняется…\nEnv: %s\nVersion: %s\nCommit: %s' \
+      "${STAGE:-Pipeline}" "$ENVIRONMENT" "${VERSION:-—}" "${COMMIT:-—}")
+    ;;
+  STAGE_OK|STAGE_SUCCESS)
+    TEXT=$(printf '✅ %s\n\nЭтап завершён успешно.\nEnv: %s\nVersion: %s\nCommit: %s' \
+      "${STAGE:-Pipeline}" "$ENVIRONMENT" "${VERSION:-—}" "${COMMIT:-—}")
+    ;;
+  STAGE_FAIL|STAGE_FAILED)
+    TEXT=$(printf '❌ %s\n\nЭтап завершился ошибкой.\nEnv: %s\nVersion: %s\nCommit: %s' \
+      "${STAGE:-Pipeline}" "$ENVIRONMENT" "${VERSION:-—}" "${COMMIT:-—}")
+    ;;
+  SUCCESS)
+    TEXT=$(printf '🚀 RunBonus Deploy\n\nEnvironment: %s\nVersion: %s\nStatus: ✅ SUCCESS\nCommit: %s' \
+      "$ENVIRONMENT" "${VERSION:-—}" "${COMMIT:-—}")
+    ;;
+  FAILED|FAILURE)
+    TEXT=$(printf '🚨 RunBonus Deploy FAILED\n\nEnvironment: %s\nStage: %s\nCommit: %s\nStatus: ❌ FAILED' \
+      "$ENVIRONMENT" "${STAGE:-unknown}" "${COMMIT:-—}")
+    ;;
+  *)
+    TEXT=$(printf 'RunBonus CI/CD\nStatus: %s\nStage: %s\nEnv: %s' \
+      "$STATUS" "${STAGE:-—}" "$ENVIRONMENT")
+    ;;
+esac
+
 if [[ -n "$BUILD_URL" ]]; then
   TEXT+=$'\n\n'"$BUILD_URL"
 fi

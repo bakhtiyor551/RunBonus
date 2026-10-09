@@ -17,6 +17,9 @@ mobile/dist/
 .env.local
 .env.staging
 .env.production
+telegram-ci.env
+**/telegram-ci.env
+telegram-ci-bot/.env
 .release
 .release.previous
 docker/nginx/certs/*.pem

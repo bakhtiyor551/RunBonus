@@ -1,0 +1,14 @@
+{
+  "name": "runbonus-telegram-ci-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram button to trigger RunBonus Jenkins CI/CD",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "check": "node --check src/index.js && node --check src/jenkins.js && node --check src/telegram.js && node --check src/config.js"
+  }
+}
