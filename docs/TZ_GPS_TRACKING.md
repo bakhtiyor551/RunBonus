@@ -29,7 +29,7 @@
 mysql -u ... -p runbonus < database/migrations/044_workout_gps_tz.sql
 # при необходимости:
 mysql -u ... -p runbonus < database/migrations/043_challenges.sql
-pm2 restart runbonus-api
+cd backend && docker compose restart api
 ```
 
 ## API

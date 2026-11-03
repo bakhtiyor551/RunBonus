@@ -1,4 +1,4 @@
-// CI/CD для Go API (backend-go). Node-бэкенд и админка собираются как раньше.
+// CI/CD для API (backend/, Go). Админка и мобильное приложение собираются отдельно.
 //
 // Нужные credentials в Jenkins:
 //   runbonus-registry  — Username/Password от Docker registry (если используется)
@@ -8,13 +8,11 @@ pipeline {
   agent any
 
   parameters {
-    choice(name: 'GO_MODULES', choices: ['all', 'auth', 'auth,shoes', 'auth,shoes,workouts,progress',
-      'auth,shoes,workouts,progress,rewards,challenges', 'auth,shoes,workouts,progress,rewards,challenges,shop,ads,push', 'none'], description: 'Модули, которые обслуживает Go')
     booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Выкатить на production после сборки')
   }
 
   environment {
-    IMAGE = "${env.REGISTRY ?: 'runbonus'}/api-go"
+    IMAGE = "${env.REGISTRY ?: 'runbonus'}/api"
     TAG = "${env.GIT_COMMIT?.take(8) ?: env.BUILD_NUMBER}"
   }
 
@@ -27,7 +25,7 @@ pipeline {
     stage('Test') {
       agent { docker { image 'golang:1.27-alpine'; reuseNode true } }
       steps {
-        dir('backend-go') {
+        dir('backend') {
           sh 'go vet ./...'
           sh 'go test ./...'
         }
@@ -36,7 +34,7 @@ pipeline {
 
     stage('Build image') {
       steps {
-        dir('backend-go') {
+        dir('backend') {
           sh 'docker build -t $IMAGE:$TAG -t $IMAGE:latest .'
         }
       }
@@ -59,15 +57,15 @@ pipeline {
           sh '''
             ssh -o StrictHostKeyChecking=accept-new "$DEPLOY_HOST" "
               set -e
-              cd $DEPLOY_PATH/backend-go
+              cd $DEPLOY_PATH/backend
               git -C $DEPLOY_PATH pull --ff-only
-              IMAGE=$IMAGE TAG=$TAG GO_MODULES=$GO_MODULES docker compose up -d --build api-go
+              IMAGE=$IMAGE TAG=$TAG docker compose up -d --build api
               for i in 1 2 3 4 5 6 7 8 9 10; do
-                curl -fsS http://127.0.0.1:8080/api/health && exit 0
+                curl -fsS http://127.0.0.1:3001/api/health && exit 0
                 sleep 3
               done
-              echo 'Go API не поднялся' >&2
-              docker compose logs --tail=100 api-go
+              echo 'API не поднялся' >&2
+              docker compose logs --tail=100 api
               exit 1
             "
           '''
@@ -77,6 +75,6 @@ pipeline {
   }
 
   post {
-    failure { echo 'Сборка или деплой Go API не прошли — production остаётся на прежней версии.' }
+    failure { echo 'Сборка или деплой API не прошли — production остаётся на прежней версии.' }
   }
 }

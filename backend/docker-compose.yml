@@ -1,0 +1,21 @@
+# API RunBonus на сервере: MySQL на хосте, nginx проксирует на :3001.
+# network_mode: host — контейнер видит MySQL на 127.0.0.1.
+#
+#   docker compose up -d --build                          — запуск
+#   docker compose run --rm api setup-db /app/database    — схема и миграции
+#   docker compose run --rm api seed                      — начальные данные
+services:
+  api:
+    image: ${IMAGE:-runbonus/api}:${TAG:-latest}
+    build: .
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    environment:
+      PORT: ${PORT:-3001}
+      TZ: ${TZ:-Asia/Dushanbe}
+      UPLOADS_ROOT: /app/uploads
+    volumes:
+      - ./uploads:/app/uploads
+      - ./secrets:/app/secrets:ro
+      - ../database:/app/database:ro

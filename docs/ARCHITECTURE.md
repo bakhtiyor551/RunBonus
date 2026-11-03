@@ -9,7 +9,7 @@ flowchart LR
     Admin[Admin Panel]
   end
   subgraph server [Сервер]
-    API[Express API]
+    API[Go API]
     MySQL[(MySQL)]
   end
   Mobile -->|JWT + Device ID| API
@@ -21,33 +21,34 @@ flowchart LR
 
 | Папка | Стек | Порт (dev) |
 |-------|------|------------|
-| `backend/` | Node.js, Express, mysql2 | 3001 |
-| `backend-go/` | Go (chi, database/sql) — замена Node, см. [GO_MIGRATION.md](GO_MIGRATION.md) | 8080 |
+| `backend/` | Go (chi, database/sql, coder/websocket) | 3001 |
 | `mobile/` | Flutter (Dart), Android + iOS | — |
 | `admin/` | React, Vite | 5174 |
 | `database/` | SQL schema + migrations | — |
 
 ## Backend
 
-```
-backend/src/
-├── index.js           Точка входа, CORS, маршруты
-├── config.js          Конфиг из .env
-├── db.js              Пул MySQL
-├── routes/            HTTP-маршруты
-├── services/          Бизнес-логика
-├── middleware/        authUser, authAdmin
-└── utils/             geo, validation, helpers
-```
+Перенесён с Node.js на Go — см. [GO_MIGRATION.md](GO_MIGRATION.md).
 
-### Основные сервисы
-
-- `bonusService.js` — начисление/списание бонусов, кошелёк
-- `accountService.js` — бонусный фонд и кошельки клиентов
-- `workoutValidation.js` — проверка тренировки перед бонусом
-- `summaryService.js` — экран «Сводка» в приложении
-- `shoeProgressService.js` — км-прогресс по паре кроссовок
-- `telegramService.js` — уведомления в Telegram
+```
+backend/
+├── cmd/api/           Точка входа; подкоманды setup-db, seed, daily-report
+└── internal/
+    ├── config, db     Конфиг из .env, пул MySQL, сериализация строк, setup/seed
+    ├── httpx, server  JSON-ответы и ошибки, CORS, роутер, статика uploads
+    ├── auth           JWT, привязка к устройству, middleware
+    ├── users          SMS-вход, регистрация, профиль, аватар
+    ├── shoes          QR и активация кроссовок, прогресс по паре
+    ├── workouts       Тренировки, WebSocket /app/workout, Live GPS /admin/live-tracking
+    ├── gps            Фильтр точек и антифрод-проверка трека
+    ├── rewards        Прогресс по км, контрольные точки, награды, рейтинг
+    ├── challenges     Задания с дедлайном
+    ├── shop           Каталог, оплата/доставка, заказы, склад
+    ├── ads            AdMob-конфиг, баннеры, рекламные кампании
+    ├── notify         Telegram и Firebase (FCM HTTP v1)
+    ├── reports        Отчёты админки, утренний отчёт
+    └── admin          Маршруты /api/admin/**
+```
 
 ## Mobile
 

@@ -31,8 +31,7 @@
 
 ```
 RunBonus/
-├── backend/     API (Node.js + Express + MySQL)
-├── backend-go/  API на Go — постепенная замена backend/
+├── backend/     API (Go + MySQL)
 ├── mobile/      Клиентское приложение (Flutter)
 ├── admin/       Панель администратора (React + Vite)
 ├── database/    schema.sql и миграции
@@ -42,22 +41,24 @@ RunBonus/
 
 ## Требования
 
-- Node.js **18+**
+- Go **1.27+** (API)
 - MySQL **8**
-- Для Android: Android Studio, JDK 17
-- Для iOS: Mac, Xcode 15+, CocoaPods (см. [deploy/IOS.md](../deploy/IOS.md))
+- Node.js **18+** (только админ-панель)
+- Flutter (мобильное приложение); для Android — Android Studio, для iOS — Mac и Xcode (см. [deploy/IOS.md](../deploy/IOS.md))
 
 ## Быстрые команды
 
 ```bash
-# Backend
-cd backend && npm install && npm run db:init && npm run dev
+# Backend (API на :3001)
+cd backend && cp .env.example .env
+go run ./cmd/api setup-db ../database && go run ./cmd/api seed
+go run ./cmd/api
 
-# Mobile (браузер)
-cd mobile && npm install && npm run dev
+# Mobile
+cd mobile && flutter run
 
 # Admin
 cd admin && npm install && npm run dev
 ```
 
-Тестовый вход в админку после `npm run seed`: **admin** / **admin123**.
+Тестовый вход в админку после `seed`: **admin** / **admin123**.

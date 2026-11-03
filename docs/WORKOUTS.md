@@ -51,7 +51,7 @@
 
 - Точки отправляются каждые **4 сек** (`POST /api/workouts/:id/points`).
 - Синхронизация работает **даже на паузе** (для Live GPS в админке).
-- Сервер фильтрует дубли (`backend/src/utils/geo.js`).
+- Сервер фильтрует дубли (`backend/internal/gps/geo.go`).
 
 ## Live GPS в админке
 
@@ -74,6 +74,6 @@
 | `mobile/lib/workout/gps_filter.dart` | Алгоритмы фильтрации |
 | `mobile/lib/workout/geolocation.dart` | GPS (geolocator) |
 | `mobile/lib/workout/workout_tracker.dart` | Сессия тренировки |
-| `backend/src/utils/geo.js` | Серверная фильтрация |
-| `backend/src/services/workoutValidation.js` | Проверка при finish |
+| `backend/internal/gps/geo.go` | Серверная фильтрация |
+| `backend/internal/gps/validate.go` | Проверка при finish |
 | `admin/src/components/WorkoutsLivePanel.jsx` | Live карта |

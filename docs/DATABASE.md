@@ -6,11 +6,11 @@
 
 ```bash
 cd backend
-npm run db:setup    # schema.sql + все миграции
-npm run seed        # тестовые данные
+go run ./cmd/api setup-db ../database   # schema.sql + все миграции
+go run ./cmd/api seed                   # админ, бонусный фонд, демо-кроссовки
 ```
 
-Или одной командой: `npm run db:init`.
+В Docker: `docker compose run --rm api setup-db /app/database` и `docker compose run --rm api seed`.
 
 ## Структура файлов
 
@@ -21,7 +21,7 @@ database/
 └── migrations/             Инкрементальные миграции (001–040)
 ```
 
-`backend/src/setupDb.js` применяет `schema.sql`, затем все файлы из `migrations/` по порядку.
+`setup-db` (`backend/internal/db/setup.go`) применяет `schema.sql`, затем все файлы из `migrations/` по алфавиту на одном соединении. Строки `USE …` и `CREATE DATABASE` пропускаются, база задаётся в `DB_NAME`.
 
 ## Основные таблицы
 
@@ -70,7 +70,7 @@ database/
 После добавления файла:
 
 ```bash
-cd backend && npm run db:setup
+cd backend && go run ./cmd/api setup-db ../database
 ```
 
 Миграции идемпотентны (`IF NOT EXISTS`, проверки колонок).

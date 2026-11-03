@@ -2,33 +2,44 @@
 
 ## Backend на сервере
 
+API написан на Go (`backend/`). Запускается одним бинарником или в Docker на порту **3001**.
+
 ### Требования
 
-- Node.js 18+
+- Docker с compose-плагином (или Go 1.27+ для сборки бинарника)
 - MySQL 8
-- nginx (рекомендуется reverse proxy)
-- SSL-сертифисат (Let's Encrypt)
+- nginx (reverse proxy)
+- SSL-сертификат (Let's Encrypt)
 
-### Шаги
+### Шаги (Docker)
 
 ```bash
 cd backend
-npm install --production
-cp .env.example .env
-# Заполните production-значения
-npm run db:setup
-npm run seed   # только первый раз
-npm start
+cp .env.example .env          # заполните production-значения
+docker compose up -d --build  # API на 127.0.0.1:3001
+docker compose run --rm api setup-db /app/database   # схема и миграции
+docker compose run --rm api seed                     # только первый раз
 ```
 
-### PM2 (рекомендуется)
+Папки `backend/uploads` (аватары, чеки) и `backend/secrets` (Firebase) монтируются в контейнер. Обновление: `git pull && docker compose up -d --build` или Jenkins (`Jenkinsfile`, параметр `DEPLOY`).
+
+### Без Docker (systemd)
 
 ```bash
-npm install -g pm2
-pm2 start src/index.js --name runbonus-api
-pm2 save
-pm2 startup
+cd backend && go build -o /usr/local/bin/runbonus-api ./cmd/api
 ```
+
+Unit-файл: `WorkingDirectory=/var/www/RunBonus/backend`, `ExecStart=/usr/local/bin/runbonus-api`, `Restart=always`. `.env` читается из рабочего каталога.
+
+### Переход с прежнего Node.js API
+
+`.env`, `uploads/` и `secrets/` остаются в `backend/` — Go читает их там же. Порядок:
+
+1. `pm2 stop runbonus-api && pm2 delete runbonus-api && pm2 save`.
+2. `git pull`, затем `docker compose up -d --build`.
+3. Удалите cron `node scripts/dailyReport.js`, если был: утренний отчёт теперь отправляет сам API (`JOBS=true`).
+
+Подробности и найденные при переносе баги — в [GO_MIGRATION.md](GO_MIGRATION.md).
 
 ### nginx (пример)
 
@@ -50,6 +61,16 @@ server {
     location /uploads/ {
         proxy_pass http://127.0.0.1:3001;
     }
+
+    # WebSocket: тренировка в приложении и Live GPS в админке
+    location ~ ^/(app/workout|admin/live-tracking)$ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
+    }
 }
 ```
 
@@ -57,6 +78,8 @@ server {
 
 ```env
 PORT=3001
+NODE_ENV=production
+TZ=Asia/Dushanbe
 DB_HOST=localhost
 DB_USER=runbonus
 DB_PASSWORD=<strong-password>
@@ -105,7 +128,7 @@ location /admin/ {
 Кратко:
 
 1. Mac + Xcode + Apple Developer Account.
-2. `npm run build:ios` → `pod install` → Xcode Archive.
+2. `cd mobile && flutter build ipa`.
 3. Upload в App Store Connect / TestFlight.
 
 ## DNS
@@ -126,9 +149,9 @@ location /admin/ {
 ## Мониторинг
 
 - Health check: `GET /api/health`
-- Логи PM2: `pm2 logs runbonus-api`
-- Ежедневный отчёт в Telegram: 08:00 (если настроен `TELEGRAM_*`)
+- Логи: `docker compose logs -f api` (в `backend/`)
+- Ежедневный отчёт в Telegram: 08:00 (если настроен `TELEGRAM_*` и `JOBS=true`). Отправить вручную:
 
 ```bash
-cd backend && npm run report:daily
+docker compose run --rm api daily-report
 ```

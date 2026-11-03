@@ -16,12 +16,14 @@ FLUSH PRIVILEGES;
 
 ## 2. Backend
 
+Нужен [Go 1.27+](https://go.dev/dl/).
+
 ```bash
 cd backend
 copy .env.example .env
-npm install
-npm run db:init
-npm run dev
+go run ./cmd/api setup-db ../database
+go run ./cmd/api seed
+go run ./cmd/api
 ```
 
 API будет доступен на `http://localhost:3001` и по IP вашего ПК в локальной сети.
@@ -85,7 +87,7 @@ npm run dev
 
 ## 5. Тестовые данные (seed)
 
-После `npm run seed` в backend:
+После `go run ./cmd/api seed` в backend:
 
 | Сущность | Значение |
 |----------|----------|
@@ -107,5 +109,5 @@ npm run dev
 |----------|---------|
 | Телефон не видит API | `--dart-define=API_URL=` с IP ПК, backend слушает `0.0.0.0`, одна Wi‑Fi сеть |
 | GPS не работает | Разрешения геолокации, GPS включён, тест на улице |
-| Ошибка MySQL | Проверьте `DB_*` в `.env`, выполните `npm run db:setup` |
+| Ошибка MySQL | Проверьте `DB_*` в `.env`, выполните `go run ./cmd/api setup-db ../database` |
 | SMS не приходит | Настройте `SMS_*` или `SMS_DEV_CODE=123456` для dev |

@@ -30,8 +30,7 @@ MVP платформы лояльности: мобильное приложен
 
 ```
 RunBonus/
-├── backend/       Node.js + Express + MySQL
-├── backend-go/    Go API — постепенная замена backend/ (docs/GO_MIGRATION.md)
+├── backend/       Go API + MySQL (перенесён с Node.js, docs/GO_MIGRATION.md)
 ├── mobile/        Flutter-приложение (Android / iOS)
 ├── admin/         React админ-панель (Vite)
 ├── database/      schema.sql + migrations/
@@ -59,7 +58,9 @@ RunBonus/
 
 ## Требования
 
-- [Node.js](https://nodejs.org/) 18+
+- [Go](https://go.dev/dl/) 1.27+ (API)
+- [Node.js](https://nodejs.org/) 18+ (только для админ-панели)
+- [Flutter](https://docs.flutter.dev/get-started/install) (мобильное приложение)
 - [MySQL](https://dev.mysql.com/downloads/) 8
 - Android Studio + JDK 17 (для APK)
 - Mac + Xcode (для iOS)
