@@ -1,0 +1,8 @@
+{
+  "script": "\n            function webdriverioPolyfill() {\n  var __defProp = Object.defineProperty;\n  var __name = function(target, _value) {\n    return __defProp(target, \"name\", { value: _value, configurable: true });\n  };\n  var __globalThis = typeof globalThis === \"object\" && globalThis || typeof window === \"object\" && window;\n  __globalThis.__name = __name;\n}\n            webdriverioPolyfill();\n            return ((t,dId,cachedUser)=>{if(dId)localStorage.setItem(\"runbonus_device_id\",dId);localStorage.setItem(\"token\",t);if(cachedUser)localStorage.setItem(\"rb_user_cache\",cachedUser)}).apply(null, arguments)\n        ",
+  "args": [
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEzLCJpYXQiOjE3ODIzODkxMTAsImV4cCI6MTc4NDk4MTExMH0.OOTC_P7JO8zZazGMOeZ7ey1p0yR5HhB7dPuE1HqbHVU",
+    "3d1a6361-c250-4e41-8287-706fcb35a1de",
+    "{\"id\":13,\"name\":\"Bakhtiyor Faqirov\",\"first_name\":\"Bakhtiyor\",\"last_name\":\"Faqirov\",\"phone\":\"992939104140\",\"city\":\"Бохтар\",\"status\":\"active\",\"avatar_url\":\"/api/uploads/avatars/user-13.jpg\",\"balance\":13.95,\"blocked_balance\":0,\"available_balance\":13.95,\"activeShoe\":{\"id\":16,\"unique_id\":\"SHOE-ES2FM3JJ\",\"model_name\":\"Sprinter Shorts\"},\"needsActivation\":false,\"qrActivationAllowed\":true}"
+  ]
+}

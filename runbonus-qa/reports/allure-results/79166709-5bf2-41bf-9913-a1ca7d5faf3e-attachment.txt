@@ -1,0 +1,2 @@
+no such alert: WebDriverError: no such alert
+  (Session info: chrome=124.0.6367.219) when running "alert/dismiss" with method "POST"

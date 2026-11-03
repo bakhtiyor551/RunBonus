@@ -1,6 +1,5 @@
-/** Запасной список, если API недоступен */
+/** Запасной список, если API недоступен. Оплата бонусами отключена — магазин за деньги. */
 export const PAYMENT_METHODS_FALLBACK = [
-  { id: 'bonus', label: 'Оплата бонусами', needsDetails: false },
   { id: 'cash', label: 'Наличные при доставке', needsDetails: false },
   { id: 'delivery', label: 'Доставка', needsDetails: false },
   { id: 'card', label: 'Банковская карта', needsDetails: true, detailsLabel: 'Номер карты или последние 4 цифры' },
@@ -15,4 +14,9 @@ export const PAYMENT_METHODS_FALLBACK = [
 
 export function getPaymentMethod(methods, id) {
   return methods.find((m) => m.id === id);
+}
+
+/** Фильтр: не предлагать оплату бонусами в магазине. */
+export function filterShopPaymentMethods(methods) {
+  return (methods || []).filter((m) => m.id !== 'bonus');
 }

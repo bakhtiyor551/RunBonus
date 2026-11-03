@@ -39,9 +39,9 @@ function ClientProfileCard({ profile, children }) {
       </div>
 
       <div className="client-profile-card__balance entity-card__highlight">
-        <span className="entity-card__highlight-label">Баланс</span>
+        <span className="entity-card__highlight-label">Подтверждённые км</span>
         <span className="entity-card__highlight-value">
-          {formatMoney(profile.wallet.balance)}
+          {Number(profile.workouts?.total_km || profile.total_distance_km || 0).toFixed(2)} км
         </span>
       </div>
 
@@ -65,68 +65,27 @@ function ClientProfileCard({ profile, children }) {
       </div>
 
       <details className="client-profile-card__more">
-        <summary>Подробнее: кошелёк и статистика</summary>
+        <summary>Подробнее: статистика и архив кошелька</summary>
 
-        <h4 className="client-profile-info__section">Кошелёк</h4>
+        <h4 className="client-profile-info__section">Архив кошелька (deprecated)</h4>
         <div className="client-profile-info__grid client-profile-info__grid--wallet">
           <div className="client-profile-info__item">
+            <span className="client-profile-info__label">Бывший баланс</span>
+            <strong>{formatMoney(profile.wallet?.balance)}</strong>
+          </div>
+          <div className="client-profile-info__item">
             <span className="client-profile-info__label">Доступно</span>
-            <strong>{formatMoney(profile.wallet.available_balance)}</strong>
+            <strong>{formatMoney(profile.wallet?.available_balance)}</strong>
           </div>
           <div className="client-profile-info__item">
-            <span className="client-profile-info__label">Заблокировано</span>
-            <strong>{formatMoney(profile.wallet.blocked_balance)}</strong>
-          </div>
-          <div className="client-profile-info__item">
-            <span className="client-profile-info__label">Заработано</span>
-            <strong>{formatMoney(profile.wallet.total_earned)}</strong>
+            <span className="client-profile-info__label">Заработано ранее</span>
+            <strong>{formatMoney(profile.wallet?.total_earned)}</strong>
           </div>
           <div className="client-profile-info__item">
             <span className="client-profile-info__label">Потрачено</span>
-            <strong>{formatMoney(profile.wallet.total_spent)}</strong>
-          </div>
-          <div className="client-profile-info__item">
-            <span className="client-profile-info__label">Выведено</span>
-            <strong>{formatMoney(profile.wallet.total_withdrawn)}</strong>
+            <strong>{formatMoney(profile.wallet?.total_spent)}</strong>
           </div>
         </div>
-
-        {profile.level_info?.current_level && (
-          <>
-            <h4 className="client-profile-info__section">Уровень клиента</h4>
-            <div className="client-profile-info__grid">
-              <div className="client-profile-info__item">
-                <span className="client-profile-info__label">Текущий уровень</span>
-                <strong>{profile.level_info.current_level}</strong>
-              </div>
-              <div className="client-profile-info__item">
-                <span className="client-profile-info__label">Км по паре</span>
-                <strong>{Number(profile.level_info.total_km).toFixed(1)}</strong>
-              </div>
-              <div className="client-profile-info__item">
-                <span className="client-profile-info__label">Бонус по паре</span>
-                <strong>{formatMoney(profile.level_info.total_bonus)}</strong>
-              </div>
-              <div className="client-profile-info__item">
-                <span className="client-profile-info__label">Следующий</span>
-                <strong>{profile.level_info.next_level || '—'}</strong>
-              </div>
-            </div>
-            {profile.level_info.level_transitions?.length > 0 && (
-              <>
-                <h4 className="client-profile-info__section">История переходов</h4>
-                <ul className="hint" style={{ margin: 0, paddingLeft: 18 }}>
-                  {profile.level_info.level_transitions.slice(0, 8).map((t) => (
-                    <li key={`${t.level_name}-${t.reached_at}`}>
-                      {t.level_name} — {Number(t.reached_km).toFixed(1)} км (
-                      {new Date(t.reached_at).toLocaleDateString('ru-RU')})
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </>
-        )}
 
         <h4 className="client-profile-info__section">Кроссовки</h4>
         {profile.shoe ? (
@@ -166,13 +125,6 @@ function ClientProfileCard({ profile, children }) {
             <span className="client-profile-info__label">Всего км</span>
             <strong>{Number(profile.workouts.total_km).toFixed(2)}</strong>
           </div>
-          <div className="client-profile-info__item">
-            <span className="client-profile-info__label">Заявок на вывод</span>
-            <strong>
-              {profile.withdrawals.total}
-              {profile.withdrawals.active > 0 ? ` (${profile.withdrawals.active} актив.)` : ''}
-            </strong>
-          </div>
         </div>
       </details>
 
@@ -196,7 +148,6 @@ export function ClientProfileFromShoe({ shoe }) {
       blocked_balance: 0,
       total_earned: 0,
       total_spent: 0,
-      total_withdrawn: 0,
     },
     shoe: {
       unique_id: shoe.unique_id,
@@ -211,7 +162,6 @@ export function ClientProfileFromShoe({ shoe }) {
       in_progress: 0,
       total_km: 0,
     },
-    withdrawals: { total: 0, active: 0 },
   };
 
   return <ClientProfileCard profile={profile} />;
@@ -275,8 +225,8 @@ export function ClientProfileDetail({
               disabled={blocked}
               onClick={() => onTopup?.(profile)}
             >
-              <Icon name="add_card" />
-              Пополнить баланс
+              <Icon name="sync" />
+              Sync награды
             </button>
             <button
               type="button"

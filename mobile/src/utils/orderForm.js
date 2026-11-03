@@ -45,13 +45,7 @@ export function validateOrderForm(
   const pm = getPaymentMethod(paymentMethods, form.payment_method);
   if (!pm) return 'Выберите способ оплаты';
   if (form.payment_method === 'bonus') {
-    const total = Number(cartTotal);
-    const available = Number(availableBonus);
-    if (!Number.isFinite(total) || total <= 0) return 'Корзина пуста';
-    if (!Number.isFinite(available)) return 'Не удалось проверить баланс бонусов';
-    if (total > available) {
-      return `Недостаточно бонусов. Доступно: ${available} сомони, нужно: ${total} сомони`;
-    }
+    return 'Оплата бонусами отключена. Выберите другой способ оплаты.';
   }
 
   if (form.payment_method !== 'mobile' && pm.needsDetails && !form.payment_details?.trim()) {

@@ -52,9 +52,9 @@ export function formatPace(kmh, units = getDistanceUnits()) {
     const secPerMi = secPerKm * 1.60934;
     const m = Math.floor(secPerMi / 60);
     const s = Math.round(secPerMi % 60);
-    return `${m}:${String(s).padStart(2, '0')} /mi`;
+    return `${m}:${String(s).padStart(2, '0')} /ми`;
   }
   const m = Math.floor(secPerKm / 60);
   const s = Math.round(secPerKm % 60);
-  return `${m}:${String(s).padStart(2, '0')} /km`;
+  return `${m}:${String(s).padStart(2, '0')} /км`;
 }

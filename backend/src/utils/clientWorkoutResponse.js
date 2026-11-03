@@ -1,35 +1,45 @@
-/** Ответ для клиента без лимитов и внутренних причин. */
+/** Ответ для клиента: километры и статус проверки (backend source of truth). */
 export function buildClientFinishResponse({
   finalStatus,
   bonusAmount,
   distanceKm,
+  approvedDistanceKm,
   durationSeconds,
   balanceAfter,
   rejectReason,
-  levelUp,
+  validationReasons,
 }) {
-  const credited = finalStatus === 'approved' && bonusAmount > 0;
+  const approved = finalStatus === 'approved';
+  const dist = Number(distanceKm) || 0;
+  const approvedKm = approved ? Number(approvedDistanceKm ?? dist) || 0 : 0;
 
   let message;
-  if (credited) {
+  if (approved) {
     message = undefined;
   } else if (rejectReason) {
     message = rejectReason;
+  } else if (finalStatus === 'suspicious') {
+    message = 'Тренировка на проверке у администратора';
+  } else if (finalStatus === 'processing') {
+    message = 'Идёт проверка GPS…';
   } else {
-    message = 'Бонус не начислен по правилам программы';
+    message = 'Дистанция на проверке';
   }
 
   return {
-    title: 'Тренировка завершена',
+    title: 'Тренировка завершена!',
     status: finalStatus,
-    distance_km: Number(distanceKm) || 0,
+    distance_km: dist,
+    distanceKm: dist,
+    approved_distance_km: approvedKm,
+    approvedDistanceKm: approvedKm,
     duration_seconds: Number(durationSeconds) || 0,
-    bonus_credited: credited,
-    bonus_earned: credited ? bonusAmount : 0,
-    balance_after: balanceAfter != null ? balanceAfter : undefined,
+    bonus_credited: false,
+    bonus_earned: 0,
+    balance_after: undefined,
     reject_reason: rejectReason || undefined,
+    validation_reasons: validationReasons || undefined,
     message,
-    level_up: levelUp || undefined,
   };
 }
 
@@ -38,5 +48,6 @@ export const CLIENT_START_ERRORS = {
   NO_SHOE: 'Сначала активируйте кроссовки',
   SHOE_INACTIVE: 'Кроссовки не активированы',
   CANNOT_START: 'Сейчас нельзя начать тренировку. Попробуйте позже',
+  ACTIVE_WORKOUT: 'Уже есть активная тренировка',
   GENERIC: 'Не удалось начать тренировку',
 };

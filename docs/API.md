@@ -45,6 +45,7 @@ Authorization: Bearer <admin_jwt>
 
 | Метод | Путь | Auth | Описание |
 |-------|------|------|----------|
+| GET | `/` | User | История тренировок (alias) |
 | GET | `/active` | User | Активная тренировка |
 | POST | `/start` | User | Начать тренировку |
 | POST | `/:id/points` | User | Отправить GPS-точки (batch) |
@@ -67,13 +68,48 @@ Authorization: Bearer <admin_jwt>
 }
 ```
 
+Дистанция подтверждается на backend (anti-fraud). Деньги за км не начисляются — прогресс идёт в milestones/награды.
+
+---
+
+## Rewards (`/api/rewards`)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|----------|
+| GET | `/progress` | User | Общий прогресс + milestones |
+| GET | `/milestones` | User | Список контрольных точек |
+| GET | `/milestones/:id` | User | Варианты награды |
+| POST | `/select` | User | Выбрать награду (`milestoneId`, `rewardId`, `size?`, `color?`) |
+| GET | `/my` | User | Мои награды |
+
+### Admin Rewards (`/api/admin/rewards`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/stats` | Аналитика |
+| GET/POST/PUT | `/milestones` | Контрольные точки |
+| GET/POST/PUT | `/catalog` | Каталог наград |
+| PUT | `/stock` | Склад |
+| GET | `/user-rewards` | Выданные |
+| PUT | `/user-rewards/:id/status` | Статус заявки |
+| GET | `/promos` | Промокоды |
+| POST | `/users/:userId/sync` | Пересчёт км + unlock |
+
+---
+
+## Me (`/api/me`)
+
+| Метод | Путь | Auth | Описание |
+|-------|------|------|----------|
+| GET | `/` | User | Dashboard: профиль + `total_confirmed_distance` + rewards |
+
 ---
 
 ## User (`/api/user`)
 
 | Метод | Путь | Auth | Описание |
 |-------|------|------|----------|
-| GET | `/summary` | User | Сводка: кольца активности, цели, статистика |
+| GET | `/summary` | User | **410 Gone** — заменено на `/api/rewards/progress` |
 
 ---
 
@@ -85,23 +121,16 @@ Authorization: Bearer <admin_jwt>
 
 ---
 
-## Bonus (`/api/bonus`)
+## Bonus (`/api/bonus`) — deprecated
 
-| Метод | Путь | Auth | Описание |
-|-------|------|------|----------|
-| GET | `/balance` | User | Баланс бонусов |
-| GET | `/history` | User | История операций |
+Все эндпоинты возвращают **410 Gone** (`WALLET_DEPRECATED`):
 
----
-
-## Withdrawal (`/api/withdrawal`)
-
-| Метод | Путь | Auth | Описание |
-|-------|------|------|----------|
-| GET | `/methods` | User | Способы вывода |
-| GET | `/wallet-summary` | User | Сводка кошелька |
-| GET | `/my-requests` | User | Мои заявки |
-| POST | `/requests` | User | Создать заявку на вывод |
+| Метод | Путь |
+|-------|------|
+| GET | `/balance` |
+| GET | `/wallet-summary` |
+| GET | `/history` |
+| POST | `/withdraw` |
 
 ---
 
@@ -111,7 +140,7 @@ Authorization: Bearer <admin_jwt>
 |-------|------|----------|
 | GET | `/shop-catalog` | Каталог |
 | GET | `/products/:id` | Товар |
-| POST | `/orders` | Оформить заказ |
+| POST | `/orders` | Оформить заказ (оплата деньгами, не бонусами) |
 | GET | `/my-orders` | Мои заказы |
 | GET | `/ads/banners` | Рекламные баннеры |
 | POST | `/push/register` | Регистрация FCM-токена |
@@ -131,6 +160,7 @@ Authorization: Bearer <admin_jwt>
 | GET | `/shoes` | Кроссовки |
 | POST | `/shoes/generate` | Генерация QR-партии |
 | POST | `/bonus/topup` | Пополнение кошелька клиента |
+| GET | `/bonus-fund` | Баланс бонусного фонда |
 | POST | `/users/block` | Блокировка |
 | POST | `/users/reset-device` | Сброс привязки устройства |
 
@@ -158,13 +188,10 @@ Authorization: Bearer <admin_jwt>
 
 | Префикс | Назначение |
 |---------|------------|
-| `/api/admin/accounts` | Бонусные счета компании |
-| `/api/admin/bonus-settings` | Настройки бонусов |
-| `/api/admin/customer-levels` | Уровни клиентов |
 | `/api/admin/shop` | Магазин, заказы, склад |
-| `/api/admin/withdrawals` | Заявки на вывод |
 | `/api/admin/reports` | Отчёты |
 | `/api/admin/ads` | Реклама |
+| `/api/admin/rewards` | Награды |
 
 ---
 

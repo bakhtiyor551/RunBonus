@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   city VARCHAR(100) NOT NULL,
   status ENUM('active', 'blocked') NOT NULL DEFAULT 'active',
+  total_distance_km DECIMAL(12,3) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -250,4 +251,126 @@ CREATE TABLE IF NOT EXISTS bonus_settings_log (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (admin_id) REFERENCES admin_users(id) ON DELETE CASCADE,
   INDEX idx_bonus_settings_log_created (created_at)
+);
+
+-- Rewards / milestones loyalty system
+CREATE TABLE IF NOT EXISTS reward_milestones (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  distance_km DECIMAL(10,2) NOT NULL,
+  description TEXT NULL,
+  status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_reward_milestones_distance (distance_km)
+);
+
+CREATE TABLE IF NOT EXISTS rewards (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(180) NOT NULL,
+  type ENUM('PRODUCT','DISCOUNT','SPECIAL','VIP') NOT NULL DEFAULT 'PRODUCT',
+  description TEXT NULL,
+  image VARCHAR(500) NULL,
+  stock INT NOT NULL DEFAULT 0,
+  reserved INT NOT NULL DEFAULT 0,
+  discount_percent DECIMAL(5,2) NULL,
+  discount_min_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  discount_max_amount DECIMAL(12,2) NULL,
+  discount_valid_days INT NOT NULL DEFAULT 30,
+  discount_usage_limit INT NOT NULL DEFAULT 1,
+  requires_size TINYINT(1) NOT NULL DEFAULT 0,
+  size_options JSON NULL,
+  color_options JSON NULL,
+  cost_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS milestone_rewards (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  milestone_id INT NOT NULL,
+  reward_id INT NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  UNIQUE KEY uq_milestone_reward (milestone_id, reward_id),
+  CONSTRAINT fk_mr_milestone FOREIGN KEY (milestone_id) REFERENCES reward_milestones(id) ON DELETE CASCADE,
+  CONSTRAINT fk_mr_reward FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS reward_stock (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  reward_id INT NOT NULL,
+  size VARCHAR(32) NOT NULL DEFAULT '',
+  color VARCHAR(64) NOT NULL DEFAULT '',
+  quantity INT NOT NULL DEFAULT 0,
+  reserved INT NOT NULL DEFAULT 0,
+  UNIQUE KEY uq_reward_stock_variant (reward_id, size, color),
+  CONSTRAINT fk_rs_reward FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_rewards (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  milestone_id INT NOT NULL,
+  reward_id INT NULL,
+  status ENUM(
+    'LOCKED','AVAILABLE','CHOOSING','SELECTED',
+    'PROCESSING','READY','DELIVERED','CANCELLED'
+  ) NOT NULL DEFAULT 'AVAILABLE',
+  selected_at DATETIME NULL,
+  processed_at DATETIME NULL,
+  delivered_at DATETIME NULL,
+  promo_code VARCHAR(64) NULL,
+  admin_comment TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_user_milestone (user_id, milestone_id),
+  KEY idx_user_rewards_status (status),
+  KEY idx_user_rewards_user (user_id),
+  CONSTRAINT fk_ur_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ur_milestone FOREIGN KEY (milestone_id) REFERENCES reward_milestones(id),
+  CONSTRAINT fk_ur_reward FOREIGN KEY (reward_id) REFERENCES rewards(id)
+);
+
+CREATE TABLE IF NOT EXISTS reward_delivery (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_reward_id INT NOT NULL,
+  user_id INT NOT NULL,
+  reward_id INT NOT NULL,
+  size VARCHAR(32) NULL,
+  color VARCHAR(64) NULL,
+  phone VARCHAR(32) NULL,
+  address TEXT NULL,
+  city VARCHAR(120) NULL,
+  delivery_status ENUM('new','processing','ready','shipped','delivered','cancelled') NOT NULL DEFAULT 'new',
+  tracking_number VARCHAR(120) NULL,
+  admin_comment TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_rd_user_reward (user_reward_id),
+  CONSTRAINT fk_rd_ur FOREIGN KEY (user_reward_id) REFERENCES user_rewards(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rd_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rd_reward FOREIGN KEY (reward_id) REFERENCES rewards(id)
+);
+
+CREATE TABLE IF NOT EXISTS reward_promo_codes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_reward_id INT NOT NULL,
+  user_id INT NOT NULL,
+  reward_id INT NOT NULL,
+  milestone_id INT NOT NULL,
+  code VARCHAR(64) NOT NULL,
+  discount_percent DECIMAL(5,2) NOT NULL,
+  min_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  max_amount DECIMAL(12,2) NULL,
+  status ENUM('ACTIVE','USED','EXPIRED','CANCELLED') NOT NULL DEFAULT 'ACTIVE',
+  expires_at DATETIME NULL,
+  used_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_promo_code (code),
+  KEY idx_promo_user (user_id),
+  CONSTRAINT fk_promo_ur FOREIGN KEY (user_reward_id) REFERENCES user_rewards(id) ON DELETE CASCADE
 );

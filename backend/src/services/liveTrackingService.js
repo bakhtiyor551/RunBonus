@@ -110,7 +110,9 @@ export async function closeAbandonedInProgressWorkouts(conn = pool) {
   const ids = rows.map((r) => r.id);
   await conn.query(
     `UPDATE workouts SET
-       status = 'rejected',
+       status = 'auto_closed',
+       approved_distance_km = 0,
+       validation_status = 'auto_closed',
        reject_reason = 'Тренировка отменена (нет активности GPS)',
        finished_at = NOW()
      WHERE id IN (?)`,

@@ -1,5 +1,5 @@
 import { assertQrActivationDevice } from './deviceBinding.js';
-import { ensureShoeProgress } from './customerLevelService.js';
+import { ensureShoeProgress } from './shoeProgressService.js';
 
 async function activateShoeCore(conn, userId, uniqueIdRaw) {
   const unique_id = uniqueIdRaw?.trim()?.toUpperCase();

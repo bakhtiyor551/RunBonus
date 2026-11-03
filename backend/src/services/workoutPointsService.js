@@ -4,6 +4,7 @@ import {
   isValidTrackPoint,
   normalizeGpsPoint,
   shouldSaveGpsPoint,
+  haversineKm,
 } from '../utils/geo.js';
 import {
   calcWorkoutDistanceKm,
@@ -17,7 +18,7 @@ export const FORCE_STOP_SPEED_KMH = 60;
 
 async function assertWorkoutOwner(workoutId, userId) {
   const [rows] = await pool.query(
-    `SELECT * FROM workouts WHERE id = ? AND user_id = ? AND status = 'in_progress'`,
+    `SELECT * FROM workouts WHERE id = ? AND user_id = ? AND status IN ('in_progress', 'paused')`,
     [workoutId, userId]
   );
   return rows[0] || null;
@@ -32,9 +33,9 @@ async function getLastWorkoutPoint(workoutId, conn = pool) {
   return rows[0] ? normalizeGpsPoint(rows[0]) : null;
 }
 
-async function insertGpsPoint(conn, workoutId, rawPoint, workoutStartedAt = null) {
+function preparePointRow(workoutId, rawPoint, workoutStartedAt = null) {
   const p = normalizeGpsPoint(rawPoint);
-  if (!p) return false;
+  if (!p) return null;
 
   let recordedAt = p.recorded_at ? new Date(p.recorded_at) : new Date();
   if (workoutStartedAt) {
@@ -44,12 +45,54 @@ async function insertGpsPoint(conn, workoutId, rawPoint, workoutStartedAt = null
     }
   }
 
-  await conn.query(
-    `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [workoutId, p.latitude, p.longitude, p.speed, p.accuracy, recordedAt]
-  );
-  return true;
+  return {
+    workoutId,
+    latitude: p.latitude,
+    longitude: p.longitude,
+    speed: p.speed,
+    accuracy: p.accuracy,
+    altitude: p.altitude,
+    course: p.course,
+    recordedAt,
+    point: { ...p, recorded_at: recordedAt.toISOString?.() || recordedAt },
+  };
+}
+
+async function insertGpsPointsBulk(conn, rows) {
+  if (!rows.length) return;
+  const valuesFull = rows.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+  const paramsFull = [];
+  for (const r of rows) {
+    paramsFull.push(
+      r.workoutId,
+      r.latitude,
+      r.longitude,
+      r.speed,
+      r.accuracy,
+      r.altitude ?? null,
+      r.course ?? null,
+      r.recordedAt
+    );
+  }
+  try {
+    await conn.query(
+      `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, altitude, course, recorded_at)
+       VALUES ${valuesFull}`,
+      paramsFull
+    );
+  } catch (err) {
+    if (err?.code !== 'ER_BAD_FIELD_ERROR') throw err;
+    const values = rows.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
+    const params = [];
+    for (const r of rows) {
+      params.push(r.workoutId, r.latitude, r.longitude, r.speed, r.accuracy, r.recordedAt);
+    }
+    await conn.query(
+      `INSERT INTO workout_points (workout_id, latitude, longitude, speed, accuracy, recorded_at)
+       VALUES ${values}`,
+      params
+    );
+  }
 }
 
 export function detectSpeedFraud(points) {
@@ -68,6 +111,19 @@ export function detectSpeedFraud(points) {
   return { fraud: false };
 }
 
+function incrementalDistanceKm(prevLast, savedNormalized) {
+  if (!savedNormalized.length) return 0;
+  let total = 0;
+  let last = prevLast;
+  for (const p of savedNormalized) {
+    if (last) {
+      total += haversineKm(last.latitude, last.longitude, p.latitude, p.longitude);
+    }
+    last = p;
+  }
+  return Math.round(total * 1000) / 1000;
+}
+
 /**
  * @returns {Promise<{ workout, savedPoints, distanceKm, fraud?: object }|null>}
  */
@@ -84,22 +140,20 @@ export async function saveWorkoutPoints(workoutId, userId, points, meta = {}) {
 
   const list = Array.isArray(points) ? points : [points];
   let last = await getLastWorkoutPoint(workoutId);
-  const savedPoints = [];
+  const prevLast = last;
+  const toInsert = [];
+  const savedNormalized = [];
 
   if (!last) {
     for (const raw of list) {
       const p = clampPointToWorkoutStart(workout, raw);
       if (!p || !isValidTrackPoint(p, { acquire: true })) continue;
       if (!isPointTimestampValid(workout, p.recorded_at)) continue;
-      await insertGpsPoint(pool, workoutId, p, workout.started_at);
-      savedPoints.push({
-        lat: p.latitude,
-        lng: p.longitude,
-        speed: p.speed,
-        accuracy: p.accuracy,
-        recorded_at: p.recorded_at ?? workout.started_at,
-      });
-      last = p;
+      const row = preparePointRow(workoutId, p, workout.started_at);
+      if (!row) continue;
+      toInsert.push(row);
+      savedNormalized.push(row.point);
+      last = row.point;
       break;
     }
   }
@@ -110,15 +164,15 @@ export async function saveWorkoutPoints(workoutId, userId, points, meta = {}) {
     if (!p) continue;
     if (!isPointTimestampValid(workout, p.recorded_at)) continue;
     if (last && isSameCoordinates(last, p)) continue;
-    await insertGpsPoint(pool, workoutId, p, workout.started_at);
-    savedPoints.push({
-      lat: p.latitude,
-      lng: p.longitude,
-      speed: p.speed,
-      accuracy: p.accuracy,
-      recorded_at: p.recorded_at,
-    });
-    last = p;
+    const row = preparePointRow(workoutId, p, workout.started_at);
+    if (!row) continue;
+    toInsert.push(row);
+    savedNormalized.push(row.point);
+    last = row.point;
+  }
+
+  if (toInsert.length) {
+    await insertGpsPointsBulk(pool, toInsert);
   }
 
   if (meta.steps_count != null) {
@@ -126,20 +180,37 @@ export async function saveWorkoutPoints(workoutId, userId, points, meta = {}) {
     await pool.query('UPDATE workouts SET steps_count = ? WHERE id = ?', [steps, workoutId]);
   }
 
+  const savedPoints = savedNormalized.map((p) => ({
+    lat: p.latitude,
+    lng: p.longitude,
+    speed: p.speed,
+    accuracy: p.accuracy,
+    recorded_at: p.recorded_at ?? workout.started_at,
+  }));
+
   let distanceKm = 0;
   if (savedPoints.length) {
-    distanceKm = await calcWorkoutDistanceKm(workoutId);
+    // Prefer incremental distance; fall back to full scan if no previous point
+    const delta = incrementalDistanceKm(prevLast, savedNormalized);
+    if (prevLast) {
+      const base = Number(workout.distance_km) || 0;
+      distanceKm = Math.round((base + delta) * 1000) / 1000;
+      await pool.query('UPDATE workouts SET distance_km = ? WHERE id = ?', [distanceKm, workoutId]);
+    } else {
+      distanceKm = await calcWorkoutDistanceKm(workoutId);
+      await pool.query('UPDATE workouts SET distance_km = ? WHERE id = ?', [distanceKm, workoutId]);
+    }
+
     const [metaRows] = await pool.query(
-      `SELECT u.name AS client_name, u.phone,
-              (SELECT COUNT(*) FROM workout_points WHERE workout_id = ?) AS points_count
+      `SELECT u.name AS client_name, u.phone
        FROM workouts w JOIN users u ON u.id = w.user_id WHERE w.id = ?`,
-      [workoutId, workoutId]
+      [workoutId]
     );
-    const meta = metaRows[0] || {};
+    const rowMeta = metaRows[0] || {};
     emitPointReceived(workoutId, savedPoints, distanceKm, {
-      client_name: meta.client_name,
-      phone: meta.phone,
-      points_count: Number(meta.points_count) || savedPoints.length,
+      client_name: rowMeta.client_name,
+      phone: rowMeta.phone,
+      points_count: savedPoints.length,
     });
   }
 
@@ -151,8 +222,9 @@ export async function forceStopWorkout(workoutId, userId, reason) {
     `UPDATE workouts SET
        status = 'rejected',
        reject_reason = ?,
+       approved_distance_km = 0,
        finished_at = NOW()
-     WHERE id = ? AND user_id = ? AND status = 'in_progress'`,
+     WHERE id = ? AND user_id = ? AND status IN ('in_progress', 'paused')`,
     [reason, workoutId, userId]
   );
   return result.affectedRows > 0;

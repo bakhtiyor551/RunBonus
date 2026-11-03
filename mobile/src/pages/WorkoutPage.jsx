@@ -7,6 +7,7 @@ import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
 import WorkoutMap from '../components/WorkoutMap';
 import HoldToStopButton from '../components/HoldToStopButton';
+import AppleMaps from '../plugins/appleMaps';
 import { api } from '../api';
 import {
   clearWorkoutLocal,
@@ -31,8 +32,9 @@ import {
 import { disconnectWorkoutSocket } from '../services/workoutSocket';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
-import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
-import { PageAdSlots } from '../components/MobileAdSlot';
+import { getDistanceUnits, formatPace } from '../services/units';
+import WorkoutResultScreen from '../components/WorkoutResultScreen';
+import { fetchChallengeState, startChallenge } from '../services/challenges';
 
 export default function WorkoutPage({ user, setUser }) {
   const { state } = useLocation();
@@ -64,10 +66,38 @@ export default function WorkoutPage({ user, setUser }) {
     let cancelled = false;
 
     (async () => {
+      const localHint = state?.workoutId ?? getActiveWorkoutId();
+      // Сразу показываем экран, если id уже известен — не ждём сеть
+      if (localHint && !cancelled) {
+        setWorkoutId(Number(localHint));
+        setActiveWorkoutId(Number(localHint));
+        setSyncing(false);
+        startWorkoutSession(Number(localHint), api).catch(() => {});
+      }
+
       try {
-        const localHint = state?.workoutId ?? getActiveWorkoutId();
-        const sync = await syncActiveWorkoutWithServer();
+        const syncPromise = syncActiveWorkoutWithServer();
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve({ workoutId: null, offline: true, timedOut: true }), 3500)
+        );
+        const sync = await Promise.race([syncPromise, timeoutPromise]);
         if (cancelled) return;
+
+        if (sync.timedOut) {
+          // Сеть тормозит — продолжаем с локальным id
+          if (!localHint) {
+            const late = await syncPromise.catch(() => null);
+            if (cancelled) return;
+            if (late?.workoutId) {
+              setWorkoutId(late.workoutId);
+              setActiveWorkoutId(late.workoutId);
+              await startWorkoutSession(late.workoutId, api, { startedAt: late.startedAt });
+              return;
+            }
+            navigate('/', { replace: true });
+          }
+          return;
+        }
 
         if (!sync.workoutId) {
           if (sync.offline && localHint) {
@@ -81,7 +111,7 @@ export default function WorkoutPage({ user, setUser }) {
               'Сохранённая тренировка на сервере не найдена (уже завершена). Начните новую с главной.'
             );
           }
-          navigate('/', { replace: true });
+          if (!localHint) navigate('/', { replace: true });
           return;
         }
 
@@ -93,7 +123,7 @@ export default function WorkoutPage({ user, setUser }) {
         setActiveWorkoutId(sync.workoutId);
         await startWorkoutSession(sync.workoutId, api, { startedAt: sync.startedAt });
       } catch (e) {
-        if (!cancelled) {
+        if (!cancelled && !localHint) {
           alert(e.message || 'Не удалось открыть тренировку');
           navigate('/', { replace: true });
         }
@@ -116,7 +146,8 @@ export default function WorkoutPage({ user, setUser }) {
     if (syncing || !workoutId) return undefined;
     return subscribeWorkoutCommands((cmd) => {
       if (cmd.type === 'fund_exhausted') {
-        alert(cmd.message || 'Бонусный фонд пуст, начисление временно приостановлено');
+        // Legacy signal from old money mode — ignore in rewards loyalty model
+        return;
       }
       if (cmd.type === 'workout_force_stop') {
         alert(cmd.message || 'Пробежка аннулирована');
@@ -144,15 +175,22 @@ export default function WorkoutPage({ user, setUser }) {
     }
   };
 
-  const samplePoints = (pts, max = 120) => {
-    if (pts.length <= max) return pts;
+  const samplePoints = (pts, max = 400) => {
+    if (!pts?.length || pts.length <= max) return pts || [];
     const step = Math.ceil(pts.length / max);
-    return pts.filter((_, i) => i % step === 0);
+    const sampled = pts.filter((_, i) => i % step === 0);
+    const last = pts[pts.length - 1];
+    if (sampled[sampled.length - 1] !== last) sampled.push(last);
+    return sampled;
   };
 
   const finish = async () => {
     if (finishing || !workoutId) return;
     setFinishing(true);
+    // Убрать нативную карту — чтобы ничего не блокировало UI
+    if (Capacitor.getPlatform() === 'ios') {
+      AppleMaps.destroy().catch(() => {});
+    }
     freezeWorkoutForFinish();
     const snap = getWorkoutFinishSnapshot();
 
@@ -195,13 +233,57 @@ export default function WorkoutPage({ user, setUser }) {
       clearWorkoutLocal(workoutId);
       await clearWorkoutGpsBuffer(workoutId);
       setActiveWorkoutId(null);
-      setResult(data);
-      if (setUser && data.balance_after != null) {
-        setUser({ ...user, balance: data.balance_after });
-      } else if (setUser) {
-        const profile = await api('/api/auth/me');
-        setUser(profile);
+      if (setUser) {
+        try {
+          const profile = await api('/api/auth/me');
+          setUser(profile);
+        } catch {
+          /* ignore */
+        }
       }
+
+      // После первой завершённой тренировки — задание и флаг для карточки на главной
+      let challengeForHome = data.challenge || null;
+      try {
+        localStorage.setItem('rb_has_finished_workout', '1');
+        if (!challengeForHome) {
+          let state = await fetchChallengeState();
+          if (!state?.challenge) {
+            state = await startChallenge(state?.nextLevel?.levelId);
+          }
+          challengeForHome = state?.challenge || null;
+        }
+        if (challengeForHome) {
+          localStorage.setItem('rb_home_challenge', JSON.stringify(challengeForHome));
+        }
+      } catch {
+        /* ignore */
+      }
+      data.challenge = challengeForHome;
+      data.trackPoints = points;
+      data.steps_count = snapSteps;
+      data.avg_speed = snapAvgSpeed;
+      data.finished_at = new Date().toISOString();
+
+      if (data.challenge_completed || challengeForHome?.status === 'COMPLETED') {
+        navigate('/rewards', { replace: true, state: { challenge: challengeForHome } });
+        return;
+      }
+      // Первое задание показываем на экране результата / главной, не уводим сразу на milestones
+      if (
+        (data.rewards_unlocked?.length || data.reward_popup) &&
+        challengeForHome?.status !== 'ACTIVE'
+      ) {
+        const first = data.reward_popup || data.rewards_unlocked[0];
+        const milestoneId =
+          first?.milestoneId || first?.milestone_id || first?.id;
+        navigate(milestoneId ? `/milestones?milestone=${milestoneId}` : '/milestones', {
+          replace: true,
+          state: { challenge: challengeForHome },
+        });
+        return;
+      }
+      setResult(data);
     } catch (err) {
       if (err.code === 'DEVICE_MISMATCH') {
         setFinishing(false);
@@ -250,237 +332,150 @@ export default function WorkoutPage({ user, setUser }) {
   }
 
   if (result) {
+    const goHome = () =>
+      navigate('/', {
+        replace: true,
+        state: {
+          refreshHome: Date.now(),
+          challenge: result.challenge || null,
+        },
+      });
+
     return (
-      <IonPage>
-        <AppHeader showAvatar={false} />
-        <IonContent>
-          <main className="rb-main rb-workout-result">
-            <CelebrateBlock result={result} units={units} />
-            <ResultCards result={result} units={units} />
-            <PageAdSlots
-              key={`workout-ads-${result.workout_id ?? result.id ?? 'done'}`}
-              page="workout"
-              user={user}
-              runBonusPlacement="banner_workout"
-              className="rb-ad-banner--workout"
-              style={{ marginTop: 24 }}
-            />
-            <button type="button" className="rb-btn-pill" style={{ width: '100%', marginTop: 32 }} onClick={() => navigate('/')}>
-              Готово
-              <Icon name="arrow_forward" />
-            </button>
-          </main>
+      <IonPage className="rb-result-page">
+        <IonContent fullscreen scrollY className="rb-result-content">
+          <WorkoutResultScreen
+            result={result}
+            user={user}
+            trackPoints={result.trackPoints || []}
+            onDone={goHome}
+          />
         </IonContent>
       </IonPage>
     );
   }
 
-  const liveBadge = (
-    <div className={`rb-badge-live ${live.paused ? 'rb-badge-live--paused' : ''}`}>
-      <span className="rb-badge-live__dot" />
-      <span>
-        {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Пауза' : 'Активна'}
-      </span>
-    </div>
-  );
+  const distKm = Number(live.distance) || 0;
+  const durationSec = Number(live.seconds) || 0;
+  const paceLabel =
+    distKm >= 0.05 && durationSec > 0
+      ? formatPace((distKm / durationSec) * 3600, units)
+      : '—';
+
+  let distanceValue = '—';
+  let distanceUnit = 'км';
+  if (distKm >= 0.01) {
+    if (distKm < 1 && units !== 'imperial') {
+      distanceValue = String(Math.round(distKm * 1000));
+      distanceUnit = 'м';
+    } else {
+      distanceValue = distKm.toFixed(2);
+      distanceUnit = units === 'imperial' ? 'ми' : 'км';
+    }
+  }
+
+  const statusText = live.autoPaused
+    ? 'Автопауза'
+    : live.manualPaused
+      ? 'Пауза'
+      : live.gpsReady
+        ? ''
+        : 'Ожидание GPS…';
+
+  const zoomMap = (delta) => {
+    if (Capacitor.getPlatform() === 'ios') {
+      AppleMaps.zoom({ delta }).catch(() => {});
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('rb-workout-map-zoom', { detail: { delta } }));
+  };
 
   return (
-    <IonPage className="rb-workout-screen">
-      <AppHeader showAvatar={false} badge={liveBadge} onBack={minimizeOrHome} />
-      <IonContent fullscreen>
-        <div className="rb-workout-layout">
-          <section className="rb-workout-layout__map">
-            <WorkoutMap points={live.points} livePosition={live.livePosition} interactive />
-          </section>
-
-          <main className={`rb-workout-layout__panel${live.autoPaused ? ' rb-workout-layout__panel--auto-paused' : ''}`}>
-            <div className={`rb-workout-dashboard${live.pauseSeconds > 0 ? '' : ' rb-workout-dashboard--no-pause'}`}>
-              <MetricCard
-                icon="timer"
-                label="Время"
-                value={formatDuration(live.seconds)}
-                area="timer"
-                accent="neon"
-                hero
-              />
-              <MetricCard
-                icon="straighten"
-                label="Дистанция"
-                value={formatDistance(live.distance, units)}
-                area="dist"
-                accent="cyan"
-              />
-              <MetricCard
-                icon="speed"
-                label="Скорость"
-                value={formatSpeed(live.currentSpeed, units)}
-                area="speed"
-                accent="neon"
-              />
-              <MetricCard
-                icon="directions_walk"
-                label="Шаги"
-                value={String(live.steps)}
-                area="steps"
-                accent="violet"
-              />
-              <MetricCard
-                icon="trending_flat"
-                label="Средняя"
-                value={formatSpeed(live.avgSpeed, units)}
-                area="avg"
-                accent="blue"
-                compact
-              />
-              <MetricCard
-                icon="bolt"
-                label="Макс."
-                value={formatSpeed(live.maxSpeed, units)}
-                area="max"
-                accent="orange"
-                compact
-              />
-              {live.pauseSeconds > 0 && (
-                <MetricCard
-                  icon="pause_circle"
-                  label="Пауза"
-                  value={formatDuration(live.pauseSeconds)}
-                  area="pause"
-                  accent="amber"
-                  compact
-                />
+    <IonPage className="rb-workout-live">
+      <header className="rb-workout-live__top">
+        <button
+          type="button"
+          className="rb-workout-live__back"
+          onClick={minimizeOrHome}
+          aria-label="Назад"
+        >
+          <Icon name="arrow_back" />
+        </button>
+        <div className="rb-workout-live__stats">
+          <div className="rb-workout-live__stat">
+            <div className="rb-workout-live__stat-value font-tabular">
+              {distanceValue === '—' ? (
+                <span className="rb-workout-live__dash">—</span>
+              ) : (
+                <>
+                  {distanceValue}
+                  <span className="rb-workout-live__unit">{distanceUnit}</span>
+                </>
               )}
             </div>
-
-            {(live.gpsError || !live.gpsReady) && (
-              <div className="rb-workout-status">
-                {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
-                {!live.gpsReady && !live.gpsError && (
-                  <p className="rb-workout-status__gps">
-                    <Icon name="my_location" />
-                    Ожидание сигнала GPS…
-                  </p>
-                )}
-              </div>
-            )}
-
-            <p className="rb-workout-hint">
-              <Icon name="info" />
-              «Назад» сворачивает приложение — тренировка продолжается в фоне.
-            </p>
-
-            <div className="rb-workout-controls">
-              <button
-                type="button"
-                className={`rb-workout-controls__pause${live.autoPaused ? ' rb-workout-controls__pause--auto' : ''}`}
-                onClick={toggleWorkoutPause}
-                disabled={finishing || live.autoPaused}
-              >
-                <Icon name={live.manualPaused ? 'play_arrow' : live.autoPaused ? 'motion_sensor_active' : 'pause'} filled />
-                {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Продолжить' : 'Пауза'}
-              </button>
-              <HoldToStopButton
-                onStop={finish}
-                disabled={finishing}
-                label={finishing ? 'Завершение…' : 'Удерживайте для остановки'}
-              />
+            <div className="rb-workout-live__stat-label">Дистанция</div>
+          </div>
+          <div className="rb-workout-live__stat rb-workout-live__stat--center">
+            <div className="rb-workout-live__stat-value rb-workout-live__stat-value--time font-tabular">
+              {formatDuration(durationSec)}
             </div>
-          </main>
+            <div className="rb-workout-live__stat-label">Время</div>
+          </div>
+          <div className="rb-workout-live__stat">
+            <div className="rb-workout-live__stat-value font-tabular">
+              {paceLabel === '—' ? <span className="rb-workout-live__dash">—</span> : paceLabel.replace(/ \/.*/, '')}
+            </div>
+            <div className="rb-workout-live__stat-label">Темп</div>
+          </div>
         </div>
-      </IonContent>
+      </header>
+
+      <div className="rb-workout-live__map">
+        <WorkoutMap points={live.points} livePosition={live.livePosition} interactive />
+      </div>
+
+      {(statusText || live.gpsError) && (
+        <div className="rb-workout-live__toast" role="status">
+          {live.gpsError || statusText}
+        </div>
+      )}
+
+      <footer className="rb-workout-live__dock">
+        <div className="rb-workout-live__zoom">
+          <button
+            type="button"
+            className="rb-workout-live__zoom-btn"
+            onClick={() => zoomMap(1)}
+            aria-label="Приблизить карту"
+          >
+            <Icon name="add" />
+          </button>
+          <button
+            type="button"
+            className="rb-workout-live__zoom-btn"
+            onClick={() => zoomMap(-1)}
+            aria-label="Отдалить карту"
+          >
+            <Icon name="remove" />
+          </button>
+        </div>
+        <button
+          type="button"
+          className={`rb-workout-live__pause${live.paused ? ' is-paused' : ''}`}
+          onClick={toggleWorkoutPause}
+          disabled={finishing || live.autoPaused}
+          aria-label={live.manualPaused ? 'Продолжить' : 'Пауза'}
+        >
+          <Icon name={live.manualPaused ? 'play_arrow' : 'pause'} filled />
+        </button>
+        <HoldToStopButton
+          variant="fab"
+          onStop={finish}
+          disabled={finishing}
+          label={finishing ? 'Завершение…' : 'Удерживайте для завершения'}
+        />
+      </footer>
     </IonPage>
   );
 }
 
-function MetricCard({ icon, label, value, area, accent = 'neon', hero = false, compact = false }) {
-  return (
-    <div
-      className={[
-        'rb-workout-metric',
-        'glass-card',
-        `rb-workout-metric--${accent}`,
-        hero ? 'rb-workout-metric--hero' : '',
-        compact ? 'rb-workout-metric--compact' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      style={{ gridArea: area }}
-    >
-      <div className="rb-workout-metric__icon" aria-hidden>
-        <Icon name={icon} filled={hero} />
-      </div>
-      <div className="rb-workout-metric__body">
-        <span className="rb-workout-metric__value font-display font-tabular">{value}</span>
-        <span className="rb-workout-metric__label">{label}</span>
-      </div>
-    </div>
-  );
-}
-
-function CelebrateBlock({ result, units }) {
-  return (
-    <div className="rb-celebrate rb-celebrate--result">
-      <div className="rb-celebrate__icon">
-        <Icon name="check_circle" />
-      </div>
-      <h1 className="rb-celebrate__title font-display">
-        {result.title || 'Тренировка завершена!'}
-      </h1>
-      {result.level_up?.message && (
-        <p className="rb-headline rb-celebrate__levelup">{result.level_up.message}</p>
-      )}
-      <p className="rb-celebrate__summary">
-        {formatDistance(result.distance_km, units)} · {formatDuration(Number(result.duration_seconds) || 0)}
-      </p>
-    </div>
-  );
-}
-
-function ResultCards({ result, units }) {
-  const credited = Boolean(result.bonus_credited);
-  const bonusValue = credited ? `+${Number(result.bonus_earned).toFixed(1)}` : null;
-  const bonusNote =
-    result.reject_reason || result.message || 'Бонус не начислен по правилам программы';
-
-  return (
-    <div className="rb-workout-result-cards">
-      <div className="rb-workout-metric glass-card rb-workout-metric--cyan rb-workout-result-card">
-        <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name="straighten" />
-        </div>
-        <div className="rb-workout-metric__body">
-          <span className="rb-workout-metric__value font-display font-tabular">
-            {formatDistance(result.distance_km, units)}
-          </span>
-          <span className="rb-workout-metric__label">Дистанция</span>
-        </div>
-      </div>
-
-      <div
-        className={[
-          'rb-workout-metric',
-          'glass-card',
-          'rb-workout-metric--neon',
-          'rb-workout-result-card',
-          credited ? '' : 'rb-workout-result-card--muted',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <div className="rb-workout-metric__icon" aria-hidden>
-          <Icon name="stars" filled />
-        </div>
-        <div className="rb-workout-metric__body">
-          {bonusValue ? (
-            <span className="rb-workout-metric__value font-display font-tabular rb-workout-result-card__bonus">
-              {bonusValue}
-            </span>
-          ) : (
-            <span className="rb-workout-result-card__note">{bonusNote}</span>
-          )}
-          <span className="rb-workout-metric__label">Бонус</span>
-        </div>
-      </div>
-    </div>
-  );
-}

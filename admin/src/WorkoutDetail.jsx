@@ -181,14 +181,11 @@ export default function WorkoutDetail({ workoutId, onClose }) {
         ср. {w.avg_speed ?? '—'} км/ч · макс. {w.max_speed ?? '—'} км/ч · Статус: {w.status}
       </p>
       <p>
-        Цена за км: <strong>{w.price_per_km ?? '—'}</strong> · Расчёт:{' '}
-        <strong>{w.calculated_bonus ?? '—'}</strong> · Начислено:{' '}
-        <strong>{data.bonus_earned}</strong>
+        Подтверждённая дистанция: <strong>{Number(w.distance_km || 0).toFixed(3)} км</strong>
       </p>
       {w.reject_reason && <p className="error-text">Причина: {w.reject_reason}</p>}
       <p className="hint">
-        Дневной лимит: {lim.daily_earned} / {lim.daily_limit} · По паре:{' '}
-        {lim.shoe_total_earned} / {lim.shoe_limit}
+        Anti-fraud / GPS-проверка на backend
         {isLive && (
           <>
             {' '}

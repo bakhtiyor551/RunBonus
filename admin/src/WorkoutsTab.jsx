@@ -119,10 +119,8 @@ function WorkoutHistoryCard({ workout, onOpen }) {
           <strong>{formatDuration(workout.duration_seconds)}</strong>
         </div>
         <div className="workout-history-card__stat">
-          <span className="workout-history-card__stat-label">Бонус</span>
-          <strong className="workout-history-card__stat-bonus">
-            {workout.bonus > 0 ? `+${formatMoney(workout.bonus)}` : '—'}
-          </strong>
+          <span className="workout-history-card__stat-label">Статус</span>
+          <strong>{STATUS[workout.status]?.label || workout.status}</strong>
         </div>
       </div>
 
@@ -186,8 +184,8 @@ function ClientWorkoutsDetail({ client, onClose, onOpenWorkout }) {
           <strong>{client.total_km.toFixed(2)}</strong>
         </div>
         <div>
-          <span className="workout-card__metric-label">Бонусов</span>
-          <strong className="client-workouts-card__bonus">+{formatMoney(client.total_bonus)}</strong>
+          <span className="workout-card__metric-label">Одобрено</span>
+          <strong>{client.workouts.filter((w) => w.status === 'approved').length}</strong>
         </div>
       </div>
 
@@ -245,8 +243,8 @@ function ClientWorkoutsCard({ client, selected, onOpenDetails }) {
           <strong>{client.total_km.toFixed(2)}</strong>
         </div>
         <div>
-          <span className="workout-card__metric-label">Бонусов</span>
-          <strong className="client-workouts-card__bonus">+{formatMoney(client.total_bonus)}</strong>
+          <span className="workout-card__metric-label">Одобрено</span>
+          <strong>{client.workouts.filter((w) => w.status === 'approved').length}</strong>
         </div>
       </div>
 

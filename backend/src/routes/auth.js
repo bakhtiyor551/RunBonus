@@ -5,8 +5,6 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authUser, authUserToken } from '../middleware/auth.js';
-import { getUserBalance } from '../services/bonusService.js';
-import { getWalletSummary } from '../services/withdrawalService.js';
 import { activateShoeForUser } from '../services/shoeActivationService.js';
 import {
   buildDisplayName,
@@ -21,6 +19,7 @@ import {
 } from '../services/deviceBinding.js';
 import { sendVerificationCode, verifyCode } from '../services/smsOtpService.js';
 import { isSmsEnabled } from '../services/smsService.js';
+import { getSubscriptionInfo } from '../services/subscriptionService.js';
 
 const router = Router();
 
@@ -46,14 +45,7 @@ router.post('/sms/send', async (req, res) => {
 router.post('/sms/register', async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { phone, code, firstName, lastName, city } = req.body;
-    if (!firstName?.trim() || !lastName?.trim()) {
-      return res.status(400).json({ error: 'Укажите имя и фамилию' });
-    }
-    const userCity = String(city || '').trim();
-    if (!userCity) {
-      return res.status(400).json({ error: 'Выберите город' });
-    }
+    const { phone, code } = req.body;
 
     const phoneNorm = await verifyCode(phone, 'register', code);
     const deviceId = getDeviceIdFromRequest(req);
@@ -61,15 +53,15 @@ router.post('/sms/register', async (req, res) => {
       return res.status(400).json({ error: 'Не удалось определить устройство' });
     }
 
-    const name = buildDisplayName(firstName.trim(), lastName.trim());
     const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
 
     await conn.beginTransaction();
 
+    // Минимальная регистрация: только телефон. Имя/город — на следующем экране.
     const [result] = await conn.query(
       `INSERT INTO users (name, first_name, last_name, phone, password_hash, city, device_id, device_bound_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [name, firstName.trim(), lastName.trim(), phoneNorm, passwordHash, userCity, deviceId]
+       VALUES (?, NULL, NULL, ?, ?, ?, ?, NOW())`,
+      ['', phoneNorm, passwordHash, 'Не указан', deviceId]
     );
 
     const userId = result.insertId;
@@ -86,11 +78,13 @@ router.post('/sms/register', async (req, res) => {
     res.status(201).json({
       token,
       user: profile,
-      redirectToShop: true,
     });
   } catch (err) {
     await conn.rollback();
     if (err.status) return res.status(err.status).json({ error: err.message });
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Этот номер уже зарегистрирован. Войдите в аккаунт.' });
+    }
     console.error(err);
     res.status(500).json({ error: 'Ошибка регистрации' });
   } finally {
@@ -99,41 +93,72 @@ router.post('/sms/register', async (req, res) => {
 });
 
 router.post('/sms/login', async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { phone, code } = req.body;
     const phoneNorm = await verifyCode(phone, 'login', code);
-
-    const [rows] = await pool.query('SELECT * FROM users WHERE phone = ?', [phoneNorm]);
-    if (!rows.length) {
-      return res.status(404).json({ error: 'Пользователь не найден' });
-    }
-
-    const user = rows[0];
-    if (user.status === 'blocked') {
-      return res.status(403).json({ error: 'Аккаунт заблокирован' });
-    }
 
     const deviceId = getDeviceIdFromRequest(req);
     if (!deviceId) {
       return res.status(400).json({ error: 'Не удалось определить устройство' });
     }
 
-    const bindResult = await bindDeviceOnLogin(pool, user.id, deviceId);
-    const token = jwt.sign({ userId: user.id }, config.jwtSecret, { expiresIn: '30d' });
-    const profile = await buildUserProfile(user.id, deviceId);
+    const [rows] = await conn.query('SELECT * FROM users WHERE phone = ?', [phoneNorm]);
+    let userId;
+    let isNew = false;
+    let bindResult = { device_changed: false };
 
-    res.json({
+    if (!rows.length) {
+      // Первый вход — создаём аккаунт, дальше экран настройки (имя + город)
+      isNew = true;
+      const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
+      await conn.beginTransaction();
+      const [result] = await conn.query(
+        `INSERT INTO users (name, first_name, last_name, phone, password_hash, city, device_id, device_bound_at)
+         VALUES (?, NULL, NULL, ?, ?, ?, ?, NOW())`,
+        ['', phoneNorm, passwordHash, 'Не указан', deviceId]
+      );
+      userId = result.insertId;
+      try {
+        await conn.query(
+          'INSERT INTO user_bonus_wallets (user_id, balance, blocked_balance, total_earned, total_spent, total_withdrawn) VALUES (?, 0, 0, 0, 0, 0)',
+          [userId]
+        );
+      } catch {
+        /* wallet table optional */
+      }
+      await conn.commit();
+    } else {
+      const user = rows[0];
+      if (user.status === 'blocked') {
+        return res.status(403).json({ error: 'Аккаунт заблокирован' });
+      }
+      userId = user.id;
+      bindResult = await bindDeviceOnLogin(pool, userId, deviceId);
+    }
+
+    const token = jwt.sign({ userId }, config.jwtSecret, { expiresIn: '30d' });
+    const profile = await buildUserProfile(userId, deviceId);
+
+    res.status(isNew ? 201 : 200).json({
       token,
-      user: profile,
+      user: { ...profile, isNew },
+      isNew,
       device_changed: bindResult.device_changed,
       message: bindResult.device_changed
         ? 'Аккаунт привязан к этому телефону. Другие устройства отключены.'
         : undefined,
     });
   } catch (err) {
+    await conn.rollback().catch(() => {});
     if (err.status) return res.status(err.status).json({ error: err.message });
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'Этот номер уже используется' });
+    }
     console.error(err);
     res.status(500).json({ error: 'Ошибка входа' });
+  } finally {
+    conn.release();
   }
 });
 
@@ -305,17 +330,20 @@ router.patch('/profile', authUser, async (req, res) => {
     const avatarBase64 = req.body.avatarBase64 ?? req.body.avatar_base64 ?? null;
     const cityRaw = req.body.city;
 
-    if (!firstName || !lastName) {
-      return res.status(400).json({ error: 'Укажите имя и фамилию' });
-    }
-
     const userCity =
       cityRaw !== undefined && cityRaw !== null ? String(cityRaw).trim() : null;
     if (cityRaw !== undefined && !userCity) {
       return res.status(400).json({ error: 'Выберите город' });
     }
+    // Первый вход / настройка: имя обязательно вместе с городом
+    if (userCity != null && !firstName) {
+      return res.status(400).json({ error: 'Укажите имя' });
+    }
+    if (!firstName && cityRaw === undefined && !avatarBase64) {
+      return res.status(400).json({ error: 'Укажите имя' });
+    }
 
-    const name = buildDisplayName(firstName, lastName);
+    const name = buildDisplayName(firstName, lastName) || `Клиент RB-${req.userId}`;
     let avatarUrl;
 
     if (avatarBase64) {
@@ -325,22 +353,22 @@ router.patch('/profile', authUser, async (req, res) => {
     if (avatarUrl && userCity != null) {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ?, avatar_url = ?, city = ? WHERE id = ?',
-        [name, firstName, lastName, avatarUrl, userCity, req.userId]
+        [name, firstName, lastName || null, avatarUrl, userCity, req.userId]
       );
     } else if (avatarUrl) {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ?, avatar_url = ? WHERE id = ?',
-        [name, firstName, lastName, avatarUrl, req.userId]
+        [name, firstName, lastName || null, avatarUrl, req.userId]
       );
     } else if (userCity != null) {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ?, city = ? WHERE id = ?',
-        [name, firstName, lastName, userCity, req.userId]
+        [name, firstName, lastName || null, userCity, req.userId]
       );
     } else {
       await pool.query(
         'UPDATE users SET name = ?, first_name = ?, last_name = ? WHERE id = ?',
-        [name, firstName, lastName, req.userId]
+        [name, firstName, lastName || null, req.userId]
       );
     }
 
@@ -371,19 +399,34 @@ async function buildUserProfile(userId, requestDeviceId = null) {
     [userId]
   );
 
-  const balance = await getUserBalance(userId);
-  let walletSummary = { balance, blocked_balance: 0, available_balance: balance };
+  let totalDistance = 0;
   try {
-    walletSummary = await getWalletSummary(pool, userId);
+    const { getConfirmedDistanceKm } = await import('../services/rewardService.js');
+    totalDistance = await getConfirmedDistanceKm(userId);
+  } catch {
+    /* rewards tables may be missing before migration */
+  }
+
+  let subscription = { is_premium: false };
+  try {
+    subscription = await getSubscriptionInfo(userId);
   } catch {
     /* migration not applied yet */
   }
 
   return {
     ...base,
-    balance: walletSummary.balance,
-    blocked_balance: walletSummary.blocked_balance,
-    available_balance: walletSummary.available_balance,
+    clientId: userId,
+    client_id: userId,
+    needsProfileSetup: false,
+    // Legacy wallet fields kept for API compat; money accrual is disabled.
+    balance: 0,
+    blocked_balance: 0,
+    available_balance: 0,
+    total_confirmed_distance: totalDistance,
+    total_distance_km: totalDistance,
+    is_premium: subscription.is_premium,
+    premium_expires_at: subscription.expires_at || null,
     activeShoe: activeShoe[0]
       ? { id: activeShoe[0].id, unique_id: activeShoe[0].unique_id, model_name: activeShoe[0].model_name }
       : null,

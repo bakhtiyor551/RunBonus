@@ -1,6 +1,6 @@
 import { pool } from '../db.js';
 
-/** Тренировки, вывод и начисление бонусов — только с активированными кроссовками. */
+/** Тренировки — только с активированными кроссовками. */
 export async function requireActiveShoe(req, res, next) {
   try {
     const [rows] = await pool.query(
@@ -11,7 +11,7 @@ export async function requireActiveShoe(req, res, next) {
     );
     if (!rows.length || rows[0].status !== 'activated') {
       return res.status(403).json({
-        error: 'Сначала активируйте кроссовки RunBonus или дождитесь доставки заказа',
+        error: 'Кроссовки ещё не активированы. Купите их в магазине — активация после доставки заказа.',
         code: 'NO_ACTIVE_SHOE',
       });
     }

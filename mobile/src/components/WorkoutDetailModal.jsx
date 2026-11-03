@@ -54,11 +54,9 @@ export default function WorkoutDetailModal({ workout, onClose }) {
 
   const km = workout.distance_km != null ? Number(workout.distance_km) : null;
   const durationSec = Number(workout.duration_seconds) || 0;
-  const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
   const avgSpeed = workout.avg_speed != null ? Number(workout.avg_speed) : null;
   const maxSpeed = workout.max_speed != null ? Number(workout.max_speed) : null;
   const steps = workout.steps_count != null ? Number(workout.steps_count) : null;
-  const rejected = workout.status === 'rejected' || workout.status === 'rejected_no_fund';
 
   return (
     <DetailSheet open title="Тренировка" titleId="workout-detail-title" onClose={onClose}>
@@ -100,13 +98,7 @@ export default function WorkoutDetailModal({ workout, onClose }) {
           <StatRow label="Макс. скорость" value={formatSpeed(maxSpeed, units)} />
         )}
         {steps != null && steps > 0 && <StatRow label="Шаги" value={String(steps)} />}
-        <StatRow
-          label="Бонус"
-          value={
-            bonus != null && bonus > 0 ? `+${bonus.toFixed(0)} сомони` : rejected ? 'Не начислен' : '—'
-          }
-          highlight={bonus != null && bonus > 0}
-        />
+        <StatRow label="Проверка" value={formatWorkoutStatus(workout.status)} highlight={workout.status === 'approved'} />
       </div>
 
       {workout.reject_reason && (

@@ -5,7 +5,6 @@ import {
   getReportsSales,
   getReportsWorkouts,
   getReportsBonuses,
-  getReportsWithdrawals,
   getReportsClients,
   getReportsShoes,
   getReportsFinance,
@@ -45,15 +44,6 @@ router.get('/workouts', authAdmin, async (req, res) => {
 router.get('/bonuses', authAdmin, async (req, res) => {
   try {
     res.json(await getReportsBonuses(req.query));
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Ошибка отчёта' });
-  }
-});
-
-router.get('/withdrawals', authAdmin, async (req, res) => {
-  try {
-    res.json(await getReportsWithdrawals(req.query));
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Ошибка отчёта' });

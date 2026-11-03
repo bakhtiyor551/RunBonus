@@ -153,8 +153,10 @@ function triggerForcedLogout(data) {
 function throwApiError(data, status) {
   triggerForcedLogout(data);
   const err = new Error(apiErrorMessage(data, status));
-  err.code = data?.code;
+  err.code = data?.code || (typeof data?.error === 'string' ? data.error : undefined);
   err.status = status;
+  err.workoutId = data?.workoutId ?? data?.id;
+  err.data = data;
   throw err;
 }
 

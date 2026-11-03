@@ -1,20 +1,17 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { IonApp } from '@ionic/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api, cacheUser, getCachedUser, isNetworkError, logoutApi, onForcedLogout, setToken } from './api';
 import SplashScreen from './components/SplashScreen';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import ActivatePage from './pages/ActivatePage';
 import HomePage from './pages/HomePage';
-import SummaryPage from './pages/SummaryPage';
 import WorkoutPage from './pages/WorkoutPage';
-import WalletPage from './pages/WalletPage';
-import WithdrawPage from './pages/WithdrawPage';
 import ProfilePage from './pages/ProfilePage';
-import HistoryPage from './pages/HistoryPage';
 import WorkoutHistoryPage from './pages/WorkoutHistoryPage';
-import LevelPage from './pages/LevelPage';
+import LeaderboardPage from './pages/LeaderboardPage';
+import ProgressPage from './pages/ProgressPage';
+import ChallengesPage from './pages/ChallengesPage';
+import MyRewardsPage from './pages/MyRewardsPage';
 import ShopPage from './pages/ShopPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
@@ -38,6 +35,41 @@ function PushNavigationBridge() {
     setPushNavigationHandler((path) => navigate(path));
     return () => setPushNavigationHandler(null);
   }, [navigate]);
+  return null;
+}
+
+/** При каждом открытии приложения без активации — магазин; дальше можно смотреть другие разделы. */
+function InactiveShopRedirect({ user }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const redirectedThisLaunch = useRef(false);
+
+  useEffect(() => {
+    const needsActivation = Boolean(user?.needsActivation || !user?.activeShoe);
+    if (!needsActivation) {
+      redirectedThisLaunch.current = false;
+      sessionStorage.removeItem('rb_open_shop');
+      return;
+    }
+
+    const fromRegister = sessionStorage.getItem('rb_open_shop') === '1';
+    if (redirectedThisLaunch.current && !fromRegister) return;
+
+    redirectedThisLaunch.current = true;
+    sessionStorage.removeItem('rb_open_shop');
+
+    const path = location.pathname || '/';
+    const onShopFlow =
+      path === '/shop' ||
+      path.startsWith('/shop/') ||
+      path === '/cart' ||
+      path === '/orders';
+
+    if (!onShopFlow) {
+      navigate('/shop', { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
+
   return null;
 }
 
@@ -124,6 +156,10 @@ function App() {
     if (data.message) {
       sessionStorage.setItem('auth_notice', data.message);
     }
+    // Первый вход / регистрация → сразу в магазин
+    if (data.isNew || data.user?.isNew) {
+      sessionStorage.setItem('rb_open_shop', '1');
+    }
   };
 
   const logout = async () => {
@@ -150,7 +186,6 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage onAuth={onAuth} />} />
-              <Route path="/register" element={<RegisterPage onAuth={onAuth} />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </BrowserRouter>
@@ -165,33 +200,27 @@ function App() {
       <IonApp>
         <BrowserRouter>
           <PushNavigationBridge />
+          <InactiveShopRedirect user={user} />
           <Routes>
             <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
-            <Route path="/summary" element={<SummaryPage user={user} setUser={setUser} />} />
-            <Route path="/wallet" element={<WalletPage user={user} />} />
-            <Route path="/wallet/withdraw" element={<WithdrawPage user={user} setUser={setUser} />} />
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} onLogout={logout} />} />
             <Route path="/workout" element={<WorkoutPage user={user} setUser={setUser} />} />
-            <Route
-              path="/activate"
-              element={
-                <ActivatePage
-                  user={user}
-                  onActivated={async () => {
-                    const profile = await api('/api/auth/me');
-                    cacheUser(profile);
-                    setUser(profile);
-                  }}
-                />
-              }
-            />
-            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/rewards" element={<ChallengesPage />} />
+            <Route path="/challenges" element={<ChallengesPage />} />
+            <Route path="/milestones" element={<ProgressPage />} />
+            <Route path="/my-rewards" element={<MyRewardsPage />} />
+            <Route path="/progress" element={<Navigate to="/rewards" replace />} />
+            <Route path="/activate" element={<Navigate to="/shop" replace />} />
             <Route path="/workouts" element={<WorkoutHistoryPage />} />
-            <Route path="/level" element={<LevelPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage user={user} />} />
             <Route path="/shop" element={<ShopPage user={user} />} />
             <Route path="/shop/:id" element={<ProductDetailPage />} />
-            <Route path="/cart" element={<CartPage user={user} />} />
+            <Route path="/cart" element={<CartPage user={user} setUser={setUser} />} />
             <Route path="/orders" element={<MyOrdersPage />} />
+            {/* Legacy money screens removed */}
+            <Route path="/summary" element={<Navigate to="/" replace />} />
+            <Route path="/wallet" element={<Navigate to="/rewards" replace />} />
+            <Route path="/history" element={<Navigate to="/workouts" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

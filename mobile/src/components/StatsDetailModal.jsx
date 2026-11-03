@@ -5,7 +5,6 @@ import { formatWorkoutStatus, getKmDetailStats, getWorkoutsDetailStats } from '.
 
 function WorkoutListItem({ workout, showStatus }) {
   const km = workout.distance_km != null ? Number(workout.distance_km).toFixed(1) : '—';
-  const bonus = workout.calculated_bonus != null ? Number(workout.calculated_bonus) : null;
 
   return (
     <div className="glass-card rb-detail-sheet__list-item">
@@ -19,9 +18,6 @@ function WorkoutListItem({ workout, showStatus }) {
           {showStatus ? ` • ${formatWorkoutStatus(workout.status)}` : ''}
         </p>
       </div>
-      {bonus != null && bonus > 0 && (
-        <span className="rb-detail-sheet__row-value--accent">+{bonus.toFixed(0)}</span>
-      )}
     </div>
   );
 }
@@ -78,7 +74,6 @@ export default function StatsDetailModal({ type, workouts, onClose }) {
             <StatRow label="Зачтено" value={runStats.approved} />
             <StatRow label="Отклонено" value={runStats.rejected} />
             {runStats.inProgress > 0 && <StatRow label="В процессе" value={runStats.inProgress} />}
-            <StatRow label="Бонусов всего" value={`+${runStats.totalBonus.toFixed(0)} сомони`} highlight />
             <StatRow label="Среднее время" value={runStats.avgDuration} />
             <StatRow label="Средняя дистанция" value={`${runStats.avgKm.toFixed(1)} км`} />
           </div>

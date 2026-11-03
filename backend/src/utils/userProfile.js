@@ -68,6 +68,8 @@ export function mapUserProfileRow(user) {
 
   return {
     id: user.id,
+    clientId: user.id,
+    client_id: user.id,
     name,
     first_name,
     last_name,

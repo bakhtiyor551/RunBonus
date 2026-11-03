@@ -1,0 +1,91 @@
+{
+  "appVersion": "1.0.0",
+  "date": "2026-06-25T09:55:32.459Z",
+  "api": "https://runbonus.online",
+  "fastMode": true,
+  "total": 4,
+  "passed": 0,
+  "failed": 4,
+  "passRate": 0,
+  "suiteStats": {
+    "gps": {
+      "total": 4,
+      "passed": 0,
+      "rate": 0
+    }
+  },
+  "releaseAllowed": false,
+  "criticalFailures": [
+    "gps"
+  ],
+  "suites": [
+    {
+      "key": "gps",
+      "suiteName": "GPS Test",
+      "results": [
+        {
+          "id": "GPS-001",
+          "name": "Получение координат",
+          "suite": "GPS Test",
+          "pass": false,
+          "error": "Аккаунт активен на другом телефоне. Войдите снова здесь — при входе это устройство станет основным.",
+          "durationMs": 2067,
+          "artifact": "C:\\Users\\Bakhtior\\Desktop\\RunBonus\\test\\screenshots\\GPS-001_2026-06-25T09-55-31-258Z.json"
+        },
+        {
+          "id": "GPS-002",
+          "name": "Точность GPS ≤ 20 м",
+          "suite": "GPS Test",
+          "pass": false,
+          "error": "Аккаунт активен на другом телефоне. Войдите снова здесь — при входе это устройство станет основным.",
+          "durationMs": 389,
+          "artifact": "C:\\Users\\Bakhtior\\Desktop\\RunBonus\\test\\screenshots\\GPS-002_2026-06-25T09-55-31-653Z.json"
+        },
+        {
+          "id": "GPS-003",
+          "name": "Потеря GPS — тренировка активна",
+          "suite": "GPS Test",
+          "pass": false,
+          "error": "Аккаунт активен на другом телефоне. Войдите снова здесь — при входе это устройство станет основным.",
+          "durationMs": 383,
+          "artifact": "C:\\Users\\Bakhtior\\Desktop\\RunBonus\\test\\screenshots\\GPS-003_2026-06-25T09-55-32-043Z.json"
+        },
+        {
+          "id": "GPS-004",
+          "name": "Возврат GPS — тренировка продолжается",
+          "suite": "GPS Test",
+          "pass": false,
+          "error": "Аккаунт активен на другом телефоне. Войдите снова здесь — при входе это устройство станет основным.",
+          "durationMs": 372,
+          "artifact": "C:\\Users\\Bakhtior\\Desktop\\RunBonus\\test\\screenshots\\GPS-004_2026-06-25T09-55-32-420Z.json"
+        }
+      ]
+    }
+  ],
+  "failedTests": [
+    {
+      "id": "GPS-001",
+      "suite": "gps",
+      "error": "Аккаунт активен на другом телефоне. Войдите снова здесь — при входе это устройство станет основным.",
+      "artifact": "C:\\Users\\Bakhtior\\Desktop\\RunBonus\\test\\screenshots\\GPS-001_2026-06-25T09-55-31-258Z.json"
+    },
+    {
+      "id": "GPS-002",
+      "suite": "gps",
+      "error": "Аккаунт активен на другом телефоне. Войдите снова здесь — при входе это устройство станет основным.",
+      "artifact": "C:\\Users\\Bakhtior\\Desktop\\RunBonus\\test\\screenshots\\GPS-002_2026-06-25T09-55-31-653Z.json"
+    },
+    {
+      "id": "GPS-003",
+      "suite": "gps",
+      "error": "Аккаунт активен на другом телефоне. Войдите снова здесь — при входе это устройство станет основным.",
+      "artifact": "C:\\Users\\Bakhtior\\Desktop\\RunBonus\\test\\screenshots\\GPS-003_2026-06-25T09-55-32-043Z.json"
+    },
+    {
+      "id": "GPS-004",
+      "suite": "gps",
+      "error": "Аккаунт активен на другом телефоне. Войдите снова здесь — при входе это устройство станет основным.",
+      "artifact": "C:\\Users\\Bakhtior\\Desktop\\RunBonus\\test\\screenshots\\GPS-004_2026-06-25T09-55-32-420Z.json"
+    }
+  ]
+}

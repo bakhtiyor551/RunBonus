@@ -1,0 +1,6 @@
+{
+  "script": "\n            function webdriverioPolyfill() {\n  var __defProp = Object.defineProperty;\n  var __name = function(target, _value) {\n    return __defProp(target, \"name\", { value: _value, configurable: true });\n  };\n  var __globalThis = typeof globalThis === \"object\" && globalThis || typeof window === \"object\" && window;\n  __globalThis.__name = __name;\n}\n            webdriverioPolyfill();\n            return (t=>{localStorage.setItem(\"token\",t)}).apply(null, arguments)\n        ",
+  "args": [
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEzLCJpYXQiOjE3ODIzODc4NzksImV4cCI6MTc4NDk3OTg3OX0.C1gnbCsonxRZarkHQwiLvIDqBwx3WZWmLu9FcjQStmc"
+  ]
+}

@@ -3,22 +3,18 @@ import Icon from './Icon';
 const TITLES = {
   dashboard: 'Dashboard Analytics',
   0: 'Клиенты',
-  1: 'QR / Кроссовки',
   2: 'Тренировки',
-  3: 'Бонусные счета',
-  4: 'Настройки бонусов',
-  5: 'Списание бонусов',
-  6: 'Вывод средств',
-  7: 'Уровни клиентов',
   8: 'Магазин — товары',
   12: 'Склад',
   11: 'Отчёты',
   9: 'Заказы магазина',
   10: 'Способы оплаты',
+  rewards: 'Награды',
+  challenges: 'Задания',
   ads: 'Реклама',
 };
 
-export default function TopBar({ activeTab, fundBalance, currency = 'TJS' }) {
+export default function TopBar({ activeTab, pendingRewards }) {
   const title = TITLES[activeTab] ?? 'RunBonus Admin';
 
   return (
@@ -34,11 +30,11 @@ export default function TopBar({ activeTab, fundBalance, currency = 'TJS' }) {
         </button>
         <div className="topbar__divider" />
         <div className="topbar__balance">
-          <Icon name="account_balance" className="topbar__balance-icon" />
+          <Icon name="redeem" className="topbar__balance-icon" />
           <span className="topbar__balance-value">
-            {fundBalance != null
-              ? `${Number(fundBalance).toLocaleString('ru-RU')} ${currency}`
-              : '—'}
+            {pendingRewards != null
+              ? `${Number(pendingRewards).toLocaleString('ru-RU')} заявок`
+              : 'Награды'}
           </span>
         </div>
       </div>

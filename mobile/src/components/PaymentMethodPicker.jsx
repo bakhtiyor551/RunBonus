@@ -1,7 +1,6 @@
 import Icon from './Icon';
 
 const ICONS = {
-  bonus: 'stars',
   cash: 'payments',
   card: 'credit_card',
   mobile: 'smartphone',
@@ -16,8 +15,6 @@ export default function PaymentMethodPicker({
   details,
   onDetailsChange,
   error,
-  availableBonus,
-  cartTotal,
 }) {
   const selected = methods.find((m) => m.id === value);
 
@@ -26,17 +23,6 @@ export default function PaymentMethodPicker({
       <p className="rb-label" style={{ marginBottom: 10 }}>
         Способ оплаты
       </p>
-      {value === 'bonus' && availableBonus != null && (
-        <p className="rb-text-muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
-          Доступно бонусов: <strong style={{ color: 'var(--rb-neon)' }}>{availableBonus}</strong> сомони
-          {cartTotal > 0 && (
-            <>
-              {' '}
-              · к оплате: <strong>{cartTotal}</strong> сомони
-            </>
-          )}
-        </p>
-      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {methods.map((m) => (
           <button
@@ -51,21 +37,19 @@ export default function PaymentMethodPicker({
         ))}
       </div>
       {selected?.needsDetails && (
-        <div style={{ marginTop: 12 }}>
-          <label className="rb-label" style={{ display: 'block', marginBottom: 4 }}>
-            {selected.detailsLabel || 'Дополнительно'}
-          </label>
+        <label className="rb-profile-form__field" style={{ marginTop: 12 }}>
+          <span className="rb-label">{selected.detailsLabel || 'Реквизиты'}</span>
           <div className="rb-input-wrap">
             <input
               className="rb-input"
-              value={details}
-              onChange={(e) => onDetailsChange(e.target.value)}
-              placeholder={selected.detailsLabel}
+              value={details || ''}
+              onChange={(e) => onDetailsChange?.(e.target.value)}
+              placeholder={selected.detailsLabel || ''}
             />
           </div>
-        </div>
+        </label>
       )}
-      {error && <p className="rb-text-error" style={{ marginTop: 8 }}>{error}</p>}
+      {error && <p className="rb-text-error">{error}</p>}
     </section>
   );
 }

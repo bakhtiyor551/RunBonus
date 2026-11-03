@@ -118,8 +118,9 @@ export function shouldRecordGpsPoint(last, pos) {
   if (elapsedMs > 0 && elapsedMs < GPS_MIN_INTERVAL_MS) {
     return { record: false, reason: 'interval_fast' };
   }
+  // Long gap (pause / background) — resume track without counting the teleport as distance
   if (elapsedMs > GPS_MAX_INTERVAL_MS) {
-    return { record: false, reason: 'interval_stale' };
+    return { record: true, segmentMeters: 0, reason: 'gap_resume' };
   }
 
   const distM = haversineMeters(last.latitude, last.longitude, pos.latitude, pos.longitude);

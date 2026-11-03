@@ -1,0 +1,4 @@
+{
+  "script": "\n            function webdriverioPolyfill() {\n  var __defProp = Object.defineProperty;\n  var __name = function(target, _value) {\n    return __defProp(target, \"name\", { value: _value, configurable: true });\n  };\n  var __globalThis = typeof globalThis === \"object\" && globalThis || typeof window === \"object\" && window;\n  __globalThis.__name = __name;\n}\n            webdriverioPolyfill();\n            return (()=>{const btn=document.querySelector(\".rb-hold-stop\");if(!btn||btn.getAttribute(\"aria-disabled\")===\"true\")return false;btn.dispatchEvent(new TouchEvent(\"touchstart\",{bubbles:true,cancelable:true}));return true}).apply(null, arguments)\n        ",
+  "args": []
+}

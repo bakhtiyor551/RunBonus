@@ -25,7 +25,7 @@ export default function AdBanner({ placement, user, className = '', style }) {
     return () => {
       cancelled = true;
     };
-  }, [placement, user?.city, user?.levelCode, user?.level?.code]);
+  }, [placement, user?.city]);
 
   useEffect(() => {
     if (!banner?.id || impressed.current) return;

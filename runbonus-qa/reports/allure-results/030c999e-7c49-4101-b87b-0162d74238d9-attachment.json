@@ -1,0 +1,8 @@
+{
+  "script": "\n            function webdriverioPolyfill() {\n  var __defProp = Object.defineProperty;\n  var __name = function(target, _value) {\n    return __defProp(target, \"name\", { value: _value, configurable: true });\n  };\n  var __globalThis = typeof globalThis === \"object\" && globalThis || typeof window === \"object\" && window;\n  __globalThis.__name = __name;\n}\n            webdriverioPolyfill();\n            return ((t,dId,cachedUser)=>{if(dId)localStorage.setItem(\"runbonus_device_id\",dId);localStorage.setItem(\"token\",t);if(cachedUser)localStorage.setItem(\"rb_user_cache\",cachedUser)}).apply(null, arguments)\n        ",
+  "args": [
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEzLCJpYXQiOjE3ODIzNjI0NzMsImV4cCI6MTc4NDk1NDQ3M30.NycuyKJny-CnDlaoRYL-B4t_ckSESwI092LVh5S1RbM",
+    "3d1a6361-c250-4e41-8287-706fcb35a1de",
+    ""
+  ]
+}

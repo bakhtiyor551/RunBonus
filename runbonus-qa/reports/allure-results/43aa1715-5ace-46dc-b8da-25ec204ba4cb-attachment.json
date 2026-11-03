@@ -1,0 +1,5 @@
+{
+  "error": "no such element",
+  "message": "no such element: Unable to locate element: {\"method\":\"xpath\",\"selector\":\"//*[contains(@class,\"rb-workout\")]\"}\n  (Session info: chrome=124.0.6367.219)",
+  "stacktrace": "\tGetHandleVerifier [0x00007FF7B59E1522+60802]\n\t(No symbol) [0x00007FF7B595AC22]\n\t(No symbol) [0x00007FF7B5817CE4]\n\t(No symbol) [0x00007FF7B5866D4D]\n\t(No symbol) [0x00007FF7B5866E1C]\n\t(No symbol) [0x00007FF7B58ACE37]\n\t(No symbol) [0x00007FF7B588ABBF]\n\t(No symbol) [0x00007FF7B58AA224]\n\t(No symbol) [0x00007FF7B588A923]\n\t(No symbol) [0x00007FF7B5858FEC]\n\t(No symbol) [0x00007FF7B5859C21]\n\tGetHandleVerifier [0x00007FF7B5CE41BD+3217949]\n\tGetHandleVerifier [0x00007FF7B5D26157+3488183]\n\tGetHandleVerifier [0x00007FF7B5D1F0DF+3459391]\n\tGetHandleVerifier [0x00007FF7B5A9B8E6+823622]\n\t(No symbol) [0x00007FF7B5965FBF]\n\t(No symbol) [0x00007FF7B5960EE4]\n\t(No symbol) [0x00007FF7B5961072]\n\t(No symbol) [0x00007FF7B59518C4]\n\tBaseThreadInitThunk [0x00007FFE6AB37374+20]\n\tRtlUserThreadStart [0x00007FFE6B8BCC91+33]\n"
+}

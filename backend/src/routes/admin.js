@@ -5,15 +5,10 @@ import { customAlphabet } from 'nanoid';
 import { pool } from '../db.js';
 import { config } from '../config.js';
 import { authAdmin } from '../middleware/auth.js';
-import { getUserBalance, spendBonus, manualAdjustBonus, topupClientBonus } from '../services/bonusService.js';
 import { formatDeviceAdminInfo, resetUserDevice } from '../services/deviceBinding.js';
-import adminAccountsRoutes from './adminAccounts.js';
-import adminBonusSettingsRoutes from './adminBonusSettings.js';
-import adminCustomerLevelsRoutes from './adminCustomerLevels.js';
 import adminPaymentMethodsRoutes from './adminPaymentMethods.js';
 import adminDeliveryMethodsRoutes from './adminDeliveryMethods.js';
 import adminMobileWalletsRoutes from './adminMobileWallets.js';
-import { getAdminClientLevelInfo } from '../services/customerLevelService.js';
 import { buildLiveSnapshot } from '../services/liveTrackingService.js';
 
 const router = Router();
@@ -48,6 +43,8 @@ router.get('/users', authAdmin, async (_req, res) => {
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.phone, u.city, u.status, u.created_at,
               u.device_id, u.device_bound_at,
+              (SELECT COALESCE(SUM(w.distance_km), 0) FROM workouts w
+               WHERE w.user_id = u.id AND w.status = 'approved') AS total_distance_km,
               s.unique_id AS activated_shoe_id,
               COALESCE(ubw.balance, (
                 SELECT balance_after FROM bonuses WHERE user_id = u.id ORDER BY id DESC LIMIT 1
@@ -64,6 +61,8 @@ router.get('/users', authAdmin, async (_req, res) => {
         return {
           ...r,
           balance: r.balance != null ? Number(r.balance) : 0,
+          total_distance_km: Number(r.total_distance_km) || 0,
+          total_km: Number(r.total_distance_km) || 0,
           device,
         };
       })
@@ -152,12 +151,7 @@ router.get('/workouts', authAdmin, async (_req, res) => {
       `SELECT w.id, w.user_id, u.name AS client_name, u.phone, w.distance_km, w.duration_seconds,
               w.avg_speed, w.max_speed, w.started_at, w.finished_at, w.status, w.reject_reason,
               w.background_tracking,
-              (SELECT COUNT(*) FROM workout_points wp WHERE wp.workout_id = w.id) AS points_count,
-              COALESCE(
-                (SELECT amount FROM user_bonus_transactions WHERE workout_id = w.id AND type = 'earn' LIMIT 1),
-                (SELECT amount FROM bonuses WHERE workout_id = w.id AND type = 'earn' LIMIT 1),
-                0
-              ) AS bonus
+              (SELECT COUNT(*) FROM workout_points wp WHERE wp.workout_id = w.id) AS points_count
        FROM workouts w
        JOIN users u ON u.id = w.user_id
        ORDER BY w.started_at DESC
@@ -167,7 +161,7 @@ router.get('/workouts', authAdmin, async (_req, res) => {
       rows.map((r) => ({
         ...r,
         distance_km: Number(r.distance_km),
-        bonus: r.bonus != null ? Number(r.bonus) : 0,
+        bonus: 0,
         points_count: Number(r.points_count) || 0,
       }))
     );
@@ -295,14 +289,6 @@ router.get('/users/:id', authAdmin, async (req, res) => {
     );
     const st = stats[0];
 
-    const [withdrawals] = await pool.query(
-      `SELECT
-         COUNT(*) AS total,
-         SUM(status IN ('pending', 'processing')) AS active
-       FROM withdrawal_requests WHERE user_id = ?`,
-      [userId]
-    );
-
     res.json({
       id: u.id,
       name: u.name,
@@ -317,7 +303,6 @@ router.get('/users/:id', authAdmin, async (req, res) => {
         available_balance: Math.round((balance - blocked) * 100) / 100,
         total_earned: w ? Number(w.total_earned) : 0,
         total_spent: w ? Number(w.total_spent) : 0,
-        total_withdrawn: w ? Number(w.total_withdrawn || 0) : 0,
       },
       shoe: u.shoe_id
         ? {
@@ -337,12 +322,7 @@ router.get('/users/:id', authAdmin, async (req, res) => {
         total_km: Number(st.total_km),
         total_bonus_calc: Number(st.total_bonus_calc),
       },
-      withdrawals: {
-        total: Number(withdrawals[0].total),
-        active: Number(withdrawals[0].active),
-      },
       device: formatDeviceAdminInfo(u.device_id, u.device_bound_at),
-      level_info: await getAdminClientLevelInfo(userId),
     });
   } catch (err) {
     console.error(err);
@@ -398,132 +378,27 @@ router.post('/users/reset-device', authAdmin, async (req, res) => {
   }
 });
 
-router.post('/bonus/topup', authAdmin, async (req, res) => {
-  const conn = await pool.getConnection();
-  try {
-    const { phone, user_id, amount, comment } = req.body;
-    const sum = Number(amount);
-    if ((!phone && !user_id) || !sum || sum <= 0) {
-      return res.status(400).json({ error: 'Укажите телефон или ID клиента и сумму больше 0' });
-    }
-
-    let user;
-    if (user_id) {
-      const [rows] = await conn.query('SELECT id, status, phone, name FROM users WHERE id = ?', [user_id]);
-      if (!rows.length) return res.status(404).json({ error: 'Клиент не найден' });
-      user = rows[0];
-    } else {
-      const [rows] = await conn.query('SELECT id, status, phone, name FROM users WHERE phone = ?', [phone]);
-      if (!rows.length) return res.status(404).json({ error: 'Клиент не найден' });
-      user = rows[0];
-    }
-
-    if (user.status === 'blocked') {
-      return res.status(403).json({ error: 'Клиент заблокирован' });
-    }
-
-    await conn.beginTransaction();
-    const result = await topupClientBonus(conn, {
-      userId: user.id,
-      amount: sum,
-      comment,
-      adminId: req.adminId,
-    });
-    await conn.commit();
-
-    res.json({
-      ok: true,
-      user_id: user.id,
-      phone: user.phone,
-      name: user.name,
-      balance_after: result.balanceAfter,
-      fund_after: result.fundAfter,
-    });
-  } catch (err) {
-    await conn.rollback();
-    if (err.code === 'INSUFFICIENT_FUND') {
-      return res.status(400).json({ error: 'Недостаточно средств на бонусном фонде' });
-    }
-    if (err.code === 'NO_BONUS_FUND') {
-      return res.status(400).json({ error: 'Бонусный фонд не найден или неактивен' });
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка пополнения' });
-  } finally {
-    conn.release();
-  }
+router.post('/bonus/topup', authAdmin, (_req, res) => {
+  res.status(410).json({
+    error: 'Пополнение бонусного баланса отключено. Используйте систему наград.',
+    code: 'WALLET_DEPRECATED',
+  });
 });
 
-router.post('/bonus/spend', authAdmin, async (req, res) => {
-  const conn = await pool.getConnection();
-  try {
-    const { phone, amount, comment } = req.body;
-    if (!phone || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'Укажите телефон и сумму' });
-    }
-
-    const [users] = await conn.query('SELECT id, status FROM users WHERE phone = ?', [phone]);
-    if (!users.length) {
-      return res.status(404).json({ error: 'Клиент не найден' });
-    }
-    const user = users[0];
-    if (user.status === 'blocked') {
-      return res.status(403).json({ error: 'Клиент заблокирован' });
-    }
-
-    await conn.beginTransaction();
-    const balanceAfter = await spendBonus(conn, {
-      userId: user.id,
-      amount: Number(amount),
-      comment,
-      adminId: req.adminId,
-    });
-    await conn.commit();
-
-    res.json({ ok: true, balance_after: balanceAfter });
-  } catch (err) {
-    await conn.rollback();
-    if (err.code === 'INSUFFICIENT_BALANCE') {
-      return res.status(400).json({ error: 'Недостаточно бонусов на кошельке клиента' });
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка списания' });
-  } finally {
-    conn.release();
-  }
+router.post('/bonus/manual', authAdmin, (_req, res) => {
+  res.status(410).json({
+    error: 'Ручное начисление бонусов отключено. Используйте /api/admin/rewards/*',
+    code: 'WALLET_DEPRECATED',
+  });
 });
 
-router.post('/bonus/manual', authAdmin, async (req, res) => {
-  const conn = await pool.getConnection();
-  try {
-    const { user_id, amount, type, comment } = req.body;
-    if (!user_id || !amount) {
-      return res.status(400).json({ error: 'Укажите user_id и amount' });
-    }
-    await conn.beginTransaction();
-    const balanceAfter = await manualAdjustBonus(conn, {
-      userId: user_id,
-      amount: Number(amount),
-      isRemove: type === 'remove',
-      comment,
-    });
-    await conn.commit();
-    res.json({ ok: true, balance_after: balanceAfter });
-  } catch (err) {
-    await conn.rollback();
-    if (err.code === 'NEGATIVE_BALANCE') {
-      return res.status(400).json({ error: 'Баланс не может быть отрицательным' });
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка' });
-  } finally {
-    conn.release();
-  }
+router.get('/bonus-fund', authAdmin, (_req, res) => {
+  res.status(410).json({
+    error: 'Бонусный фонд deprecated. Смотрите статистику наград.',
+    code: 'WALLET_DEPRECATED',
+  });
 });
 
-router.use(adminAccountsRoutes);
-router.use(adminBonusSettingsRoutes);
-router.use(adminCustomerLevelsRoutes);
 router.use(adminPaymentMethodsRoutes);
 router.use(adminDeliveryMethodsRoutes);
 router.use(adminMobileWalletsRoutes);

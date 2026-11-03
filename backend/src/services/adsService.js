@@ -549,13 +549,9 @@ function adTypesForPlacement(placement) {
   return ['banner_home', 'promo'];
 }
 
-function matchesAudience(campaign, city, level) {
+function matchesAudience(campaign, city) {
   if (campaign.audience_cities?.length && city) {
     if (!campaign.audience_cities.includes(city)) return false;
-  }
-  if (campaign.audience_levels?.length && level) {
-    const allowed = campaign.audience_levels.map((l) => String(l).toLowerCase());
-    if (!allowed.includes(String(level).toLowerCase())) return false;
   }
   return true;
 }
@@ -579,13 +575,12 @@ export async function listActiveBanners({ placement = 'banner_home', user = null
   );
 
   const city = user?.city?.trim() || null;
-  const level = user?.level_code ? String(user.level_code).toLowerCase() : null;
 
   const mapped = rows.map(mapCampaign);
-  const matched = mapped.filter((c) => matchesAudience(c, city, level));
+  const matched = mapped.filter((c) => matchesAudience(c, city));
   const poolList = matched.length
     ? matched
-    : mapped.filter((c) => !c.audience_cities?.length && !c.audience_levels?.length);
+    : mapped.filter((c) => !c.audience_cities?.length);
 
   return poolList.sort((a, b) => {
     if (a.ad_type === primaryType && b.ad_type !== primaryType) return -1;
@@ -594,25 +589,14 @@ export async function listActiveBanners({ placement = 'banner_home', user = null
   });
 }
 
-/** Город и уровень клиента для таргетинга баннеров. */
+/** Город клиента для таргетинга баннеров. */
 export async function resolveBannerAudienceUser(userId, query = {}) {
   const user = {
     city: query.city?.trim() || null,
-    level_code: query.level?.trim()?.toLowerCase() || null,
   };
   if (!userId) return user;
 
   const [rows] = await pool.query(`SELECT city FROM users WHERE id = ?`, [userId]);
   if (!user.city && rows[0]?.city) user.city = String(rows[0].city).trim();
-
-  try {
-    const { getUserLevelSummary } = await import('./customerLevelService.js');
-    const summary = await getUserLevelSummary(userId);
-    if (!user.level_code && summary?.current_level_code) {
-      user.level_code = String(summary.current_level_code).toLowerCase();
-    }
-  } catch {
-    /* уровни не настроены */
-  }
   return user;
 }

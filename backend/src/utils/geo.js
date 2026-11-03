@@ -29,12 +29,16 @@ export function normalizeGpsPoint(p) {
   const lat = Number(p.latitude ?? p.lat);
   const lng = Number(p.longitude ?? p.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const recorded =
+    p.recorded_at ?? p.timestamp ?? p.recordedAt ?? p.time ?? new Date().toISOString();
   return {
     latitude: lat,
     longitude: lng,
     speed: p.speed != null && p.speed !== '' ? Number(p.speed) : null,
     accuracy: p.accuracy != null && p.accuracy !== '' ? Number(p.accuracy) : null,
-    recorded_at: p.recorded_at,
+    altitude: p.altitude != null && p.altitude !== '' ? Number(p.altitude) : null,
+    course: p.course != null && p.course !== '' ? Number(p.course) : null,
+    recorded_at: recorded,
   };
 }
 

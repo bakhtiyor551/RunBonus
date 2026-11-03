@@ -1,0 +1,6 @@
+{
+  "script": "\n            function webdriverioPolyfill() {\n  var __defProp = Object.defineProperty;\n  var __name = function(target, _value) {\n    return __defProp(target, \"name\", { value: _value, configurable: true });\n  };\n  var __globalThis = typeof globalThis === \"object\" && globalThis || typeof window === \"object\" && window;\n  __globalThis.__name = __name;\n}\n            webdriverioPolyfill();\n            return (p=>{const fn=window.__rbE2EGotoOtp;return typeof fn===\"function\"&&fn(p)}).apply(null, arguments)\n        ",
+  "args": [
+    "+992939104140"
+  ]
+}
