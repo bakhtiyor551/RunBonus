@@ -14,7 +14,7 @@ String _normalizeApiUrl(String url) {
     return productionApiUrl;
   }
   // Старый Node слушал :3001 — на Go API это :3000.
-  return clean.replaceFirst(RegExp(r':3001(/|$)'), ':3000$1');
+  return clean.replaceFirst(RegExp(r':3001(/|$)'), r':3000$1');
 }
 
 String _resolveApiUrl() {
