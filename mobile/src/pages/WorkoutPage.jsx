@@ -7,6 +7,7 @@ import AppHeader from '../components/AppHeader';
 import Icon from '../components/Icon';
 import WorkoutMap from '../components/WorkoutMap';
 import HoldToStopButton from '../components/HoldToStopButton';
+import AppleMaps from '../plugins/appleMaps';
 import { api } from '../api';
 import {
   clearWorkoutLocal,
@@ -31,7 +32,7 @@ import {
 import { disconnectWorkoutSocket } from '../services/workoutSocket';
 import { syncActiveWorkoutWithServer } from '../services/activeWorkout';
 import { ensureWorkoutLiveActivity } from '../services/liveActivity';
-import { getDistanceUnits, formatDistance, formatSpeed } from '../services/units';
+import { getDistanceUnits, formatPace } from '../services/units';
 import WorkoutResultScreen from '../components/WorkoutResultScreen';
 import { fetchChallengeState, startChallenge } from '../services/challenges';
 
@@ -174,15 +175,22 @@ export default function WorkoutPage({ user, setUser }) {
     }
   };
 
-  const samplePoints = (pts, max = 120) => {
-    if (pts.length <= max) return pts;
+  const samplePoints = (pts, max = 400) => {
+    if (!pts?.length || pts.length <= max) return pts || [];
     const step = Math.ceil(pts.length / max);
-    return pts.filter((_, i) => i % step === 0);
+    const sampled = pts.filter((_, i) => i % step === 0);
+    const last = pts[pts.length - 1];
+    if (sampled[sampled.length - 1] !== last) sampled.push(last);
+    return sampled;
   };
 
   const finish = async () => {
     if (finishing || !workoutId) return;
     setFinishing(true);
+    // Убрать нативную карту — чтобы ничего не блокировало UI
+    if (Capacitor.getPlatform() === 'ios') {
+      AppleMaps.destroy().catch(() => {});
+    }
     freezeWorkoutForFinish();
     const snap = getWorkoutFinishSnapshot();
 
@@ -347,157 +355,127 @@ export default function WorkoutPage({ user, setUser }) {
     );
   }
 
-  const liveBadge = (
-    <div
-      className={`rb-badge-live ${
-        live.autoPaused
-          ? 'rb-badge-live--autopause'
-          : live.manualPaused
-            ? 'rb-badge-live--paused'
-            : 'rb-badge-live--active'
-      }`}
-    >
-      <span className="rb-badge-live__dot" />
-      <span>
-        {live.autoPaused
-          ? 'АВТОПАУЗА'
-          : live.manualPaused
-            ? 'ПАУЗА'
-            : 'АКТИВНА'}
-      </span>
-    </div>
-  );
+  const distKm = Number(live.distance) || 0;
+  const durationSec = Number(live.seconds) || 0;
+  const paceLabel =
+    distKm >= 0.05 && durationSec > 0
+      ? formatPace((distKm / durationSec) * 3600, units)
+      : '—';
+
+  let distanceValue = '—';
+  let distanceUnit = 'км';
+  if (distKm >= 0.01) {
+    if (distKm < 1 && units !== 'imperial') {
+      distanceValue = String(Math.round(distKm * 1000));
+      distanceUnit = 'м';
+    } else {
+      distanceValue = distKm.toFixed(2);
+      distanceUnit = units === 'imperial' ? 'ми' : 'км';
+    }
+  }
+
+  const statusText = live.autoPaused
+    ? 'Автопауза'
+    : live.manualPaused
+      ? 'Пауза'
+      : live.gpsReady
+        ? ''
+        : 'Ожидание GPS…';
+
+  const zoomMap = (delta) => {
+    if (Capacitor.getPlatform() === 'ios') {
+      AppleMaps.zoom({ delta }).catch(() => {});
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('rb-workout-map-zoom', { detail: { delta } }));
+  };
 
   return (
-    <IonPage className="rb-workout-screen">
-      <AppHeader showAvatar={false} badge={liveBadge} onBack={minimizeOrHome} />
-      <IonContent fullscreen>
-        <div className="rb-workout-layout">
-          <section className="rb-workout-layout__map">
-            <WorkoutMap points={live.points} livePosition={live.livePosition} interactive />
-          </section>
-
-          <main className={`rb-workout-layout__panel${live.autoPaused ? ' rb-workout-layout__panel--auto-paused' : ''}`}>
-            <div className={`rb-workout-dashboard${live.pauseSeconds > 0 ? '' : ' rb-workout-dashboard--no-pause'}`}>
-              <MetricCard
-                icon="timer"
-                label="Время"
-                value={formatDuration(live.seconds)}
-                area="timer"
-                accent="neon"
-                hero
-              />
-              <MetricCard
-                icon="straighten"
-                label="Дистанция"
-                value={formatDistance(live.distance, units)}
-                area="dist"
-                accent="cyan"
-              />
-              <MetricCard
-                icon="speed"
-                label="Скорость"
-                value={formatSpeed(live.currentSpeed, units)}
-                area="speed"
-                accent="neon"
-              />
-              <MetricCard
-                icon="directions_walk"
-                label="Шаги"
-                value={String(live.steps)}
-                area="steps"
-                accent="violet"
-              />
-              <MetricCard
-                icon="trending_flat"
-                label="Средняя"
-                value={formatSpeed(live.avgSpeed, units)}
-                area="avg"
-                accent="blue"
-                compact
-              />
-              <MetricCard
-                icon="bolt"
-                label="Макс."
-                value={formatSpeed(live.maxSpeed, units)}
-                area="max"
-                accent="orange"
-                compact
-              />
-              {live.pauseSeconds > 0 && (
-                <MetricCard
-                  icon="pause_circle"
-                  label="Пауза"
-                  value={formatDuration(live.pauseSeconds)}
-                  area="pause"
-                  accent="amber"
-                  compact
-                />
+    <IonPage className="rb-workout-live">
+      <header className="rb-workout-live__top">
+        <button
+          type="button"
+          className="rb-workout-live__back"
+          onClick={minimizeOrHome}
+          aria-label="Назад"
+        >
+          <Icon name="arrow_back" />
+        </button>
+        <div className="rb-workout-live__stats">
+          <div className="rb-workout-live__stat">
+            <div className="rb-workout-live__stat-value font-tabular">
+              {distanceValue === '—' ? (
+                <span className="rb-workout-live__dash">—</span>
+              ) : (
+                <>
+                  {distanceValue}
+                  <span className="rb-workout-live__unit">{distanceUnit}</span>
+                </>
               )}
             </div>
-
-            {(live.gpsError || !live.gpsReady) && (
-              <div className="rb-workout-status">
-                {live.gpsError && <p className="rb-text-error">{live.gpsError}</p>}
-                {!live.gpsReady && !live.gpsError && (
-                  <p className="rb-workout-status__gps">
-                    <Icon name="my_location" />
-                    Ожидание сигнала GPS…
-                  </p>
-                )}
-              </div>
-            )}
-
-            <p className="rb-workout-hint">
-              <Icon name="info" />
-              «Назад» сворачивает приложение — тренировка продолжается в фоне.
-            </p>
-
-            <div className="rb-workout-controls">
-              <button
-                type="button"
-                className={`rb-workout-controls__pause${live.autoPaused ? ' rb-workout-controls__pause--auto' : ''}`}
-                onClick={toggleWorkoutPause}
-                disabled={finishing || live.autoPaused}
-              >
-                <Icon name={live.manualPaused ? 'play_arrow' : live.autoPaused ? 'motion_sensor_active' : 'pause'} filled />
-                {live.autoPaused ? 'Автопауза' : live.manualPaused ? 'Продолжить' : 'Пауза'}
-              </button>
-              <HoldToStopButton
-                onStop={finish}
-                disabled={finishing}
-                label={finishing ? 'Завершение…' : 'Удерживайте для остановки'}
-              />
+            <div className="rb-workout-live__stat-label">Дистанция</div>
+          </div>
+          <div className="rb-workout-live__stat rb-workout-live__stat--center">
+            <div className="rb-workout-live__stat-value rb-workout-live__stat-value--time font-tabular">
+              {formatDuration(durationSec)}
             </div>
-          </main>
+            <div className="rb-workout-live__stat-label">Время</div>
+          </div>
+          <div className="rb-workout-live__stat">
+            <div className="rb-workout-live__stat-value font-tabular">
+              {paceLabel === '—' ? <span className="rb-workout-live__dash">—</span> : paceLabel.replace(/ \/.*/, '')}
+            </div>
+            <div className="rb-workout-live__stat-label">Темп</div>
+          </div>
         </div>
-      </IonContent>
-    </IonPage>
-  );
-}
+      </header>
 
-function MetricCard({ icon, label, value, area, accent = 'neon', hero = false, compact = false }) {
-  return (
-    <div
-      className={[
-        'rb-workout-metric',
-        'glass-card',
-        `rb-workout-metric--${accent}`,
-        hero ? 'rb-workout-metric--hero' : '',
-        compact ? 'rb-workout-metric--compact' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      style={{ gridArea: area }}
-    >
-      <div className="rb-workout-metric__icon" aria-hidden>
-        <Icon name={icon} filled={hero} />
+      <div className="rb-workout-live__map">
+        <WorkoutMap points={live.points} livePosition={live.livePosition} interactive />
       </div>
-      <div className="rb-workout-metric__body">
-        <span className="rb-workout-metric__value font-display font-tabular">{value}</span>
-        <span className="rb-workout-metric__label">{label}</span>
-      </div>
-    </div>
+
+      {(statusText || live.gpsError) && (
+        <div className="rb-workout-live__toast" role="status">
+          {live.gpsError || statusText}
+        </div>
+      )}
+
+      <footer className="rb-workout-live__dock">
+        <div className="rb-workout-live__zoom">
+          <button
+            type="button"
+            className="rb-workout-live__zoom-btn"
+            onClick={() => zoomMap(1)}
+            aria-label="Приблизить карту"
+          >
+            <Icon name="add" />
+          </button>
+          <button
+            type="button"
+            className="rb-workout-live__zoom-btn"
+            onClick={() => zoomMap(-1)}
+            aria-label="Отдалить карту"
+          >
+            <Icon name="remove" />
+          </button>
+        </div>
+        <button
+          type="button"
+          className={`rb-workout-live__pause${live.paused ? ' is-paused' : ''}`}
+          onClick={toggleWorkoutPause}
+          disabled={finishing || live.autoPaused}
+          aria-label={live.manualPaused ? 'Продолжить' : 'Пауза'}
+        >
+          <Icon name={live.manualPaused ? 'play_arrow' : 'pause'} filled />
+        </button>
+        <HoldToStopButton
+          variant="fab"
+          onStop={finish}
+          disabled={finishing}
+          label={finishing ? 'Завершение…' : 'Удерживайте для завершения'}
+        />
+      </footer>
+    </IonPage>
   );
 }
 

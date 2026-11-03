@@ -35,6 +35,7 @@ function WorkoutResultMap({ points = [], className = '' }) {
       <NativeAppleWorkoutMap
         points={points}
         followUser={false}
+        includeLive={false}
         className={`rb-result-map ${className}`.trim()}
       />
     );

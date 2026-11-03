@@ -2487,31 +2487,322 @@ html.rb-keyboard-open .rb-main {
   text-align: center;
 }
 
+/* ========== Live workout (map-first) ========== */
+.rb-workout-live {
+  --background: #f4f4f5;
+  background: #f4f4f5;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.rb-workout-live__top {
+  flex: 0 0 auto;
+  z-index: 20;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 12px;
+  background: #f7f7f8;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+
+.rb-workout-live__back {
+  position: absolute;
+  left: 10px;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.rb-workout-live__stats {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 8px;
+  align-items: end;
+  padding: 28px 4px 4px;
+}
+
+.rb-workout-live__stat {
+  text-align: center;
+  min-width: 0;
+}
+
+.rb-workout-live__stat--center .rb-workout-live__stat-value {
+  font-size: clamp(1.6rem, 7vw, 2.1rem);
+}
+
+.rb-workout-live__stat-value {
+  font-size: clamp(1.35rem, 5.5vw, 1.75rem);
+  font-weight: 700;
+  color: #111;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-style: italic;
+}
+
+.rb-workout-live__stat-value--time {
+  font-style: italic;
+}
+
+.rb-workout-live__unit {
+  margin-left: 3px;
+  font-size: 0.55em;
+  font-weight: 600;
+  font-style: normal;
+  vertical-align: super;
+  color: #666;
+}
+
+.rb-workout-live__dash {
+  color: #bbb;
+  font-style: normal;
+}
+
+.rb-workout-live__stat-label {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #8a8a8e;
+  text-transform: uppercase;
+}
+
+.rb-workout-live__map {
+  flex: 1 1 auto !important;
+  position: relative;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  background: #e8e8ed;
+  overflow: hidden;
+  border-bottom: none !important;
+}
+
+.rb-workout-live__map .rb-native-apple-map,
+.rb-workout-live__map .leaflet-container,
+.rb-workout-live__map > div {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.rb-workout-live__toast {
+  position: absolute;
+  left: 50%;
+  top: calc(120px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 25;
+  max-width: 86%;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.82);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Вне слота карты — иначе MKMapView перекрывает HTML-кнопки */
+.rb-workout-live__dock {
+  position: relative;
+  z-index: 90;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: #f7f7f8;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.rb-workout-live__dock > * {
+  pointer-events: auto;
+}
+
+.rb-workout-live__zoom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rb-workout-live__zoom-btn {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: #111;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rb-workout-live__pause {
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: #111;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rb-workout-live__pause.is-paused {
+  background: #34c759;
+  color: #fff;
+}
+
+.rb-workout-live__pause:disabled {
+  opacity: 0.5;
+}
+
+.rb-hold-fab {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rb-hold-fab__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: 3px;
+  background: transparent;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.rb-hold-fab__inner {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: rgba(44, 44, 46, 0.28);
+  border: 1.5px solid rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.rb-hold-fab__inner .material-symbols-outlined {
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.rb-hold-fab--active .rb-hold-fab__inner {
+  transform: scale(0.96);
+  background: rgba(44, 44, 46, 0.45);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.rb-hold-fab--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* ========== end live workout ========== */
+
 .rb-workout-screen ion-content {
   --padding-top: 0;
+  --background: #131313;
+  background: #131313;
+  --overflow: auto;
+}
+
+.rb-workout-screen ion-content::part(scroll) {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.rb-workout-content {
+  --overflow: auto;
+}
+
+.rb-workout-screen {
+  --background: #131313;
+  background: #131313;
 }
 
 .rb-workout-layout {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  background: #131313;
 }
 
+/* Слот = точный размер нативной карты (без серого «хвоста») */
 .rb-workout-layout__map {
-  height: 42vh;
-  min-height: 220px;
-  max-height: 360px;
+  flex: 0 0 200px;
+  height: 200px !important;
+  min-height: 200px !important;
+  max-height: 200px !important;
+  position: relative;
+  overflow: hidden;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #131313;
 }
 
 .rb-workout-layout__panel {
-  flex: 1;
-  padding: 16px var(--rb-container-margin) calc(24px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, rgba(19, 19, 19, 0) 0%, rgba(19, 19, 19, 0.6) 100%);
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  padding: 16px var(--rb-container-margin) 16px;
+  background: #131313 !important;
 }
 
 .rb-workout-layout__panel--auto-paused {
-  background: linear-gradient(180deg, rgba(255, 159, 10, 0.04) 0%, rgba(19, 19, 19, 0.85) 40%);
+  background: #131313 !important;
+}
+
+/* Кнопки всегда на экране */
+.rb-workout-controls-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  padding: 10px var(--rb-container-margin) calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(19, 19, 19, 0) 0%, #131313 28%);
+  pointer-events: none;
+}
+
+.rb-workout-controls-bar .rb-workout-controls {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  z-index: 40;
 }
 
 .rb-workout-dashboard {
@@ -2697,23 +2988,20 @@ html.rb-keyboard-open .rb-main {
 }
 
 .rb-workout-map {
-  position: relative;
+  position: absolute;
+  inset: 0;
   height: 100%;
-  min-height: 180px;
-  background: #1b1b1b;
+  min-height: 0;
+  background: #131313;
   overflow: hidden;
 }
 
 .rb-workout-map--apple {
-  background: #e8e8ed;
+  background: #131313;
 }
 
 .rb-workout-map__apple-slot {
-  width: 100%;
-  height: 100%;
-  min-height: 180px;
-  /* Прозрачный слот: поверх него MKMapView */
-  background: transparent;
+  display: none;
 }
 
 .rb-workout-map .leaflet-container {
@@ -2753,7 +3041,8 @@ html.rb-keyboard-open .rb-main {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  touch-action: none;
+  position: relative;
+  z-index: 40;
 }
 
 .rb-workout-controls__pause {
@@ -2794,6 +3083,7 @@ html.rb-keyboard-open .rb-main {
 
 .rb-hold-stop {
   position: relative;
+  z-index: 50;
   width: 100%;
   min-height: 56px;
   border: none;
@@ -2886,6 +3176,7 @@ html.rb-keyboard-open .rb-main {
   overflow: hidden;
   margin: 16px 0;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
 }
 
 .rb-workout-result-grid {

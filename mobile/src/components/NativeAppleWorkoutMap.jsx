@@ -1,68 +1,115 @@
 import { useEffect, useRef } from 'react';
 import AppleMaps from '../plugins/appleMaps';
 
+function slotEl(el) {
+  return (
+    el?.closest('.rb-workout-live__map') ||
+    el?.closest('.rb-workout-layout__map') ||
+    el?.closest('.rb-result-screen__map') ||
+    el?.closest('.rb-workout-detail-map') ||
+    el
+  );
+}
+
+/** Точный rect HTML-слота = frame нативной карты (1:1). */
 function rectPayload(el) {
-  const r = el.getBoundingClientRect();
+  const slot = slotEl(el);
+  if (!slot) return null;
+  const r = slot.getBoundingClientRect();
+  if (r.width < 8 || r.height < 8) return null;
+
+  // Для fullscreen-карты берём реальную высоту слота
+  const height = Math.min(Math.max(Math.round(r.height), 160), Math.round(window.innerHeight));
+
   return {
-    x: r.left,
-    y: r.top,
-    width: r.width,
-    height: r.height,
+    x: Math.max(0, Math.round(r.left)),
+    y: Math.max(0, Math.round(r.top)),
+    width: Math.round(r.width) || Math.round(window.innerWidth),
+    height,
+    maxHeight: height,
   };
 }
 
-function toNativePoints(points = [], livePosition = null) {
-  const out = [];
+export function toFlatCoords(points = [], livePosition = null, { includeLive = true } = {}) {
+  const coords = [];
+  let lastLat = null;
+  let lastLng = null;
+  const push = (lat, lng) => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+    if (lastLat != null && Math.abs(lastLat - lat) < 1e-7 && Math.abs(lastLng - lng) < 1e-7) return;
+    coords.push(lat, lng);
+    lastLat = lat;
+    lastLng = lng;
+  };
   for (const p of points) {
-    const lat = Number(p.latitude);
-    const lng = Number(p.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-    out.push({ latitude: lat, longitude: lng });
+    push(Number(p.latitude ?? p.lat), Number(p.longitude ?? p.lng ?? p.lon));
   }
-  if (
-    livePosition &&
-    Number.isFinite(livePosition.latitude) &&
-    Number.isFinite(livePosition.longitude)
-  ) {
-    const last = out[out.length - 1];
-    if (
-      !last ||
-      last.latitude !== livePosition.latitude ||
-      last.longitude !== livePosition.longitude
-    ) {
-      out.push({
-        latitude: livePosition.latitude,
-        longitude: livePosition.longitude,
-      });
-    }
+  if (includeLive && livePosition) {
+    push(Number(livePosition.latitude), Number(livePosition.longitude));
   }
-  return out;
+  return coords;
 }
 
-/**
- * iOS: нативная Apple Maps (MKMapView) поверх WebView.
- * Без Carto / Esri / OSM / Leaflet.
- */
+function routeKey(coords) {
+  if (!coords.length) return '';
+  const n = coords.length;
+  return `${n}:${coords[0].toFixed(5)},${coords[1].toFixed(5)}:${coords[n - 2].toFixed(5)},${coords[n - 1].toFixed(5)}`;
+}
+
 export default function NativeAppleWorkoutMap({
   points = [],
   livePosition = null,
   followUser = true,
+  includeLive = true,
   className = '',
 }) {
   const hostRef = useRef(null);
   const readyRef = useRef(false);
   const lastRouteKey = useRef('');
+  const lastFrameKey = useRef('');
+  const latestRef = useRef({ points, livePosition, followUser, includeLive });
+  latestRef.current = { points, livePosition, followUser, includeLive };
 
   useEffect(() => {
     let cancelled = false;
     let raf = 0;
+    let pollId = 0;
     const el = hostRef.current;
     if (!el) return undefined;
 
-    const syncFrame = async () => {
+    const syncFrame = async (force = false) => {
       if (!readyRef.current || !hostRef.current) return;
+      const frame = rectPayload(hostRef.current);
+      if (!frame) return;
+
+      const onScreen = frame.y < window.innerHeight - 40 && frame.y + frame.height > 40;
       try {
-        await AppleMaps.setFrame(rectPayload(hostRef.current));
+        await AppleMaps.setVisible({ visible: onScreen });
+      } catch {
+        /* ignore */
+      }
+      if (!onScreen) return;
+
+      const key = `${frame.x},${frame.y},${frame.width},${frame.height}`;
+      if (!force && key === lastFrameKey.current) return;
+      lastFrameKey.current = key;
+      try {
+        await AppleMaps.setFrame(frame);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const pushRoute = async (fit) => {
+      const { points: pts, livePosition: live, followUser: follow, includeLive: withLive } =
+        latestRef.current;
+      const coords = toFlatCoords(pts, live, { includeLive: withLive !== false });
+      const key = routeKey(coords);
+      if (key === lastRouteKey.current && !fit) return;
+      lastRouteKey.current = key;
+      try {
+        await AppleMaps.setRoute({ coords, fit: fit ?? !follow });
       } catch {
         /* ignore */
       }
@@ -70,19 +117,27 @@ export default function NativeAppleWorkoutMap({
 
     const boot = async () => {
       try {
-        const frame = rectPayload(el);
-        await AppleMaps.create({
-          ...frame,
-          followUser,
-          points: toNativePoints(points, livePosition),
-        });
+        await new Promise((r) => setTimeout(r, 150));
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        if (cancelled || !hostRef.current) return;
+
+        const frame = rectPayload(hostRef.current);
+        if (!frame) return;
+
+        const { points: pts, livePosition: live, followUser: follow, includeLive: withLive } =
+          latestRef.current;
+        const coords = toFlatCoords(pts, live, { includeLive: withLive !== false });
+
+        await AppleMaps.create({ ...frame, followUser: follow, coords });
         if (cancelled) {
           await AppleMaps.destroy().catch(() => {});
           return;
         }
         readyRef.current = true;
-        lastRouteKey.current = '';
-        await syncFrame();
+        lastFrameKey.current = `${frame.x},${frame.y},${frame.width},${frame.height}`;
+        lastRouteKey.current = routeKey(coords);
+        await syncFrame(true);
+        await pushRoute(!follow);
       } catch (err) {
         console.warn('[AppleMaps] create failed', err);
       }
@@ -90,31 +145,39 @@ export default function NativeAppleWorkoutMap({
 
     boot();
 
-    const onScroll = () => {
+    const onLayout = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(syncFrame);
+      raf = requestAnimationFrame(() => syncFrame(false));
     };
-    window.addEventListener('resize', onScroll);
-    window.addEventListener('scroll', onScroll, true);
-    document.addEventListener('ionScroll', onScroll, true);
+    window.addEventListener('resize', onLayout);
+    window.addEventListener('scroll', onLayout, true);
+    document.addEventListener('ionScroll', onLayout, true);
 
     let ro;
     if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(onScroll);
-      ro.observe(el);
+      ro = new ResizeObserver(onLayout);
+      const slot = slotEl(el);
+      if (slot) ro.observe(slot);
     }
+
+    pollId = window.setInterval(() => syncFrame(false), 350);
+    const stopPoll = window.setTimeout(() => {
+      clearInterval(pollId);
+      pollId = 0;
+    }, 8000);
 
     return () => {
       cancelled = true;
       readyRef.current = false;
       cancelAnimationFrame(raf);
-      window.removeEventListener('resize', onScroll);
-      window.removeEventListener('scroll', onScroll, true);
-      document.removeEventListener('ionScroll', onScroll, true);
+      clearInterval(pollId);
+      clearTimeout(stopPoll);
+      window.removeEventListener('resize', onLayout);
+      window.removeEventListener('scroll', onLayout, true);
+      document.removeEventListener('ionScroll', onLayout, true);
       ro?.disconnect();
       AppleMaps.destroy().catch(() => {});
     };
-    // mount once per screen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -125,31 +188,18 @@ export default function NativeAppleWorkoutMap({
 
   useEffect(() => {
     if (!readyRef.current) return;
-    const nativePoints = toNativePoints(points, livePosition);
-    const key = nativePoints.map((p) => `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`).join('|');
+    const coords = toFlatCoords(points, livePosition, { includeLive });
+    const key = routeKey(coords);
     if (key === lastRouteKey.current) return;
     lastRouteKey.current = key;
-    AppleMaps.setRoute({ points: nativePoints, fit: !followUser }).catch(() => {});
-  }, [points, livePosition, followUser]);
-
-  useEffect(() => {
-    const hide = () => AppleMaps.setVisible({ visible: false }).catch(() => {});
-    const show = () => AppleMaps.setVisible({ visible: true }).catch(() => {});
-    document.addEventListener('ionViewWillLeave', hide);
-    document.addEventListener('ionViewDidEnter', show);
-    return () => {
-      document.removeEventListener('ionViewWillLeave', hide);
-      document.removeEventListener('ionViewDidEnter', show);
-    };
-  }, []);
+    AppleMaps.setRoute({ coords, fit: !followUser }).catch(() => {});
+  }, [points, livePosition, followUser, includeLive]);
 
   return (
     <div
       ref={hostRef}
       className={`rb-workout-map rb-workout-map--apple ${className}`.trim()}
       aria-label="Apple Maps"
-    >
-      <div className="rb-workout-map__apple-slot" />
-    </div>
+    />
   );
 }

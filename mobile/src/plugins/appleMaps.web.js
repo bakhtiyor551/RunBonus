@@ -15,6 +15,10 @@ export class AppleMapsWeb {
     return { ok: false };
   }
 
+  async zoom() {
+    return { ok: false };
+  }
+
   async setVisible() {
     return { ok: false };
   }

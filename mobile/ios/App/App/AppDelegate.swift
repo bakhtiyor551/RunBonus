@@ -10,7 +10,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     ) -> Bool {
         return true
     }
-
+	
     func application(
         _ application: UIApplication,
         configurationForConnecting connectingSceneSession: UISceneSession,

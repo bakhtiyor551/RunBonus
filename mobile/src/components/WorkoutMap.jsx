@@ -5,6 +5,19 @@ import 'leaflet/dist/leaflet.css';
 import { MapSizeFix, RobustTileLayer } from './mapTiles';
 import NativeAppleWorkoutMap from './NativeAppleWorkoutMap';
 
+function LeafletZoomBridge() {
+  const map = useMap();
+  useEffect(() => {
+    const onZoom = (e) => {
+      const delta = Number(e.detail?.delta) || 0;
+      map.setZoom(map.getZoom() + delta, { animate: true });
+    };
+    window.addEventListener('rb-workout-map-zoom', onZoom);
+    return () => window.removeEventListener('rb-workout-map-zoom', onZoom);
+  }, [map]);
+  return null;
+}
+
 function FollowLive({ lat, lng, interactive }) {
   const map = useMap();
   const fittedRef = useRef(false);
@@ -70,6 +83,7 @@ function WorkoutMap({ points = [], livePosition = null, interactive = true, clas
       >
         <RobustTileLayer variant="dark" />
         <MapSizeFix />
+        <LeafletZoomBridge />
         {positions.length >= 2 && (
           <Polyline
             positions={positions}
