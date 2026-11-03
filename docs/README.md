@@ -14,6 +14,7 @@
 | [Админ-панель](ADMIN.md) | Разделы админки, Live GPS, награды |
 | [Тренировки и GPS](WORKOUTS.md) | Трекинг, фильтрация GPS, anti-fraud |
 | [База данных](DATABASE.md) | Схема, миграции, основные таблицы |
+| [Миграция на Go](GO_MIGRATION.md) | Аудит API, этапы, проверка паритета, переключение production |
 | [Деплой](DEPLOYMENT.md) | Продакшен, iOS, DNS, переменные окружения |
 
 ## Кратко о проекте
@@ -31,6 +32,7 @@
 ```
 RunBonus/
 ├── backend/     API (Node.js + Express + MySQL)
+├── backend-go/  API на Go — постепенная замена backend/
 ├── mobile/      Клиентское приложение (Flutter)
 ├── admin/       Панель администратора (React + Vite)
 ├── database/    schema.sql и миграции

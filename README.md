@@ -31,6 +31,7 @@ MVP платформы лояльности: мобильное приложен
 ```
 RunBonus/
 ├── backend/       Node.js + Express + MySQL
+├── backend-go/    Go API — постепенная замена backend/ (docs/GO_MIGRATION.md)
 ├── mobile/        Flutter-приложение (Android / iOS)
 ├── admin/         React админ-панель (Vite)
 ├── database/      schema.sql + migrations/

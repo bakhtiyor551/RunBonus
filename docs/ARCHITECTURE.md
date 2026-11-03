@@ -22,6 +22,7 @@ flowchart LR
 | Папка | Стек | Порт (dev) |
 |-------|------|------------|
 | `backend/` | Node.js, Express, mysql2 | 3001 |
+| `backend-go/` | Go (chi, database/sql) — замена Node, см. [GO_MIGRATION.md](GO_MIGRATION.md) | 8080 |
 | `mobile/` | Flutter (Dart), Android + iOS | — |
 | `admin/` | React, Vite | 5174 |
 | `database/` | SQL schema + migrations | — |
