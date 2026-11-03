@@ -19,11 +19,8 @@
    ```
    Должен быть **200 OK**, без `302` и без `Namecheap URL Forward`.
 
-5. В проекте снова указать в `mobile/.env.production`:
-   ```
-   VITE_API_URL=http://runbonus.online
-   ```
-   и пересобрать приложение.
+5. В проекте поменять `productionApiUrl` в `mobile/lib/core/config.dart`
+   (или собрать с `--dart-define=API_URL=...`) и пересобрать приложение.
 
 ## Мобильное приложение: почему не работает runbonus.online
 
@@ -34,6 +31,6 @@
 
 В браузере то же даёт **ошибку CORS**.
 
-**Сейчас в приложении:** `VITE_API_URL=https://runbonus.online`  
+**Сейчас в приложении:** `productionApiUrl = 'https://runbonus.online'` (`mobile/lib/core/config.dart`)  
 Сервер nginx перенаправляет `http://161.129.67.147` → `https://runbonus.online`.  
 Используйте **HTTPS**, не HTTP и не голый IP.

@@ -22,7 +22,7 @@
 
 ## Фильтрация GPS (клиент)
 
-Файл: `mobile/src/services/gpsFilter.js`
+Файл: `mobile/lib/workout/gps_filter.dart`
 
 Перед записью точка проходит фильтры:
 
@@ -71,9 +71,9 @@
 
 | Файл | Роль |
 |------|------|
-| `mobile/src/services/gpsFilter.js` | Алгоритмы фильтрации |
-| `mobile/src/services/geolocation.js` | Capacitor GPS |
-| `mobile/src/services/workoutTracker.js` | Сессия тренировки |
+| `mobile/lib/workout/gps_filter.dart` | Алгоритмы фильтрации |
+| `mobile/lib/workout/geolocation.dart` | GPS (geolocator) |
+| `mobile/lib/workout/workout_tracker.dart` | Сессия тренировки |
 | `backend/src/utils/geo.js` | Серверная фильтрация |
 | `backend/src/services/workoutValidation.js` | Проверка при finish |
 | `admin/src/components/WorkoutsLivePanel.jsx` | Live карта |

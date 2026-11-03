@@ -1,79 +1,73 @@
 # RunBonus — сборка для iOS
 
-Сборка и публикация в App Store возможны **только на Mac** с установленными Xcode и CocoaPods.
+Сборка и публикация в App Store возможны **только на Mac** с Xcode.
 
 ## Требования (Mac)
 
-- macOS 13+
-- [Xcode](https://developer.apple.com/xcode/) 15+ (из App Store)
+- macOS 14+
+- [Xcode](https://developer.apple.com/xcode/) 16+ (из App Store)
 - Xcode Command Line Tools: `xcode-select --install`
-- [CocoaPods](https://cocoapods.org/): `sudo gem install cocoapods`
-- Node.js 18+
+- Flutter: `brew install --cask flutter` (проверка — `flutter doctor`)
 
-## Подготовка проекта (Windows или Mac)
+Зависимости плагинов подтягиваются через Swift Package Manager автоматически при первой сборке.
+
+## Запуск
 
 ```bash
 cd mobile
-npm install
-npm run build:ios
+flutter pub get
+flutter run            # выбранный симулятор или подключённый iPhone
 ```
 
-Команда собирает веб-приложение и копирует его в `mobile/ios/App/App/public`.
-
-## Сборка на Mac
+Для работы с локальным backend на реальном iPhone:
 
 ```bash
-cd mobile/ios/App
-pod install
-cd ../..
-npx cap open ios
+flutter run --dart-define=API_URL=http://192.168.x.x:3001
 ```
 
-В Xcode:
+(замените на IP вашего Mac в той же Wi‑Fi сети). В release-сборке API всегда `https://runbonus.online`.
 
-1. Выберите команду **App** → цель **App**.
-2. Вкладка **Signing & Capabilities** — укажите свою **Team** (Apple Developer).
-3. Устройство: симулятор или подключённый iPhone.
-4. **Product → Run** (▶) — запуск на устройстве/симуляторе.
-5. **Product → Archive** — сборка для TestFlight / App Store.
+## Подпись и публикация
 
-## API (продакшен)
+1. `open ios/Runner.xcworkspace`
+2. В **Signing & Capabilities** проверьте Team (`D7D288U3N8`) для обоих target: **Runner** и **WorkoutLiveActivityExtension**.
+3. Соберите архив: `flutter build ipa` → `build/ios/ipa/`. Загрузите его через Transporter или **Xcode → Organizer**.
 
-В `mobile/.env.production`:
+## Target'ы
 
-```
-VITE_API_URL=https://runbonus.online
-```
-
-На **реальном iPhone** для разработки с локальным backend укажите в `.env`:
-
-```
-VITE_API_URL=http://192.168.x.x:3001
-```
-
-(замените на IP вашего Mac/ПК в одной Wi‑Fi сети).
+| Target | Bundle ID | Назначение |
+|--------|-----------|------------|
+| Runner | `com.runbonus.app` | Приложение (iOS 15.6+) |
+| WorkoutLiveActivityExtension | `com.runbonus.app.WorkoutLiveActivityExtension` | Live Activity / Dynamic Island (iOS 16.2+) |
 
 ## Разрешения (уже в Info.plist)
 
 | Ключ | Назначение |
 |------|------------|
-| Геолокация | Тренировки, GPS-маршрут |
-| Камера | Сканирование QR кроссовок |
+| Геолокация (When In Use / Always) | Тренировки, GPS-маршрут |
+| Motion | Шаги во время тренировки |
+| Камера, фото | Аватар, чек оплаты |
 | Фон — location | Тренировка при свёрнутом приложении |
-| ATS | HTTP/HTTPS к API (продакшен: **https://runbonus.online**) |
+| Live Activities | Метрики на экране блокировки |
+| ATS | HTTP-исключения для `runbonus.online`, IP сервера, `localhost` |
+| GADApplicationIdentifier | Google AdMob (сейчас тестовый ID — замените на свой) |
+
+## Push-уведомления
+
+Для push на iOS:
+
+1. Скачайте `GoogleService-Info.plist` из Firebase Console и добавьте его в `ios/Runner` (target Runner).
+2. Включите capability **Push Notifications**.
+3. Загрузите APNs-ключ в Firebase.
+
+Без этих шагов приложение работает, просто не регистрирует push-токен.
 
 ## Частые проблемы
 
-**`pod install` не найден** — установите CocoaPods на Mac.
+**Signing error** — в Xcode выберите Apple ID / Team для обоих target'ов.
 
-**Signing error** — в Xcode выберите Apple ID в Signing & Capabilities.
+**Нет сети на iPhone** — в релизе API `https://runbonus.online`; проверьте, что сайт открывается в Safari.
 
-**Нет сети на iPhone** — в релизе API: `https://runbonus.online`. Проверьте интернет и что сайт открывается в Safari.
+**Симулятор не видит API** — backend должен работать на Mac. В debug симулятор ходит на `http://localhost:3001`.
 
-**Ошибка HTML вместо JSON** — пересоберите: `npm run build:ios` (в `.env.production` только `https://runbonus.online`, без второй строки `VITE_API_URL`).
-
-**Симулятор не видит localhost API** — backend должен работать на Mac; для API используется `http://localhost:3001` только в симуляторе.
-
-## Bundle ID
-
-`com.runbonus.app` — тот же, что и Android.
+**Live Activity не появляется** — нужен iOS 16.2+ и включённые «Live Activities» в настройках приложения. Активность создаётся только когда приложение на экране.

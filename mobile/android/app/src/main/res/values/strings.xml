@@ -1,9 +1,6 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">RunBonus</string>
-    <string name="title_activity_main">RunBonus</string>
-    <string name="package_name">com.runbonus.app</string>
-    <string name="custom_url_scheme">com.runbonus.app</string>
     <!-- Google AdMob App ID — замените на свой из admob.google.com -->
     <string name="admob_app_id">ca-app-pub-3940255089942544~3347511713</string>
 </resources>

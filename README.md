@@ -31,7 +31,7 @@ MVP платформы лояльности: мобильное приложен
 ```
 RunBonus/
 ├── backend/       Node.js + Express + MySQL
-├── mobile/        Ionic React + Capacitor (Android / iOS)
+├── mobile/        Flutter-приложение (Android / iOS)
 ├── admin/         React админ-панель (Vite)
 ├── database/      schema.sql + migrations/
 ├── deploy/        iOS, DNS

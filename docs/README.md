@@ -10,7 +10,7 @@
 | [Архитектура](ARCHITECTURE.md) | Структура репозитория, потоки данных, технологии |
 | [API](API.md) | REST API: эндпоинты, авторизация, примеры |
 | [Миграция на награды](REWARDS_MIGRATION.md) | Удаление кошелька, milestones, чеклист |
-| [Мобильное приложение](MOBILE.md) | Ionic/Capacitor, сборка Android/iOS, GPS |
+| [Мобильное приложение](MOBILE.md) | Flutter, сборка Android/iOS, GPS |
 | [Админ-панель](ADMIN.md) | Разделы админки, Live GPS, награды |
 | [Тренировки и GPS](WORKOUTS.md) | Трекинг, фильтрация GPS, anti-fraud |
 | [База данных](DATABASE.md) | Схема, миграции, основные таблицы |
@@ -31,7 +31,7 @@
 ```
 RunBonus/
 ├── backend/     API (Node.js + Express + MySQL)
-├── mobile/      Клиентское приложение (Ionic React + Capacitor)
+├── mobile/      Клиентское приложение (Flutter)
 ├── admin/       Панель администратора (React + Vite)
 ├── database/    schema.sql и миграции
 ├── deploy/      Заметки по iOS и DNS

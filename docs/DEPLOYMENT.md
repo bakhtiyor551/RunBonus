@@ -72,16 +72,12 @@ TELEGRAM_CHAT_ID=...
 
 ## Mobile (production build)
 
-`mobile/.env.production`:
-
-```env
-VITE_API_URL=https://runbonus.online
-```
+Release-сборка всегда ходит на `https://runbonus.online` (`productionApiUrl` в `mobile/lib/core/config.dart`).
 
 ```bash
 cd mobile
-npm run build:release   # Android
-npm run build:ios       # iOS
+flutter build appbundle   # Android (Google Play)
+flutter build ipa         # iOS (только Mac)
 ```
 
 ## Admin (production build)
@@ -122,7 +118,7 @@ location /admin/ {
 - [ ] Настроить SMS (OsonSMS)
 - [ ] Пополнить бонусный фонд в админке
 - [ ] SSL на API
-- [ ] `VITE_API_URL` указывает на HTTPS
+- [ ] `productionApiUrl` в мобильном приложении указывает на HTTPS
 - [ ] Firebase для push (опционально)
 - [ ] Telegram для уведомлений о заказах/выводах
 - [ ] Резервное копирование MySQL

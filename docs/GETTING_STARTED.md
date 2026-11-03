@@ -42,40 +42,33 @@ API будет доступен на `http://localhost:3001` и по IP ваше
 
 ## 3. Мобильное приложение
 
+Нужен [Flutter SDK](https://docs.flutter.dev/get-started/install) (проверка — `flutter doctor`), для Android — Android Studio с Android SDK.
+
 ```bash
 cd mobile
-copy .env.example .env
-npm install
-npm run dev
+flutter pub get
+flutter run
 ```
 
-В `mobile/.env`:
-
-```env
-VITE_API_URL=http://localhost:3001
-```
+В debug приложение ходит на `http://10.0.2.2:3001` (эмулятор Android) или `http://localhost:3001` (симулятор iOS).
 
 Для теста на **физическом телефоне** укажите IP компьютера:
 
-```env
-VITE_API_URL=http://192.168.1.100:3001
+```bash
+flutter run --dart-define=API_URL=http://192.168.1.100:3001
 ```
 
 ### Android
 
 ```bash
-npm run build:release
-npx cap open android
+flutter build appbundle      # для Google Play
+flutter build apk --release  # APK
 ```
-
-Сборка APK в Android Studio: **Build → Build Bundle(s) / APK(s)**.
 
 ### iOS (только Mac)
 
 ```bash
-npm run build:ios
-cd ios/App && pod install
-npx cap open ios
+flutter build ipa
 ```
 
 Подробнее: [deploy/IOS.md](../deploy/IOS.md) и [MOBILE.md](MOBILE.md).
@@ -112,7 +105,7 @@ npm run dev
 
 | Проблема | Решение |
 |----------|---------|
-| Телефон не видит API | `VITE_API_URL` = IP ПК, backend слушает `0.0.0.0`, одна Wi‑Fi сеть |
+| Телефон не видит API | `--dart-define=API_URL=` с IP ПК, backend слушает `0.0.0.0`, одна Wi‑Fi сеть |
 | GPS не работает | Разрешения геолокации, GPS включён, тест на улице |
 | Ошибка MySQL | Проверьте `DB_*` в `.env`, выполните `npm run db:setup` |
 | SMS не приходит | Настройте `SMS_*` или `SMS_DEV_CODE=123456` для dev |

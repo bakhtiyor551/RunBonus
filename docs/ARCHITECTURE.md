@@ -22,7 +22,7 @@ flowchart LR
 | Папка | Стек | Порт (dev) |
 |-------|------|------------|
 | `backend/` | Node.js, Express, mysql2 | 3001 |
-| `mobile/` | Ionic React, Vite, Capacitor 6 | 5173 |
+| `mobile/` | Flutter (Dart), Android + iOS | — |
 | `admin/` | React, Vite | 5174 |
 | `database/` | SQL schema + migrations | — |
 
@@ -51,23 +51,24 @@ backend/src/
 ## Mobile
 
 ```
-mobile/src/
-├── pages/             Экраны (Home, Workout, Shop, …)
-├── components/        UI-компоненты
-├── services/          API, GPS, трекер тренировки
-│   ├── workoutTracker.js   Сессия тренировки
-│   ├── gpsFilter.js        Фильтрация GPS
-│   ├── geolocation.js      Capacitor Geolocation
-│   └── liveActivity.js     iOS Dynamic Island
-└── plugins/           Нативные Capacitor-плагины
+mobile/lib/
+├── main.dart, router.dart, app_state.dart
+├── core/              API-клиент, хранилище, форматирование
+├── services/          Награды, магазин, корзина, реклама, push
+├── workout/           Трекер тренировки
+│   ├── workout_tracker.dart   Сессия тренировки
+│   ├── gps_filter.dart        Фильтрация GPS
+│   ├── geolocation.dart       geolocator (фон / foreground-сервис)
+│   └── native_workout.dart    Канал к нативному коду (шаги, Live Activity)
+└── ui/                Тема, страницы, виджеты
 ```
 
 ### Нативные возможности
 
 | Платформа | Функция |
 |-----------|---------|
-| Android | Foreground Service, шагомер, SMS Retriever |
-| iOS | Pedometer, Live Activity, WorkoutTracking plugin |
+| Android | Foreground-сервис геолокации (geolocator), шагомер, SMS Retriever, карта OSM |
+| iOS | CMPedometer, Live Activity (widget extension), карта MapKit |
 
 ## Admin
 

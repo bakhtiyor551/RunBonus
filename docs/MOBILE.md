@@ -1,97 +1,104 @@
 # Мобильное приложение
 
-Стек: **Ionic React 8** + **Vite** + **Capacitor 6**.
+Стек: **Flutter 3.47 / Dart 3.13** (`mobile/`), Android + iOS. Bundle ID / applicationId — `com.runbonus.app`.
 
-## Экраны (после миграции на награды)
+## Экраны
 
 | Путь | Экран |
 |------|-------|
-| `/` | Главная — прогресс км, следующая награда, CTA тренировки |
+| `/login` | Вход по телефону + SMS-код |
+| `/` | Главная — прогресс км, следующая награда, кнопка тренировки |
+| `/workout` | Активная тренировка (карта, метрики, пауза, удержание для финиша) |
 | `/workouts` | История тренировок |
-| `/rewards` | Контрольные точки (50/100/200/300/500 км) |
+| `/rewards`, `/challenges` | Челленджи / контрольные точки |
+| `/milestones?milestone=ID` | Прогресс и выбор награды |
 | `/my-rewards` | Мои выбранные награды и статусы |
-| `/workout` | Активная тренировка (карта, метрики, пауза) |
-| `/shop` | Магазин (покупка за деньги) |
-| `/cart` | Корзина |
+| `/leaderboard` | Рейтинг |
+| `/shop`, `/shop/:id` | Магазин и карточка товара (покупка за деньги) |
+| `/cart` | Корзина и оформление заказа (в т.ч. мобильный перевод с чеком) |
 | `/orders` | Мои заказы |
-| `/profile` | Профиль, кроссовки, настройки |
-| `/activate` | Активация QR кроссовок |
-
-Нижняя навигация: **Главная · Тренировки · Награды · Профиль**.
+| `/profile` | Профиль, кроссовки, единицы измерения, выход |
 
 Редиректы legacy: `/summary` → `/`, `/wallet` → `/rewards`, `/history` → `/workouts`, `/progress` → `/rewards`.
 
-## Бизнес-логика
+## Структура `lib/`
 
-1. Активировать кроссовки по QR  
-2. Тренировка → GPS на backend → anti-fraud → **подтверждённые км**  
-3. Milestone открывает награду  
-4. Пользователь выбирает один подарок (размер / цвет / промокод)  
-5. Магазин отдельно — оплата деньгами, не бонусами  
-
-Подробнее: [REWARDS_MIGRATION.md](REWARDS_MIGRATION.md), [API.md](API.md).
-
-## Переменные окружения
-
-| Файл | Назначение |
-|------|------------|
-| `.env` | Dev (локальный API) |
-| `.env.production` | Production build |
-
-```env
-VITE_API_URL=http://192.168.1.100:3001
+```
+lib/
+├── main.dart            Запуск, тема, офлайн-оверлей
+├── router.dart          go_router: авторизация, редиректы
+├── app_state.dart       Пользователь, вход/выход, bootstrap
+├── core/                API-клиент, хранилище, форматирование, телефон, конфиг
+├── services/            Награды, челленджи, магазин, корзина, реклама, push
+├── workout/             GPS, фильтр, буфер точек, WebSocket, трекер, нативный канал
+└── ui/                  Тема, страницы, общие виджеты
 ```
 
-## Скрипты
+## Адрес API
+
+В release-сборке всегда `https://runbonus.online`. В debug по умолчанию: эмулятор Android — `http://10.0.2.2:3001`, симулятор iOS — `http://localhost:3001`.
+
+Свой адрес (например, физический телефон в одной Wi‑Fi сети с backend):
+
+```bash
+flutter run --dart-define=API_URL=http://192.168.1.100:3001
+```
+
+AdMob unit ID можно передать так же: `--dart-define=ADMOB_GOOGLE_HOME=...` (`ADMOB_GOOGLE_WORKOUT`, `ADMOB_GOOGLE_SHOP`, `ADMOB_PLAY_*`), `ADMOB_TEST=true`, `ADMOB_ENABLED=false`.
+
+## Команды
 
 | Команда | Описание |
 |---------|----------|
-| `npm run dev` | Dev-сервер (браузер) |
-| `npm run build` | Production web build |
-| `npm run build:release` | Build + `cap sync` (Android) |
-| `npm run build:ios` | Build + sync iOS + patch plugins |
-| `npm run cap:open` | Открыть Android Studio |
-| `npm run cap:open:ios` | Открыть Xcode |
-| `npm run sms-hash` | Хеш для Android SMS Retriever |
+| `flutter pub get` | Установить зависимости |
+| `flutter run` | Запуск на устройстве / эмуляторе |
+| `flutter analyze` | Статический анализ |
+| `flutter build appbundle` | Android App Bundle для Google Play |
+| `flutter build apk --release` | APK |
+| `flutter build ipa` | iOS-архив (только Mac, см. [deploy/IOS.md](../deploy/IOS.md)) |
+| `dart run flutter_launcher_icons` | Пересоздать иконки из `assets/icon.png` |
 
-## Ключевые сервисы
+## Бизнес-логика
 
-### `workoutTracker.js`
+1. Активировать кроссовки по QR
+2. Тренировка → GPS на backend → anti-fraud → **подтверждённые км**
+3. Milestone открывает награду
+4. Пользователь выбирает один подарок (размер / цвет / промокод)
+5. Магазин отдельно — оплата деньгами, не бонусами
 
-Управление сессией тренировки:
+Подробнее: [REWARDS_MIGRATION.md](REWARDS_MIGRATION.md), [API.md](API.md).
 
-- Старт/пауза/стоп
-- GPS через `geolocation.js`
-- Шагомер (нативный плагин)
-- Автопауза при остановке (< 0.5 м/с, 4 сек)
-- Синхронизация точек на сервер каждые 4 сек
-- iOS Live Activity
+## Тренировка (`lib/workout/`)
 
-### `rewards.js`
-
-Клиент API наград: progress, milestones, select, my.
-
-### `gpsFilter.js`
-
-Фильтрация GPS-шума:
-
-- Погрешность ≤ 15 м (первая точка до 80 м)
-- Мин. смещение 2.5 м
-- Интервал 1–15 сек между точками
-- Скользящее среднее скорости (3 точки)
-- Haversine для дистанции
+- `workout_tracker.dart` — сессия: старт/пауза/стоп, автопауза, синхронизация точек каждые 4 с (на паузе — 8 с), восстановление после перезапуска.
+- `geolocation.dart` — поток GPS через `geolocator`; на Android — foreground-сервис с уведомлением, на iOS — фоновая геолокация.
+- `gps_filter.dart` — фильтрация шума (точность, мин. смещение, интервал, сглаживание скорости, Haversine).
+- `gps_buffer.dart` — офлайн-буфер точек.
+- `workout_socket.dart` — WebSocket live-трекинга с подтверждениями.
+- `native_workout.dart` — канал `runbonus/workout` (шаги, Live Activity, сворачивание).
 
 Подробнее: [WORKOUTS.md](WORKOUTS.md).
 
-## Нативные плагины
+## Карта
 
-### Android
+- **iOS** — нативный MapKit (platform view `runbonus/apple_map`, `ios/Runner/AppleMapView.swift`).
+- **Android** — OpenStreetMap через `flutter_map` (тёмная подложка Esri, при ошибках — стандартные тайлы OSM).
 
-- `WorkoutForegroundService` — уведомление во время тренировки
-- `WorkoutTrackingPlugin` — шаги, daily steps
-- `SmsOtpRetriever` — автоподстановка SMS-кода
-- Разрешения в `AndroidManifest.xml`: location, foreground service, activity recognition
+## Нативная часть
 
-### iOS
+### Android (`android/app/src/main/kotlin/com/runbonus/app/`)
 
-- `WorkoutTrackingPlugin` — шаги
+- `MainActivity.kt`:
+  - канал `runbonus/workout` — шаги (`TYPE_STEP_COUNTER`) и сворачивание приложения;
+  - `runbonus/sms_otp` — автоподстановка кода через SMS Retriever;
+  - канал уведомлений `runbonus_default`;
+  - системное «назад» на корневом экране сворачивает приложение.
+- `AppSignatureHelper.kt` — хеш для SMS Retriever. Выводится в logcat (`SMS_APP_HASH=...`), его нужно добавить в backend `.env`.
+- `google-services.json` — Firebase (push).
+
+### iOS (`ios/`)
+
+- `Runner/RunBonusNativePlugin.swift` — шаги (CMPedometer) и Live Activity.
+- `Runner/WorkoutLiveActivityManager.swift`, `Runner/WorkoutActivityAttributes.swift` — управление Live Activity.
+- `WorkoutLiveActivity/` — target `WorkoutLiveActivityExtension` (виджет Dynamic Island / экрана блокировки, iOS 16.2+).
+- Push на iOS требует `GoogleService-Info.plist` и capability Push Notifications. Без них приложение работает, просто не регистрирует push-токен.

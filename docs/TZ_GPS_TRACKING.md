@@ -11,9 +11,9 @@
 |----|--------|
 | Start только с ACTIVE shoes | ✅ `requireActiveShoe` + UI lock «Мои кроссовки» |
 | Одна активная тренировка | ✅ `409 ACTIVE_WORKOUT_EXISTS` |
-| GPS points batch + offline buffer | ✅ `gpsBuffer` + WS/HTTP flush |
-| Core Location (iOS) | ✅ `@capacitor/geolocation` → CLLocation |
-| Карта маршрута | ✅ Leaflet + Carto Voyager на iOS; polyline |
+| GPS points batch + offline buffer | ✅ `gps_buffer.dart` + WS/HTTP flush |
+| Core Location (iOS) | ✅ `geolocator` → CLLocation |
+| Карта маршрута | ✅ MapKit на iOS, OSM (`flutter_map`) на Android; polyline |
 | altitude / course / accuracy | ✅ клиент → buffer → `workout_points` |
 | Server distance + validation | ✅ `workoutValidation.js` + reason codes |
 | APPROVED → Challenge | ✅ только approved KM |
@@ -45,8 +45,8 @@ pm2 restart runbonus-api
 `GPS_JUMP`, `HIGH_SPEED`, `LOW_ACCURACY`, `GPS_GAP`, `INVALID_TIMESTAMP`, `DUPLICATE_POINTS`, `UNREALISTIC_DISTANCE`, `MOCK_LOCATION`, `AUTO_CLOSED`
 
 ## iOS Maps
-На **iOS Workout Screen** — нативный **MapKit / MKMapView** (плагин `AppleMaps`):
-- GPS = Core Location через `@capacitor/geolocation` (CLLocation);
+На **iOS Workout Screen** — нативный **MapKit / MKMapView** (platform view `runbonus/apple_map`, `ios/Runner/AppleMapView.swift`):
+- GPS = Core Location через `geolocator` (CLLocation);
 - карта = Apple Maps (без Carto / Esri / OSM / Leaflet);
 - маршрут = `MKPolyline`;
 - позиция = стандартный `showsUserLocation`.
