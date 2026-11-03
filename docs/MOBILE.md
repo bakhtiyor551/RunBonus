@@ -36,12 +36,14 @@ lib/
 
 ## Адрес API
 
-В release-сборке всегда `https://runbonus.online`. В debug по умолчанию: эмулятор Android — `http://10.0.2.2:3001`, симулятор iOS — `http://localhost:3001`.
+По умолчанию (debug и release) — Go API: `https://runbonus.online` (`/api/*`, WebSocket `/app/workout`).
 
-Свой адрес (например, физический телефон в одной Wi‑Fi сети с backend):
+Локальный backend на эмуляторе / в LAN:
 
 ```bash
-flutter run --dart-define=API_URL=http://192.168.1.100:3001
+flutter run --dart-define=API_URL=http://10.0.2.2:3000          # Android emulator
+flutter run --dart-define=API_URL=http://localhost:3000         # iOS simulator
+flutter run --dart-define=API_URL=http://192.168.1.100:3000     # телефон в Wi‑Fi
 ```
 
 AdMob unit ID можно передать так же: `--dart-define=ADMOB_GOOGLE_HOME=...` (`ADMOB_GOOGLE_WORKOUT`, `ADMOB_GOOGLE_SHOP`, `ADMOB_PLAY_*`), `ADMOB_TEST=true`, `ADMOB_ENABLED=false`.

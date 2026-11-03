@@ -26,15 +26,15 @@ go run ./cmd/api seed
 go run ./cmd/api
 ```
 
-API будет доступен на `http://localhost:3001` и по IP вашего ПК в локальной сети.
+API будет доступен на `http://localhost:3000` (или порт из `.env`) и по IP вашего ПК в локальной сети.
 
-Проверка: `GET http://localhost:3001/api/health` → `{"ok":true,...}`
+Проверка: `GET http://localhost:3000/api/health` → `{"ok":true,"runtime":"go",...}`
 
 ### Переменные `.env`
 
 | Переменная | Назначение |
 |------------|------------|
-| `PORT` | Порт API (по умолчанию 3001) |
+| `PORT` | Порт API (по умолчанию 3000 на production) |
 | `DB_*` | Подключение к MySQL |
 | `JWT_SECRET` | Токен пользователей |
 | `JWT_ADMIN_SECRET` | Токен админов |
@@ -52,12 +52,17 @@ flutter pub get
 flutter run
 ```
 
-В debug приложение ходит на `http://10.0.2.2:3001` (эмулятор Android) или `http://localhost:3001` (симулятор iOS).
+По умолчанию приложение ходит на Go API `https://runbonus.online`. Локальный backend:
+
+```bash
+flutter run --dart-define=API_URL=http://10.0.2.2:3000   # Android emulator
+flutter run --dart-define=API_URL=http://localhost:3000  # iOS simulator
+```
 
 Для теста на **физическом телефоне** укажите IP компьютера:
 
 ```bash
-flutter run --dart-define=API_URL=http://192.168.1.100:3001
+flutter run --dart-define=API_URL=http://192.168.1.100:3000
 ```
 
 ### Android

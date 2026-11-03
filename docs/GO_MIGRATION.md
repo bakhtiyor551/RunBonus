@@ -1,6 +1,6 @@
 # Миграция backend: Node.js → Go (завершена)
 
-API RunBonus переписан с Node.js (Express, mysql2, ws) на Go. Код Node удалён, Go лежит в `backend/`. На production — контейнер `runbonus-api` в `docker-compose.prod.yml` (порт **3000**, рядом mysql/redis). `.env`, uploads и БД те же. nginx, админка и мобильное приложение изменений не требуют.
+API RunBonus переписан с Node.js (Express, mysql2, ws) на Go. Код Node удалён, Go лежит в `backend/`. На production — контейнер `runbonus-api` в `docker-compose.prod.yml` (порт **3000**). `.env`, uploads и БД те же. nginx и админка без смены контракта; мобильное приложение по умолчанию ходит на `https://runbonus.online` (см. `mobile/lib/core/config.dart`).
 
 ## Этапы
 

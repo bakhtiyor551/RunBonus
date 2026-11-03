@@ -21,7 +21,7 @@ flowchart LR
 
 | Папка | Стек | Порт (dev) |
 |-------|------|------------|
-| `backend/` | Go (chi, database/sql, coder/websocket) | 3001 |
+| `backend/` | Go (chi, database/sql, coder/websocket) | 3000 |
 | `mobile/` | Flutter (Dart), Android + iOS | — |
 | `admin/` | React, Vite | 5174 |
 | `database/` | SQL schema + migrations | — |

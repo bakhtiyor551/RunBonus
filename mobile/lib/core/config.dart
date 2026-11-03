@@ -1,11 +1,7 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
-
-/// Продакшен API (HTTPS). HTTP/IP nginx перенаправляет на этот домен.
+/// Go API (production). nginx → контейнер runbonus-api :3000.
 const productionApiUrl = 'https://runbonus.online';
 
-/// Задаётся при сборке: `flutter run --dart-define=API_URL=http://192.168.x.x:3001`.
+/// Локальный/кастомный backend: `flutter run --dart-define=API_URL=http://10.0.2.2:3000`.
 const _apiUrlFromEnv = String.fromEnvironment('API_URL');
 
 String _normalizeApiUrl(String url) {
@@ -17,15 +13,14 @@ String _normalizeApiUrl(String url) {
   if (RegExp(r'^http://runbonus\.online', caseSensitive: false).hasMatch(clean)) {
     return productionApiUrl;
   }
-  return clean;
+  // Старый Node слушал :3001 — на Go API это :3000.
+  return clean.replaceFirst(RegExp(r':3001(/|$)'), ':3000$1');
 }
 
 String _resolveApiUrl() {
   if (_apiUrlFromEnv.isNotEmpty) return _normalizeApiUrl(_apiUrlFromEnv);
-  if (kReleaseMode) return productionApiUrl;
-  // Эмулятор Android ходит на хост через 10.0.2.2, симулятор iOS — через localhost.
-  if (Platform.isAndroid) return 'http://10.0.2.2:3001';
-  return 'http://localhost:3001';
+  // Debug и release по умолчанию на Go production; локально — через API_URL.
+  return productionApiUrl;
 }
 
 final String apiUrl = _resolveApiUrl();

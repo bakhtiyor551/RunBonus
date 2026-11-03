@@ -22,7 +22,7 @@ flutter run            # выбранный симулятор или подкл
 Для работы с локальным backend на реальном iPhone:
 
 ```bash
-flutter run --dart-define=API_URL=http://192.168.x.x:3001
+flutter run --dart-define=API_URL=http://192.168.x.x:3000
 ```
 
 (замените на IP вашего Mac в той же Wi‑Fi сети). В release-сборке API всегда `https://runbonus.online`.
@@ -68,6 +68,6 @@ flutter run --dart-define=API_URL=http://192.168.x.x:3001
 
 **Нет сети на iPhone** — в релизе API `https://runbonus.online`; проверьте, что сайт открывается в Safari.
 
-**Симулятор не видит API** — backend должен работать на Mac. В debug симулятор ходит на `http://localhost:3001`.
+**Симулятор не видит API** — по умолчанию приложение использует `https://runbonus.online`. Локальный backend: `--dart-define=API_URL=http://localhost:3000`.
 
 **Live Activity не появляется** — нужен iOS 16.2+ и включённые «Live Activities» в настройках приложения. Активность создаётся только когда приложение на экране.

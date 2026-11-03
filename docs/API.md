@@ -1,6 +1,6 @@
 # REST API
 
-Базовый URL: `http://localhost:3001` (dev) или `https://runbonus.online` (prod).
+Базовый URL: `https://runbonus.online` (prod, Go) или `http://localhost:3000` (локальный backend).
 
 ## Авторизация
 

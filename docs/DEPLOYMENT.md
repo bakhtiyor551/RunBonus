@@ -73,10 +73,10 @@ server {
 ### Production `.env`
 
 ```env
-PORT=3001
+PORT=3000
 NODE_ENV=production
 TZ=Asia/Dushanbe
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_USER=runbonus
 DB_PASSWORD=<strong-password>
 DB_NAME=runbonus
