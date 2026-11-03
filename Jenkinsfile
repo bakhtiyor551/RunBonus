@@ -1,27 +1,33 @@
-// CI/CD для API (backend/, Go). Админка и мобильное приложение собираются отдельно.
-//
-// Нужные credentials в Jenkins:
-//   runbonus-registry  — Username/Password от Docker registry (если используется)
-//   runbonus-deploy-ssh — SSH-ключ пользователя на production-сервере
-// Параметры окружения задаются в job: REGISTRY, DEPLOY_HOST, DEPLOY_PATH.
+// CI/CD API RunBonus (Go) на этом же сервере.
+// Собирает образ и поднимает api в стеке docker-compose.prod.yml (mysql/redis).
 pipeline {
   agent any
 
   parameters {
-    booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Выкатить на production после сборки')
-  }
-
-  environment {
-    IMAGE = "${env.REGISTRY ?: 'runbonus'}/api"
-    TAG = "${env.GIT_COMMIT?.take(8) ?: env.BUILD_NUMBER}"
+    booleanParam(name: 'DEPLOY', defaultValue: true, description: 'Выкатить api после сборки')
   }
 
   options {
     timestamps()
     disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '30'))
+  }
+
+  environment {
+    IMAGE_TAG = "${env.GIT_COMMIT?.take(8) ?: env.BUILD_NUMBER}"
   }
 
   stages {
+    stage('Checkout meta') {
+      steps {
+        script {
+          env.GIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+          env.IMAGE_TAG = "git-${env.GIT_SHA}"
+          echo "Commit ${env.GIT_SHA}"
+        }
+      }
+    }
+
     stage('Test') {
       agent { docker { image 'golang:1.27-alpine'; reuseNode true } }
       steps {
@@ -34,42 +40,30 @@ pipeline {
 
     stage('Build image') {
       steps {
-        dir('backend') {
-          sh 'docker build -t $IMAGE:$TAG -t $IMAGE:latest .'
-        }
-      }
-    }
-
-    stage('Push') {
-      when { expression { env.REGISTRY } }
-      steps {
-        withCredentials([usernamePassword(credentialsId: 'runbonus-registry', usernameVariable: 'U', passwordVariable: 'P')]) {
-          sh 'echo "$P" | docker login "$REGISTRY" -u "$U" --password-stdin'
-          sh 'docker push $IMAGE:$TAG && docker push $IMAGE:latest'
-        }
+        sh '''
+          docker build -t "runbonus-api:${IMAGE_TAG}" -t runbonus-api:latest ./backend
+        '''
       }
     }
 
     stage('Deploy') {
-      when { expression { params.DEPLOY } }
+      when { expression { return params.DEPLOY } }
       steps {
-        sshagent(credentials: ['runbonus-deploy-ssh']) {
-          sh '''
-            ssh -o StrictHostKeyChecking=accept-new "$DEPLOY_HOST" "
-              set -e
-              cd $DEPLOY_PATH/backend
-              git -C $DEPLOY_PATH pull --ff-only
-              IMAGE=$IMAGE TAG=$TAG docker compose up -d --build api
-              for i in 1 2 3 4 5 6 7 8 9 10; do
-                curl -fsS http://127.0.0.1:3001/api/health && exit 0
-                sleep 3
-              done
-              echo 'API не поднялся' >&2
-              docker compose logs --tail=100 api
-              exit 1
-            "
-          '''
-        }
+        sh '''
+          set -e
+          export IMAGE_TAG="${IMAGE_TAG}"
+          docker compose -f docker-compose.prod.yml up -d --build api
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:3000/api/health; then
+              echo
+              exit 0
+            fi
+            sleep 3
+          done
+          echo 'API не поднялся' >&2
+          docker compose -f docker-compose.prod.yml logs --tail=100 api
+          exit 1
+        '''
       }
     }
   }

@@ -2,26 +2,26 @@
 
 ## Backend на сервере
 
-API написан на Go (`backend/`). Запускается одним бинарником или в Docker на порту **3001**.
+API написан на Go (`backend/`). На production поднимается в Docker Compose-стеке `runbonus` (api + MySQL + Redis) на порту **3000**; хостовый nginx проксирует сюда.
 
 ### Требования
 
 - Docker с compose-плагином (или Go 1.27+ для сборки бинарника)
-- MySQL 8
-- nginx (reverse proxy)
+- MySQL/MariaDB (в стеке — сервис `mysql`)
+- nginx (reverse proxy на хосте)
 - SSL-сертификат (Let's Encrypt)
 
-### Шаги (Docker)
+### Шаги (Docker, production)
 
 ```bash
-cd backend
-cp .env.example .env          # заполните production-значения
-docker compose up -d --build  # API на 127.0.0.1:3001
-docker compose run --rm api setup-db /app/database   # схема и миграции
-docker compose run --rm api seed                     # только первый раз
+# корень репозитория / workspace Jenkins
+cp .env.example .env   # или готовый /var/jenkins_home/.../.env
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml run --rm api setup-db /app/database
+docker compose -f docker-compose.prod.yml run --rm api seed   # только первый раз
 ```
 
-Папки `backend/uploads` (аватары, чеки) и `backend/secrets` (Firebase) монтируются в контейнер. Обновление: `git pull && docker compose up -d --build` или Jenkins (`Jenkinsfile`, параметр `DEPLOY`).
+API слушает `127.0.0.1:3000`. Uploads — volume `api_uploads`, секреты — `backend/secrets`. Обновление: Jenkins (`Jenkinsfile`, параметр `DEPLOY`) или `docker compose -f docker-compose.prod.yml up -d --build api`.
 
 ### Без Docker (systemd)
 
@@ -33,11 +33,7 @@ Unit-файл: `WorkingDirectory=/var/www/RunBonus/backend`, `ExecStart=/usr/loc
 
 ### Переход с прежнего Node.js API
 
-`.env`, `uploads/` и `secrets/` остаются в `backend/` — Go читает их там же. Порядок:
-
-1. `pm2 stop runbonus-api && pm2 delete runbonus-api && pm2 save`.
-2. `git pull`, затем `docker compose up -d --build`.
-3. Удалите cron `node scripts/dailyReport.js`, если был: утренний отчёт теперь отправляет сам API (`JOBS=true`).
+Выполнено на production: systemd/Node остановлены, образ `runbonus-api` в стеке `docker-compose.prod.yml` — Go, nginx → `:3000`. Утренний отчёт шлёт сам API (`JOBS=true`).
 
 Подробности и найденные при переносе баги — в [GO_MIGRATION.md](GO_MIGRATION.md).
 
@@ -52,19 +48,19 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/runbonus.online/privkey.pem;
 
     location /api/ {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /uploads/ {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://127.0.0.1:3000;
     }
 
     # WebSocket: тренировка в приложении и Live GPS в админке
     location ~ ^/(app/workout|admin/live-tracking)$ {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
