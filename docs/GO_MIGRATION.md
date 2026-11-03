@@ -27,14 +27,11 @@
 | 9 | Shop и Orders: каталог, оплата/доставка, чек, заказы, реклама | ✅ модули `shop`, `ads` | `internal/shop`, `internal/ads` |
 | 10 | Firebase (FCM HTTP v1) и Telegram | ✅ модуль `push` | `internal/notify` |
 | 11 | Docker + Jenkins | ✅ | `backend-go/Dockerfile`, `docker-compose.yml`, `Jenkinsfile` |
-| 12 | Переключение production на Go | ⏳ ниже — делается на сервере | |
-| 13 | Отключение Node.js | ⏳ после переноса админки | |
+| — | Админка `/api/admin/**`: клиенты, кроссовки, тренировки, Live GPS, магазин, склад, заказы, курьеры, награды, задания, отчёты, реклама, справочники; утренний Telegram-отчёт | ✅ модуль `admin` | `internal/admin`, `internal/reports`, `internal/ads` |
+| 12 | Переключение production на Go | ⏳ на сервере, инструкция ниже | |
+| 13 | Отключение Node.js | ⏳ после проверки production, инструкция ниже | |
 
-**Ещё в Node:**
-- админка `/api/admin/**`, около 95 маршрутов: пользователи, кроссовки, склад, заказы, курьеры, отчёты, реклама, награды;
-- утренний Telegram-отчёт — он строится по админским отчётам.
-
-Это следующая волна. Пока её нет, Go прозрачно проксирует эти запросы в Node.
+Go больше не зависит от Node. С пустым `NODE_UPSTREAM` весь сценарий проверки проходит, ни одного запроса в Node не уходит.
 
 ## Аудит Node.js API
 
@@ -78,9 +75,16 @@ Go сериализует строки БД так же, как `mysql2` (`inter
 
 Антифрод повторяет JS-семантику `Number()` и `new Date()` (`internal/gps/jsval.go`). Эталоны в `gps_test.go` сняты с `validateWorkout()` Node.
 
-### Найденный баг Node (в Go исправлен)
+### Найденные баги Node (в Go исправлены)
 
-`backend/src/services/orderService.js`, `createOrder`: `baseValues[11] = deliveryFee` перезаписывает **способ доставки** стоимостью. Из-за этого каждый заказ сохраняется с `delivery_method = "25"` (или `"0"`) и `delivery_fee = 0`. Итоговая сумма при этом верная. Правильный индекс — `12`. Go сохраняет правильно, поэтому после включения модуля `shop` новые заказы в админке будут показывать нормальный способ доставки.
+| Где | Что не так в Node | Как в Go |
+|-----|-------------------|----------|
+| `orderService.js`, `createOrder` | `baseValues[11] = deliveryFee` перезаписывает способ доставки: заказы сохраняются с `delivery_method = "25"`/`"0"` и `delivery_fee = 0` (сумма верная) | способ и стоимость доставки сохраняются правильно |
+| `reportsService.js`, `getReportsWorkouts` | в запросе графика `FROM workouts` без алиаса `w` — отчёт «Тренировки» в админке всегда отвечает 500 | отчёт работает |
+| `mobilePaymentAccountService.js`, `setMobilePaymentAccountStatus` | переключение статуса кошелька требует номер и всегда отвечает 400 | статус меняется без номера |
+| `shopService.js`, `adminSaveProduct` (редактирование без цветов) | размеры вставляются дважды, отсюда дубль ключа или задвоенные строки | размеры вставляются один раз, остатки сохраняются |
+
+Старые заказы с `delivery_method = "25"`/`"0"` в БД остаются как есть. При желании их можно поправить SQL-скриптом: `delivery_fee = delivery_method + 0`, а способ определить по сумме.
 
 ## Проверка паритета
 
@@ -91,10 +95,10 @@ Go сериализует строки БД так же, как `mysql2` (`inter
 cd backend && node src/index.js                                   # :3001
 cd backend-go && NODE_UPSTREAM=http://127.0.0.1:3001 go run ./cmd/api   # :8080
 python3 scripts/parity.py          # чтение и авторизация
-python3 scripts/parity.py --full   # + регистрация, тренировки, WS, награды, заказы (пишет в БД!)
+python3 scripts/parity.py --full   # + регистрация, тренировки, WS, награды, заказы, админка (пишет в БД!)
 ```
 
-Последний прогон: **88/88**, и со всеми модулями в Go, и с `GO_MODULES=auth` (остальное через прокси).
+Последний прогон: **174/174** — мобильный API, оба WebSocket и админка (чтение и запись), в том числе с Go без Node (`NODE_UPSTREAM=`). Осознанные отличия скрипт помечает как «известное»: баги Node из таблицы выше, общий склад, формат ответа 404.
 
 ## Запуск локально
 
@@ -108,8 +112,8 @@ go test ./...
 |------------|------------|
 | `GO_PORT` | порт Go API (8080) |
 | `NODE_UPSTREAM` | адрес Node для непереносённых маршрутов (`http://127.0.0.1:3001`); пусто — 404 |
-| `GO_MODULES` | `all` или список: `auth,shoes,workouts,progress,rewards,challenges,shop,ads,push` |
-| `GO_JOBS` | `true` — автозакрытие тренировок в Go (выключите эту задачу в Node, чтобы не дублировать) |
+| `GO_MODULES` | `all` или список: `auth,shoes,workouts,progress,rewards,challenges,shop,ads,push,admin` |
+| `GO_JOBS` | `true` — фоновые задачи в Go: автозакрытие тренировок и утренний отчёт в 08:00. Включать, когда Node остановлен, иначе отчёт придёт дважды |
 | `BACKEND_DIR` | каталог Node-бэкенда (`.env`, `secrets/`), по умолчанию `../backend` |
 | `UPLOADS_ROOT` | общая с Node папка загрузок |
 | `TZ` | часовой пояс, как у Node-процесса |
@@ -138,15 +142,17 @@ go test ./...
    - сначала `auth,shoes`;
    - затем добавить `progress,rewards,challenges`;
    - затем `workouts` — в спокойное время, когда нет активных тренировок: WebSocket переподключится к Go;
-   - в конце `shop,ads,push`.
-4. Когда `workouts` стабилен: `GO_JOBS=true` в Go и уберите `setInterval(autoCloseStaleWorkouts)` из Node.
+   - затем `shop,ads,push`;
+   - в конце `admin`, после чего `GO_MODULES=all`.
 
 Откат: убрать модуль из `GO_MODULES` и перезапустить контейнер или вернуть `proxy_pass` на `:3001`.
 
 ## 13. Отключение Node.js
 
-После переноса админки (`/api/admin/**`) и утреннего отчёта, когда в логах Go больше нет строк `[proxy]`:
+Когда production несколько дней работает с `GO_MODULES=all` и в логах Go нет строк `[proxy]`:
 
-1. Несколько дней наблюдать production на Go.
-2. `pm2 stop runbonus-api`, убрать `NODE_UPSTREAM`.
-3. Удалить `backend/` из репозитория, перенести `.env` и `secrets/` в `backend-go/` (`BACKEND_DIR=.`).
+1. `pm2 stop runbonus-api && pm2 save`.
+2. В `docker-compose.yml` задайте `NODE_UPSTREAM: ""` и `GO_JOBS: "true"`, затем `docker compose up -d`. Без Node Go сам выполняет автозакрытие тренировок и утренний отчёт.
+3. Ещё несколько дней наблюдения. Затем удалите `backend/src`, `package.json`, `node_modules` из репозитория и с сервера. Оставьте `.env`, `secrets/`, `uploads/`, либо перенесите их в `backend-go/` и задайте `BACKEND_DIR=.`.
+
+Для отката на любом шаге: `pm2 start runbonus-api`, `NODE_UPSTREAM=http://127.0.0.1:3001`, `GO_JOBS=false`.

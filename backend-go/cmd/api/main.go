@@ -10,11 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"runbonus/api/internal/admin"
 	"runbonus/api/internal/ads"
 	"runbonus/api/internal/challenges"
 	"runbonus/api/internal/config"
 	"runbonus/api/internal/db"
 	"runbonus/api/internal/notify"
+	"runbonus/api/internal/reports"
 	"runbonus/api/internal/rewards"
 	"runbonus/api/internal/server"
 	"runbonus/api/internal/shoes"
@@ -39,6 +41,7 @@ func main() {
 		{Name: "shop", Register: shop.Register},
 		{Name: "ads", Register: ads.Register},
 		{Name: "push", Register: notify.Register},
+		{Name: "admin", Register: admin.Register},
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -66,9 +69,10 @@ func main() {
 	_ = srv.Shutdown(shutdown)
 }
 
-// runJobs — автозакрытие тренировок старше 24 ч (через 15 с после старта, затем каждые 5 минут).
-// Утренний Telegram-отчёт пока формирует Node (он строится по админским отчётам).
+// runJobs — автозакрытие тренировок старше 24 ч (через 15 с после старта, затем каждые 5 минут)
+// и утренний Telegram-отчёт в 08:00.
 func runJobs(ctx context.Context) {
+	go dailyReport(ctx)
 	select {
 	case <-ctx.Done():
 		return
@@ -83,6 +87,30 @@ func runJobs(ctx context.Context) {
 			return
 		case <-t.C:
 			workouts.AutoCloseStale(ctx)
+		}
+	}
+}
+
+func dailyReport(ctx context.Context) {
+	last := ""
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-t.C:
+			key := now.UTC().Format("2006-01-02")
+			if now.Hour() != 8 || now.Minute() > 1 || last == key {
+				continue
+			}
+			last = key
+			text, err := reports.DailyTelegram(ctx)
+			if err != nil {
+				log.Println("[daily-report]", err)
+				continue
+			}
+			notify.Telegram(text)
 		}
 	}
 }

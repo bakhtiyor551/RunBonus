@@ -12,7 +12,7 @@ services:
       NODE_UPSTREAM: ${NODE_UPSTREAM:-http://127.0.0.1:3001}
       # Модули, которые обслуживает Go (остальное уходит в Node). all — все перенесённые.
       GO_MODULES: ${GO_MODULES:-all}
-      # Автозакрытие тренировок: включайте только после отключения его в Node.
+      # Фоновые задачи (автозакрытие тренировок, отчёт в 08:00): включайте, когда Node остановлен.
       GO_JOBS: ${GO_JOBS:-false}
       TZ: ${TZ:-Asia/Dushanbe}
       UPLOADS_ROOT: /data/uploads

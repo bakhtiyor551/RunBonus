@@ -12,10 +12,10 @@ import (
 
 // crud — список, создание, обновление и смена статуса для справочника.
 type crud struct {
-	path, listErr                    string
-	list                             func(context.Context) ([]httpx.M, error)
-	create                           func(context.Context, httpx.Body) (httpx.M, error)
-	update                           func(ctx context.Context, id string, b httpx.Body, statusOnly bool) (httpx.M, error)
+	path, listErr, createErr string
+	list                     func(context.Context) ([]httpx.M, error)
+	create                   func(context.Context, httpx.Body) (httpx.M, error)
+	update                   func(ctx context.Context, id string, b httpx.Body, statusOnly bool) (httpx.M, error)
 }
 
 func (c crud) register(r chi.Router) {
@@ -26,7 +26,7 @@ func (c crud) register(r chi.Router) {
 		}
 		return ok(w, l)
 	}))
-	r.Post(c.path, handle("Ошибка создания", func(w http.ResponseWriter, r *http.Request) error {
+	r.Post(c.path, handle(c.createErr, func(w http.ResponseWriter, r *http.Request) error {
 		m, err := c.create(r.Context(), httpx.BodyOf(r))
 		if err != nil {
 			return err
@@ -58,7 +58,7 @@ func ignoreStatusOnly(fn func(context.Context, string, httpx.Body) (httpx.M, err
 }
 
 func registerMethods(r chi.Router) {
-	crud{"/payment-methods", "Ошибка загрузки способов оплаты", shop.AllPaymentMethods, shop.CreatePaymentMethod, ignoreStatusOnly(shop.UpdatePaymentMethod)}.register(r)
-	crud{"/delivery-methods", "Ошибка загрузки способов доставки", shop.AllDeliveryMethods, shop.CreateDeliveryMethod, ignoreStatusOnly(shop.UpdateDeliveryMethod)}.register(r)
-	crud{"/mobile-wallets", "Ошибка загрузки кошельков", shop.AllMobileAccounts, shop.CreateMobileAccount, shop.UpdateMobileAccount}.register(r)
+	crud{"/payment-methods", "Ошибка загрузки способов оплаты", "Ошибка создания", shop.AllPaymentMethods, shop.CreatePaymentMethod, ignoreStatusOnly(shop.UpdatePaymentMethod)}.register(r)
+	crud{"/delivery-methods", "Ошибка загрузки способов доставки", "Ошибка создания", shop.AllDeliveryMethods, shop.CreateDeliveryMethod, ignoreStatusOnly(shop.UpdateDeliveryMethod)}.register(r)
+	crud{"/mobile-wallets", "Ошибка загрузки кошельков", "Ошибка создания", shop.AllMobileAccounts, shop.CreateMobileAccount, shop.UpdateMobileAccount}.register(r)
 }

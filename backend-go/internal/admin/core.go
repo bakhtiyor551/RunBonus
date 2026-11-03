@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
-	"fmt"
 	"math"
 	"net/http"
 	"time"
@@ -94,7 +93,7 @@ func registerCore(r chi.Router) {
 	r.Post("/login", handle("Ошибка входа", login))
 	r.Group(func(r chi.Router) {
 		r.Use(auth.AdminMW)
-		r.Get("/users", handle("Ошибка", users))
+		r.Get("/users", handle("Ошибка", usersList))
 		r.Get("/users/{id}", handle("Ошибка загрузки профиля", userDetail))
 		r.Post("/users/block", handle("Ошибка", func(w http.ResponseWriter, r *http.Request) error {
 			b := httpx.BodyOf(r)
@@ -148,7 +147,7 @@ func login(w http.ResponseWriter, r *http.Request) error {
 	return ok(w, httpx.M{"token": token, "admin": httpx.M{"id": a["id"], "login": a["login"], "role": a["role"]}})
 }
 
-func users(w http.ResponseWriter, r *http.Request) error {
+func usersList(w http.ResponseWriter, r *http.Request) error {
 	rows, err := db.Query(r.Context(), db.Pool, `SELECT u.id, u.name, u.phone, u.city, u.status, u.created_at,
 			u.device_id, u.device_bound_at,
 			(SELECT COALESCE(SUM(w.distance_km), 0) FROM workouts w WHERE w.user_id = u.id AND w.status = 'approved') AS total_distance_km,
@@ -325,7 +324,7 @@ func BonusSettings(ctx context.Context) httpx.M {
 	def := httpx.M{
 		"price_per_km": envNum("BONUS_PER_KM", 3), "daily_limit": envNum("DAILY_BONUS_LIMIT", 10),
 		"total_limit_per_shoe": envNum("SHOE_BONUS_LIMIT", 200),
-		"min_distance_km": 0.5, "min_duration_minutes": 5.0, "max_speed_kmh": 18.0,
+		"min_distance_km":      0.5, "min_duration_minutes": 5.0, "max_speed_kmh": 18.0,
 	}
 	row, err := db.One(ctx, db.Pool, "SELECT * FROM bonus_settings WHERE status = 'active' ORDER BY id DESC LIMIT 1")
 	if err != nil || row == nil {
@@ -410,5 +409,3 @@ func workoutDetail(w http.ResponseWriter, r *http.Request) error {
 			"shoe_limit": s["total_limit_per_shoe"], "current_price_per_km": s["price_per_km"]},
 	})
 }
-
-var _ = fmt.Sprint

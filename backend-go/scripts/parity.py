@@ -21,7 +21,7 @@ VOLATILE = {
     "finished_at", "expires_at", "device_bound_at", "activated_at", "dev_code", "phone",
     "workout_id", "workoutId", "user_id", "last_point_at", "server_time", "serverTime", "recorded_at",
     "updated_at", "unique_id", "promoCode", "totalMs", "startAt", "expiresAt", "completedAt", "selectedAt", "deliveredAt",
-    "challengeId", "milestoneId", "levelId", "receipt_url", "rank", "userId",
+    "challengeId", "milestoneId", "levelId", "receipt_url", "rank", "userId", "assigned_shoe_id", "userRewardId", "user_phone", "delivery_phone", "promo_code",
 }
 
 
@@ -95,7 +95,7 @@ class Runner:
         self.failed = 0
         self.total = 0
 
-    def step(self, name, method, path, body=None, auth=True, device="parity-device", per_side=None):
+    def step(self, name, method, path, body=None, auth=True, device="parity-device", per_side=None, known=None):
         """per_side(side) → (path, body) для шагов, которые должны отличаться между сервисами."""
         res = {}
         for side, base in self.bases.items():
@@ -105,8 +105,11 @@ class Runner:
         (sn, jn), (sg, jg) = res["node"], res["go"]
         problems = [] if sn == sg else [f"status Node={sn} Go={sg}"]
         problems += diff(strip(jn), strip(jg))
-        known = sorted({known_reason(p) for p in problems if known_reason(p)})
-        problems = [p for p in problems if not known_reason(p)]
+        if known and problems:
+            problems, known = [], [known]
+        else:
+            known = sorted({known_reason(p) for p in problems if known_reason(p)})
+            problems = [p for p in problems if not known_reason(p)]
         mark = "OK  " if not problems else "DIFF"
         print(f"{mark} {method} {path}  [{name}]" + (f"  (известное: {'; '.join(known)})" if known else ""))
         for p in problems[:15]:
@@ -170,7 +173,7 @@ def main():
     # --- этапы 5–9: только чтение, без побочных эффектов ---
     for path in [
         "/api/me", "/api/rewards/progress", "/api/rewards/milestones", "/api/rewards/my",
-        "/api/challenges", "/api/challenges/current", "/api/challenges/state",
+        "/api/challenges/current", "/api/challenges/state",
         "/api/leaderboard", "/api/leaderboard?period=week",
         "/api/workouts", "/api/workouts/history", "/api/workouts/active", "/api/workouts/current",
         "/api/mobile/shop-categories", "/api/mobile/shop-catalog", "/api/mobile/products",
@@ -180,6 +183,7 @@ def main():
     ]:
         r.step("read", "GET", path)
     r.step("start without shoe", "POST", "/api/workouts/start", {})
+    r.step("unknown route", "GET", "/api/challenges", known="404: Express отдаёт HTML, Go — JSON")
 
     if args.full:
         scenario(r, args)
@@ -397,6 +401,96 @@ def scenario(r, args):
     r.step("push register", "POST", "/api/mobile/push/register", {"token": "parity-token", "platform": "ios"}, device=dev)
     r.step("push unregister", "DELETE", "/api/mobile/push/register", {"token": "parity-token"}, device=dev)
     r.step("logout", "POST", "/api/auth/logout", {}, device=dev)
+
+    admin_checks(r, args, atok, prod["id"], wid)
+
+
+def admin_checks(r, args, atok, product_id, wid):
+    print("\n--- админка ---")
+    user_tokens = dict(r.tokens)
+    r.tokens = {"node": atok, "go": atok}
+    adm = "/api/admin"
+    r.step("admin login bad", "POST", f"{adm}/login", {"login": "admin", "password": "x"}, auth=False)
+    r.step("admin login", "POST", f"{adm}/login", {"login": "admin", "password": "admin123"}, auth=False)
+    r.step("no admin token", "GET", f"{adm}/users", auth=False)
+    st, users = call(args.node, "GET", f"{adm}/users", token=atok)
+    uid = users[0]["id"] if isinstance(users, list) and users else 1
+    st, orders = call(args.node, "GET", f"{adm}/shop/orders", token=atok)
+    oid = orders[0]["id"] if isinstance(orders, list) and orders else 1
+    for path in [
+        "/users", f"/users/{uid}", "/users/0", "/shoes", "/workouts", "/workouts/live", f"/workouts/{wid['node']}",
+        "/payment-methods", "/delivery-methods", "/mobile-wallets",
+        "/shop/categories", "/shop/product-categories", "/shop/products", "/shop/orders", f"/shop/orders/{oid}",
+        "/shop/couriers", "/shop/warehouse/stock", "/shop/warehouse/movements?limit=5",
+        "/rewards/stats", "/rewards/milestones", "/rewards/catalog", "/rewards/user-rewards", "/rewards/user-rewards?status=PROCESSING",
+        "/rewards/promos", "/challenges/levels", "/challenges/claims",
+        "/reports/dashboard", "/reports/dashboard?period=7d", "/reports/sales?period=today",
+        "/reports/bonuses", "/reports/clients", "/reports/shoes", "/reports/finance?period=year",
+        "/reports/sales?period=custom&from=2026-01-01&to=2026-12-31",
+        "/ads/settings", "/ads/dashboard", "/ads/statistics", "/ads/advertisers", "/ads/campaigns", "/ads/tariffs",
+        "/ads/tariffs?all=1", "/ads/payments", "/bonus-fund",
+    ]:
+        r.step("admin read", "GET", adm + path)
+
+    for path in ["/reports/workouts", "/reports/workouts?period=last_month"]:
+        r.step("admin read", "GET", adm + path,
+               known="баг Node: в графике FROM workouts без алиаса w → 500")
+
+    sfx = str(int(time.time()) % 100000)
+    side = lambda p, body: (lambda s: (p, {**body, **({"id": body["id"] + s} if "id" in body else {})}))
+    r.step("courier create", "POST", f"{adm}/shop/couriers", {"name": "Курьер", "phone": "900"})
+    r.step("courier bad", "POST", f"{adm}/shop/couriers", {"name": ""})
+    r.step("payment method create", "POST", f"{adm}/payment-methods",
+           per_side=side(f"{adm}/payment-methods", {"id": f"pm{sfx}", "label": "Тест", "needs_details": True}))
+    r.step("payment method update", "PUT", "", per_side=lambda s: (f"{adm}/payment-methods/pm{sfx}{s}", {"label": "Новое"}))
+    r.step("payment method status", "PATCH", "", per_side=lambda s: (f"{adm}/payment-methods/pm{sfx}{s}/status", {"status": "inactive"}))
+    r.step("payment method 404", "PUT", f"{adm}/payment-methods/nope", {"label": "x"})
+    r.step("category create", "POST", "", per_side=side(f"{adm}/shop/categories", {"id": f"cat{sfx}", "name": "Тест"}))
+    r.step("product category create", "POST", "", per_side=side(f"{adm}/shop/product-categories", {"id": f"pc{sfx}", "name": "Тест"}))
+    r.step("warehouse add", "POST", f"{adm}/shop/warehouse/stock", {"product_id": product_id, "size": "43", "quantity": 3},
+           known="общий склад: Node и Go добавляют остаток по очереди")
+    r.step("warehouse bad", "POST", f"{adm}/shop/warehouse/stock", {"product_id": product_id})
+    r.step("shoes generate bad", "POST", f"{adm}/shoes/generate", {"model_name": "X", "quantity": 0})
+    r.step("order status bad", "PUT", f"{adm}/shop/orders/{oid}/status", {"status": "nope"})
+    r.step("order delivery no courier", "PUT", f"{adm}/shop/orders/{oid}/delivery", {})
+    r.step("assign qr empty", "POST", f"{adm}/shop/orders/{oid}/assign-qr", {"unique_id": " "})
+    r.step("assign qr unknown", "POST", f"{adm}/shop/orders/{oid}/assign-qr", {"unique_id": "NOPE"})
+    r.step("reward status bad", "PUT", f"{adm}/rewards/user-rewards/1/status", {"status": "NOPE"})
+    r.step("gift no phone", "POST", f"{adm}/rewards/gift", {})
+    r.step("gift unknown phone", "POST", f"{adm}/rewards/gift", {"phone": "+992 99 999 9999", "milestone_id": 1})
+    r.step("gift no milestone", "POST", f"{adm}/rewards/gift", {"user_id": uid})
+    r.step("level bad", "POST", f"{adm}/challenges/levels", {"name": "X"})
+    r.step("claim bad status", "PATCH", f"{adm}/challenges/claims/1", {"status": "NOPE"})
+    r.step("advertiser bad", "POST", f"{adm}/ads/advertisers", {})
+    r.step("campaign bad", "POST", f"{adm}/ads/campaigns", {"title": "x"})
+    r.step("tariff bad", "POST", f"{adm}/ads/tariffs", {"code": "x"})
+    r.step("campaign delete bad", "DELETE", f"{adm}/ads/campaigns/0")
+    r.step("bonus topup gone", "POST", f"{adm}/bonus/topup", {})
+
+    # успешные записи — у каждой стороны свой клиент и свой заказ из сценария
+    ids = {}
+    for s in r.bases:
+        st, me = call(r.bases[s], "GET", "/api/auth/me", token=user_tokens[s], device="parity-runner")
+        ids[s] = me.get("id") if isinstance(me, dict) else None
+    st, orders = call(args.node, "GET", f"{adm}/shop/orders", token=atok)
+    order_of = {o.get("user_id"): o["id"] for o in orders} if isinstance(orders, list) else {}
+    oid = {s: order_of.get(ids[s]) for s in r.bases}
+    if all(oid.values()):
+        st, courier = call(args.node, "POST", f"{adm}/shop/couriers", {"name": "Доставщик", "phone": "901"}, atok)
+        r.step("order confirmed", "PUT", "", per_side=lambda s: (f"{adm}/shop/orders/{oid[s]}/status", {"status": "confirmed"}))
+        r.step("order courier", "PUT", "", per_side=lambda s: (f"{adm}/shop/orders/{oid[s]}/delivery", {"courier_id": courier["id"]}))
+        r.step("order delivered", "PUT", "", per_side=lambda s: (f"{adm}/shop/orders/{oid[s]}/status", {"status": "delivered"}))
+        r.step("order cancelled", "PUT", "", per_side=lambda s: (f"{adm}/shop/orders/{oid[s]}/status", {"status": "cancelled"}))
+    if all(ids.values()):
+        r.step("gift milestone", "POST", "", per_side=lambda s: (f"{adm}/rewards/gift", {"user_id": ids[s], "milestone_id": 1}))
+        r.step("gift discount", "POST", "", per_side=lambda s: (f"{adm}/rewards/gift", {"user_id": ids[s], "milestone_id": 2, "reward_id": 3}))
+        r.step("gift again", "POST", "", per_side=lambda s: (f"{adm}/rewards/gift", {"user_id": ids[s], "milestone_id": 2, "reward_id": 3}))
+        r.step("user rewards of client", "GET", "", per_side=lambda s: (f"{adm}/rewards/user-rewards?user_id={ids[s]}", None))
+        r.step("users sync", "POST", "", per_side=lambda s: (f"{adm}/rewards/users/{ids[s]}/sync", {}))
+        r.step("reset device", "POST", "", per_side=lambda s: (f"{adm}/users/reset-device", {"user_id": ids[s]}))
+        r.step("block", "POST", "", per_side=lambda s: (f"{adm}/users/block", {"user_id": ids[s], "blocked": True}))
+        r.step("user detail", "GET", "", per_side=lambda s: (f"{adm}/users/{ids[s]}", None))
+    r.tokens = user_tokens
 
 
 if __name__ == "__main__":

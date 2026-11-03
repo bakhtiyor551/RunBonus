@@ -9,7 +9,7 @@ pipeline {
 
   parameters {
     choice(name: 'GO_MODULES', choices: ['all', 'auth', 'auth,shoes', 'auth,shoes,workouts,progress',
-      'auth,shoes,workouts,progress,rewards,challenges', 'none'], description: 'Модули, которые обслуживает Go')
+      'auth,shoes,workouts,progress,rewards,challenges', 'auth,shoes,workouts,progress,rewards,challenges,shop,ads,push', 'none'], description: 'Модули, которые обслуживает Go')
     booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Выкатить на production после сборки')
   }
 

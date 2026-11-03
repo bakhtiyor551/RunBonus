@@ -59,7 +59,7 @@ func envInt(key string, def int) int {
 }
 
 // AllModules — модули, перенесённые на Go. GO_MODULES=all включает все.
-var AllModules = []string{"auth", "shoes", "workouts", "progress", "rewards", "challenges", "shop", "ads", "push"}
+var AllModules = []string{"auth", "shoes", "workouts", "progress", "rewards", "challenges", "shop", "ads", "push", "admin"}
 
 func Load() {
 	// .env из backend-go/ и, для общего окружения, из каталога Node-бэкенда.
@@ -152,3 +152,6 @@ func normalizePhone(raw string) string {
 	}
 	return "992" + d
 }
+
+// Env — переменная окружения (после загрузки .env).
+func Env(key string) string { return env(key, "") }

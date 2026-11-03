@@ -368,9 +368,9 @@ func Stats(ctx context.Context) (httpx.M, error) {
 }
 
 type GiftInput struct {
-	UserID, MilestoneID     int64
-	RewardID                int64
-	Size, Color, Comment    string
+	UserID, MilestoneID  int64
+	RewardID             int64
+	Size, Color, Comment string
 }
 
 // Gift — adminGiftReward: открыть контрольную точку и, опционально, выдать конкретную награду.

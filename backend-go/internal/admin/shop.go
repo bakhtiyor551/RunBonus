@@ -15,8 +15,8 @@ func idParam(r *http.Request) float64 { return db.ToFloat(chi.URLParam(r, "id"))
 
 // registerShop — /api/admin/shop/**.
 func registerShop(r chi.Router) {
-	crud{"/categories", "Ошибка", shop.AllShopCategories, shop.CreateShopCategory, ignoreStatusOnly(shop.UpdateShopCategory)}.register(r)
-	crud{"/product-categories", "Ошибка загрузки категорий", shop.AllProductCategories, shop.CreateProductCategory, ignoreStatusOnly(shop.UpdateProductCategory)}.register(r)
+	crud{"/categories", "Ошибка", "Ошибка сохранения", shop.AllShopCategories, shop.CreateShopCategory, ignoreStatusOnly(shop.UpdateShopCategory)}.register(r)
+	crud{"/product-categories", "Ошибка загрузки категорий", "Ошибка создания", shop.AllProductCategories, shop.CreateProductCategory, ignoreStatusOnly(shop.UpdateProductCategory)}.register(r)
 
 	r.Get("/products", handle("Ошибка", func(w http.ResponseWriter, r *http.Request) error {
 		l, err := shop.AdminProducts(r.Context())
