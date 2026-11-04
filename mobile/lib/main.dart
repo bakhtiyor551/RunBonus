@@ -59,6 +59,7 @@ class _RunBonusAppState extends State<RunBonusApp> {
       title: 'RunBonus',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       locale: const Locale('ru'),
       supportedLocales: const [Locale('ru')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,

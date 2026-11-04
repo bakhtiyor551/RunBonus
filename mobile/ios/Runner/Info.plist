@@ -6,10 +6,6 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>ru</string>
-	<key>CFBundleLocalizations</key>
-	<array>
-		<string>ru</string>
-	</array>
 	<key>CFBundleDisplayName</key>
 	<string>RunBonus</string>
 	<key>CFBundleExecutable</key>
@@ -18,6 +14,10 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>ru</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>RunBonus</string>
 	<key>CFBundlePackageType</key>
@@ -30,13 +30,13 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940255089942544~3347511713</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>
 		<string>tel</string>
 	</array>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSExceptionDomains</key>
@@ -64,14 +64,14 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>RunBonus использует камеру, чтобы сфотографировать чек оплаты или фото профиля.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>RunBonus использует фото для аватара и чека оплаты.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>RunBonus использует вашу геопозицию во время тренировки для записи маршрута, расчёта дистанции и подтверждения километров — в том числе когда экран заблокирован.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>RunBonus использует вашу геопозицию во время тренировки для записи маршрута, расчёта дистанции и подтверждения километров.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>RunBonus считает шаги во время тренировки.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>RunBonus использует фото для аватара и чека оплаты.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>

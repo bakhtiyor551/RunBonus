@@ -122,6 +122,7 @@ class _CartPageState extends State<CartPage> {
       }
       appState.refreshProfile();
     } catch (err) {
+      if (mobile != null) rethrow;
       if (mounted) showToast(context, errorMessage(err, 'Не удалось оформить заказ'));
     } finally {
       if (mounted) setState(() => _submitting = false);

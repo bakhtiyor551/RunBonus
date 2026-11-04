@@ -301,16 +301,21 @@ class ErrorBox extends StatelessWidget {
   }
 }
 
+/// Глобальный messenger — тосты видны поверх модальных шторок.
+final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 /// Короткое уведомление сверху (ошибка формы, успех и т.д.).
 void showToast(BuildContext context, String? message, {bool success = false}) {
   if (message == null || message.isEmpty) return;
-  final messenger = ScaffoldMessenger.maybeOf(context);
+  final messenger = rootScaffoldMessengerKey.currentState ?? ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
   messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(
       content: Text(message, style: RB.body(size: 15, weight: FontWeight.w600, color: success ? RB.neon : RB.error)),
-      duration: const Duration(milliseconds: 2800),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      duration: const Duration(milliseconds: 3200),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ));
 }
@@ -341,30 +346,33 @@ Future<T?> showDetailSheet<T>(BuildContext context, {required String title, requ
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (ctx) => ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.88),
-      child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(child: Text(title, style: RB.headline(size: 20))),
-                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close), tooltip: 'Закрыть'),
-                ],
+    builder: (ctx) => Scaffold(
+      backgroundColor: Colors.transparent,
+      body: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.88),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 8, 8),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(title, style: RB.headline(size: 20))),
+                    IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close), tooltip: 'Закрыть'),
+                  ],
+                ),
               ),
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: builder(ctx),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: builder(ctx),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),

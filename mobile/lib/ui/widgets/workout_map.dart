@@ -80,7 +80,8 @@ class WorkoutMap extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          const ColoredBox(color: RB.surfaceLow),
+          // Светлый фон на время загрузки тайлов — совпадает с картой, без тёмных полос.
+          const ColoredBox(color: Color(0xFFF2F2F2)),
           map,
           if (coords.isEmpty && follow)
             IgnorePointer(
