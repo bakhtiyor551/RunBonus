@@ -38,6 +38,7 @@ class _MobileTransferSheetState extends State<MobileTransferSheet> {
   String? _receipt;
   Uint8List? _preview;
   bool _submitting = false;
+  String? _formError;
 
   @override
   void initState() {
@@ -82,12 +83,24 @@ class _MobileTransferSheetState extends State<MobileTransferSheet> {
 
   Future<void> _confirm() async {
     final err = _validate();
-    if (err != null) return showToast(context, err);
+    if (err != null) {
+      setState(() => _formError = err);
+      return showToast(context, err);
+    }
     final acc = _selected!;
     final details = ['На: ${acc['provider']} — ${acc['number']}', 'От: ${_sender.text.trim()}'].join('\n');
-    setState(() => _submitting = true);
+    setState(() {
+      _formError = null;
+      _submitting = true;
+    });
     try {
       await widget.onConfirm(MobilePayment(paymentDetails: details, receiptBase64: _receipt!));
+    } catch (e) {
+      if (mounted) {
+        final msg = errorMessage(e, 'Не удалось оформить заказ');
+        setState(() => _formError = msg);
+        showToast(context, msg);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -203,6 +216,10 @@ class _MobileTransferSheetState extends State<MobileTransferSheet> {
             }),
             child: Text('Удалить фото', style: RB.body(color: RB.onSurfaceVariant)),
           ),
+        if (_formError != null) ...[
+          const SizedBox(height: 12),
+          Text(_formError!, style: RB.body(size: 14, weight: FontWeight.w600, color: RB.error)),
+        ],
         const SizedBox(height: 20),
         Row(
           children: [

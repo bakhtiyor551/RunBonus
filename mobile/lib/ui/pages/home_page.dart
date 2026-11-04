@@ -121,7 +121,15 @@ class _HomePageState extends State<HomePage> {
         await _openWorkout(err.workoutId!);
         return;
       }
-      await _alert(errorMessage(err, 'Не удалось начать тренировку'));
+      final msg = errorMessage(err, 'Не удалось начать тренировку');
+      // Показываем код/статус — иначе на клиенте остаётся только общий текст 500.
+      final detail = err is ApiException && (err.code != null || err.status != null)
+          ? [
+              if (err.code != null && err.code!.isNotEmpty) err.code,
+              if (err.status != null) 'HTTP ${err.status}',
+            ].join(' · ')
+          : null;
+      await _alert(msg, detail);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

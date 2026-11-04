@@ -57,11 +57,13 @@ func SaveReceipt(key, dataURL string) (string, error) {
 	}
 	dir := filepath.Join(config.C.UploadsRoot, "order-receipts")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
+		log.Printf("SaveReceipt mkdir %s: %v", dir, err)
+		return "", httpx.E(500, "Не удалось сохранить чек (хранилище)")
 	}
 	name := "order-" + unsafeName.ReplaceAllString(key, "_") + "." + ext
 	if err := os.WriteFile(filepath.Join(dir, name), buf, 0o644); err != nil {
-		return "", err
+		log.Printf("SaveReceipt write %s: %v", name, err)
+		return "", httpx.E(500, "Не удалось сохранить чек (хранилище)")
 	}
 	return "/api/uploads/order-receipts/" + name, nil
 }

@@ -24,7 +24,6 @@ import '../widgets/hold_to_stop.dart';
 import '../widgets/workout_map.dart';
 import 'workout_result_view.dart';
 
-const _liveBg = Color(0xFFF7F7F8);
 const _ink = Color(0xFF111111);
 
 class WorkoutPage extends StatefulWidget {
@@ -299,101 +298,115 @@ class _WorkoutPageState extends State<WorkoutPage> {
                     : 'Ожидание GPS…';
     final toast = (live?.gpsError.isNotEmpty ?? false) ? live!.gpsError : status;
     final topInset = MediaQuery.paddingOf(context).top;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F5),
-      body: Column(
+      backgroundColor: Colors.transparent,
+      extendBody: true,
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          Container(
-            color: _liveBg,
-            padding: EdgeInsets.fromLTRB(12, topInset + 8, 12, 12),
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 28, 4, 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(flex: 10, child: _Stat(label: 'Дистанция', value: distValue, unit: distUnit)),
-                      Expanded(flex: 12, child: _Stat(label: 'Время', value: formatDuration(seconds), big: true)),
-                      Expanded(flex: 10, child: _Stat(label: 'Темп', value: pace == '—' ? null : pace)),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  left: -2,
-                  top: 2,
-                  child: Material(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: _minimizeOrHome,
-                      child: const SizedBox.square(dimension: 36, child: Icon(Icons.arrow_back, color: _ink, size: 20)),
-                    ),
-                  ),
-                ),
-              ],
+          // Карта на весь экран — хедер/футер только поверх, без своих фонов.
+          Positioned.fill(
+            child: WorkoutMap(
+              points: live?.points ?? const <GpsPoint>[],
+              livePosition: live?.livePosition,
+              controller: _mapController,
             ),
           ),
-          const Divider(height: 1, color: Color(0x0F000000)),
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                WorkoutMap(
-                  points: live?.points ?? const <GpsPoint>[],
-                  livePosition: live?.livePosition,
-                  controller: _mapController,
-                ),
-                if (toast.isNotEmpty)
-                  Positioned(
-                    top: 16,
-                    left: 0,
-                    right: 0,
-                    child: IgnorePointer(
-                      child: Center(
-                        child: Container(
-                          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.86),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(color: const Color(0xD1141414), borderRadius: BorderRadius.circular(999)),
-                          child: Text(toast, textAlign: TextAlign.center, style: RB.body(size: 13, color: Colors.white)),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(12, topInset + 8, 12, 12),
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 28, 4, 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(flex: 10, child: _Stat(label: 'Дистанция', value: distValue, unit: distUnit)),
+                          Expanded(flex: 12, child: _Stat(label: 'Время', value: formatDuration(seconds), big: true)),
+                          Expanded(flex: 10, child: _Stat(label: 'Темп', value: pace == '—' ? null : pace)),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      left: -2,
+                      top: 2,
+                      child: Material(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        shape: const CircleBorder(),
+                        elevation: 2,
+                        shadowColor: const Color(0x40000000),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _minimizeOrHome,
+                          child: const SizedBox.square(dimension: 36, child: Icon(Icons.arrow_back, color: _ink, size: 20)),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          Container(
-            decoration: const BoxDecoration(color: _liveBg, border: Border(top: BorderSide(color: Color(0x0F000000)))),
-            padding: EdgeInsets.fromLTRB(16, 14, 16, 14 + MediaQuery.paddingOf(context).bottom),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _RoundButton(size: 44, icon: Icons.add, tooltip: 'Приблизить карту', onTap: () => _mapController.zoom(1)),
-                    const SizedBox(height: 8),
-                    _RoundButton(size: 44, icon: Icons.remove, tooltip: 'Отдалить карту', onTap: () => _mapController.zoom(-1)),
                   ],
                 ),
-                const SizedBox(width: 18),
-                _RoundButton(
-                  size: 52,
-                  icon: live?.manualPaused == true ? Icons.play_arrow : Icons.pause,
-                  tooltip: live?.manualPaused == true ? 'Продолжить' : 'Пауза',
-                  active: live?.paused == true,
-                  onTap: _finishing || live?.autoPaused == true ? null : _tracker.togglePause,
+              ),
+            ),
+          ),
+          if (toast.isNotEmpty)
+            Positioned(
+              top: topInset + 118,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Center(
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.86),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(color: const Color(0xD1141414), borderRadius: BorderRadius.circular(999)),
+                    child: Text(toast, textAlign: TextAlign.center, style: RB.body(size: 13, color: Colors.white)),
+                  ),
                 ),
-                const SizedBox(width: 18),
-                HoldToStopButton(
-                  onStop: _finish,
-                  enabled: !_finishing,
-                  label: _finishing ? 'Завершение…' : 'Удерживайте для завершения',
+              ),
+            ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 14 + bottomInset),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _RoundButton(size: 44, icon: Icons.add, tooltip: 'Приблизить карту', onTap: () => _mapController.zoom(1)),
+                        const SizedBox(height: 8),
+                        _RoundButton(size: 44, icon: Icons.remove, tooltip: 'Отдалить карту', onTap: () => _mapController.zoom(-1)),
+                      ],
+                    ),
+                    const SizedBox(width: 18),
+                    _RoundButton(
+                      size: 52,
+                      icon: live?.manualPaused == true ? Icons.play_arrow : Icons.pause,
+                      tooltip: live?.manualPaused == true ? 'Продолжить' : 'Пауза',
+                      active: live?.paused == true,
+                      onTap: _finishing || live?.autoPaused == true ? null : _tracker.togglePause,
+                    ),
+                    const SizedBox(width: 18),
+                    HoldToStopButton(
+                      onStop: _finish,
+                      enabled: !_finishing,
+                      label: _finishing ? 'Завершение…' : 'Удерживайте для завершения',
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -411,18 +424,20 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const shadow = [Shadow(color: Color(0xCCFFFFFF), blurRadius: 10)];
     final style = RB.body(size: big ? 32 : 26, weight: FontWeight.w700, color: _ink).copyWith(
       fontStyle: FontStyle.italic,
       letterSpacing: -0.9,
       height: 1.05,
       fontFeatures: const [FontFeature.tabularFigures()],
+      shadows: shadow,
     );
     return Column(
       children: [
         FittedBox(
           fit: BoxFit.scaleDown,
           child: value == null
-              ? Text('—', style: style.copyWith(color: const Color(0xFFBBBBBB), fontStyle: FontStyle.normal))
+              ? Text('—', style: style.copyWith(color: const Color(0xFF888888), fontStyle: FontStyle.normal))
               : Text.rich(TextSpan(children: [
                   TextSpan(text: value),
                   if (unit != null)
@@ -430,14 +445,17 @@ class _Stat extends StatelessWidget {
                       alignment: PlaceholderAlignment.top,
                       child: Padding(
                         padding: const EdgeInsets.only(left: 3),
-                        child: Text(unit!, style: RB.body(size: 14, weight: FontWeight.w600, color: const Color(0xFF666666))),
+                        child: Text(unit!,
+                            style: RB.body(size: 14, weight: FontWeight.w600, color: const Color(0xFF444444))
+                                .copyWith(shadows: shadow)),
                       ),
                     ),
                 ]), style: style),
         ),
         const SizedBox(height: 6),
         Text(label.toUpperCase(),
-            style: RB.body(size: 11, weight: FontWeight.w600, color: const Color(0xFF8A8A8E)).copyWith(letterSpacing: 0.9)),
+            style: RB.body(size: 11, weight: FontWeight.w600, color: const Color(0xFF555555))
+                .copyWith(letterSpacing: 0.9, shadows: shadow)),
       ],
     );
   }

@@ -107,17 +107,24 @@ func start(w http.ResponseWriter, r *http.Request) error {
 		device = string(s)
 	}
 
+	// Очистку делаем вне транзакции: ошибка UPDATE (ENUM/миграции) иначе абортит весь Tx в InnoDB.
+	if err := closeStale(ctx, db.Pool, uid); err != nil {
+		log.Printf("[workout/start] closeStale user=%d: %v", uid, err)
+	}
+	if _, err := CloseAbandoned(ctx, db.Pool); err != nil {
+		log.Printf("[workout/start] CloseAbandoned user=%d: %v", uid, err)
+	}
+
 	var newID int64
 	var existing db.Row
 	err = db.Tx(ctx, func(tx *sql.Tx) error {
-		if err := closeStale(ctx, tx, uid); err != nil {
-			return err
-		}
-		if _, err := CloseAbandoned(ctx, tx); err != nil {
-			return err
-		}
 		ex, err := db.One(ctx, tx, `SELECT id, status FROM workouts WHERE user_id = ? AND status IN ('in_progress', 'paused')
 			ORDER BY started_at DESC LIMIT 1`, uid)
+		if err != nil {
+			// Старые БД без status=paused — пробуем только in_progress.
+			ex, err = db.One(ctx, tx, `SELECT id, status FROM workouts WHERE user_id = ? AND status = 'in_progress'
+				ORDER BY started_at DESC LIMIT 1`, uid)
+		}
 		if err != nil || ex != nil {
 			existing = ex
 			return err
@@ -128,7 +135,15 @@ func start(w http.ResponseWriter, r *http.Request) error {
 			newID, _, err = db.Exec(ctx, tx, `INSERT INTO workouts (user_id, shoe_id, started_at, status, background_tracking)
 				VALUES (?, ?, NOW(), 'in_progress', TRUE)`, uid, shoe["id"])
 		}
-		return err
+		if db.IsBadField(err) {
+			newID, _, err = db.Exec(ctx, tx, `INSERT INTO workouts (user_id, shoe_id, started_at, status)
+				VALUES (?, ?, NOW(), 'in_progress')`, uid, shoe["id"])
+		}
+		if err != nil {
+			log.Printf("[workout/start] insert user=%d shoe=%v: %v", uid, shoe["id"], err)
+			return httpx.E(500, "Не удалось создать тренировку. Попробуйте ещё раз или обратитесь в поддержку.")
+		}
+		return nil
 	})
 	if err != nil {
 		return err
