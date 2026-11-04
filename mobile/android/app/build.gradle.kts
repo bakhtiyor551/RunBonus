@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.runbonus.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

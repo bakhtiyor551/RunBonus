@@ -8,7 +8,7 @@ backend/.env.*.local
 backend/secrets/
 backend/scripts/*firebase-adminsdk*.json
 
-# Сборки (Vite / Capacitor)
+# Сборки
 dist/
 admin/dist/
 mobile/dist/
@@ -22,11 +22,10 @@ backend/uploads/*
 .idea/
 **/.idea/
 
-# Android / Capacitor (сборка не в репозитории)
+# Android / iOS (сборка не в репозитории)
 mobile/android/app/build/
 mobile/android/build/
 mobile/android/.gradle/
 mobile/android/local.properties
-mobile/ios/App/Pods/
-mobile/ios/App/build/
 mobile/ios/DerivedData/
+mobile/ios/Pods/

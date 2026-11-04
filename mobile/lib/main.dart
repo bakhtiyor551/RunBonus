@@ -65,11 +65,14 @@ class _RunBonusAppState extends State<RunBonusApp> {
       routerConfig: _router,
       builder: (context, child) {
         final loading = context.select<AppState, bool>((s) => s.loading);
-        return Stack(
-          children: [
-            if (loading) const SplashView() else child ?? const SizedBox.shrink(),
-            const _OfflineOverlay(),
-          ],
+        return ColoredBox(
+          color: RB.bg,
+          child: Stack(
+            children: [
+              if (loading) const SplashView() else child ?? const SizedBox.shrink(),
+              const _OfflineOverlay(),
+            ],
+          ),
         );
       },
     );
