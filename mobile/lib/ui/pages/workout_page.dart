@@ -273,7 +273,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   Widget _buildLive(WorkoutSnapshot? live) {
     final distKm = live?.distance ?? 0;
     final seconds = live?.seconds ?? 0;
-    final pace = distKm >= 0.05 && seconds > 0 ? formatPace(distKm / seconds * 3600, _units) : '—';
+    final speedKmh = live?.currentSpeed ?? 0;
 
     String? distValue;
     var distUnit = 'км';
@@ -285,6 +285,12 @@ class _WorkoutPageState extends State<WorkoutPage> {
         distValue = (_units == DistanceUnits.imperial ? distKm * 0.621371 : distKm).toStringAsFixed(2);
         distUnit = _units == DistanceUnits.imperial ? 'ми' : 'км';
       }
+    }
+
+    String? speedValue;
+    var speedUnit = _units == DistanceUnits.imperial ? 'mph' : 'км/ч';
+    if (speedKmh >= 0.3) {
+      speedValue = (_units == DistanceUnits.imperial ? speedKmh * 0.621371 : speedKmh).toStringAsFixed(1);
     }
 
     final status = live == null
@@ -331,7 +337,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         children: [
                           Expanded(flex: 10, child: _Stat(label: 'Дистанция', value: distValue, unit: distUnit)),
                           Expanded(flex: 12, child: _Stat(label: 'Время', value: formatDuration(seconds), big: true)),
-                          Expanded(flex: 10, child: _Stat(label: 'Темп', value: pace == '—' ? null : pace)),
+                          Expanded(flex: 10, child: _Stat(label: 'Скорость', value: speedValue, unit: speedUnit)),
                         ],
                       ),
                     ),
@@ -379,32 +385,12 @@ class _WorkoutPageState extends State<WorkoutPage> {
               type: MaterialType.transparency,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(16, 14, 16, 14 + bottomInset),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _RoundButton(size: 44, icon: Icons.add, tooltip: 'Приблизить карту', onTap: () => _mapController.zoom(1)),
-                        const SizedBox(height: 8),
-                        _RoundButton(size: 44, icon: Icons.remove, tooltip: 'Отдалить карту', onTap: () => _mapController.zoom(-1)),
-                      ],
-                    ),
-                    const SizedBox(width: 18),
-                    _RoundButton(
-                      size: 52,
-                      icon: live?.manualPaused == true ? Icons.play_arrow : Icons.pause,
-                      tooltip: live?.manualPaused == true ? 'Продолжить' : 'Пауза',
-                      active: live?.paused == true,
-                      onTap: _finishing || live?.autoPaused == true ? null : _tracker.togglePause,
-                    ),
-                    const SizedBox(width: 18),
-                    HoldToStopButton(
-                      onStop: _finish,
-                      enabled: !_finishing,
-                      label: _finishing ? 'Завершение…' : 'Удерживайте для завершения',
-                    ),
-                  ],
+                child: Center(
+                  child: HoldToStopButton(
+                    onStop: _finish,
+                    enabled: !_finishing,
+                    label: _finishing ? 'Завершение…' : 'Удерживайте для завершения',
+                  ),
                 ),
               ),
             ),
@@ -461,36 +447,3 @@ class _Stat extends StatelessWidget {
   }
 }
 
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.size, required this.icon, required this.tooltip, required this.onTap, this.active = false});
-  final double size;
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onTap;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Opacity(
-        opacity: onTap == null ? 0.5 : 1,
-        child: Container(
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Color(0x1F000000), blurRadius: 14, offset: Offset(0, 4))],
-          ),
-          child: Material(
-            color: active ? const Color(0xFF34C759) : Colors.white.withValues(alpha: 0.95),
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: onTap,
-              child: SizedBox.square(dimension: size, child: Icon(icon, color: active ? Colors.white : _ink, size: size * 0.5)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

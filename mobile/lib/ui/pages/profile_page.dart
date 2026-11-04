@@ -282,7 +282,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 icon: Icons.policy_outlined,
                 label: 'Политика конфиденциальности',
                 trailing: Icons.open_in_new,
-                onTap: () => launchUrl(Uri.parse('https://runbonus.online/privacy'), mode: LaunchMode.externalApplication),
+                onTap: () => launchUrl(Uri.parse('https://runbonus.online/privacy/'), mode: LaunchMode.externalApplication),
               ),
               const SizedBox(height: 8),
             ],

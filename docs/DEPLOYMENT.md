@@ -58,6 +58,11 @@ server {
         proxy_pass http://127.0.0.1:3000;
     }
 
+    # Политика конфиденциальности (статический файл из admin/public/privacy/)
+    location = /privacy {
+        return 301 /privacy/;
+    }
+
     # WebSocket: тренировка в приложении и Live GPS в админке
     location ~ ^/(app/workout|admin/live-tracking)$ {
         proxy_pass http://127.0.0.1:3000;
