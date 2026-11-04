@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Удаление аккаунта — RunBonus</title>
+  <meta name="description" content="Как запросить удаление аккаунта и данных в приложении RunBonus" />
+  <style>
+    :root {
+      --bg: #131313;
+      --text: #e8e8e8;
+      --muted: #a8a8a8;
+      --accent: #c3f400;
+      --card: #1b1b1b;
+      --line: #2a2a2a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; }
+    h1 { font-size: 1.85rem; line-height: 1.2; margin: 0 0 8px; }
+    .brand { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+    .meta { color: var(--muted); margin-bottom: 28px; font-size: 0.95rem; }
+    h2 {
+      font-size: 1.15rem;
+      margin: 28px 0 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+    ol, ul { padding-left: 1.2rem; }
+    li { margin: 8px 0; }
+    a { color: var(--accent); }
+    code {
+      background: #222;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.92em;
+    }
+    .box {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin: 18px 0;
+    }
+    label { display: block; margin: 14px 0 6px; color: var(--muted); font-size: 0.92rem; }
+    input, textarea {
+      width: 100%;
+      background: #111;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font: inherit;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    button {
+      margin-top: 16px;
+      background: var(--accent);
+      color: #161e00;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 22px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .hint { color: var(--muted); font-size: 0.9rem; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">RUNBONUS</div>
+    <h1>Запрос на удаление аккаунта</h1>
+    <p class="meta">
+      Приложение: <strong>RunBonus</strong> (Google Play / App Store)<br />
+      Package: <code>com.runbonus.app</code><br />
+      Дата обновления: 4 ноября 2026 г.
+    </p>
+
+    <div class="box">
+      На этой странице можно запросить удаление аккаунта RunBonus и связанных персональных данных.
+      Вход в приложение выполняется по номеру телефона и SMS-коду (пароль не используется).
+    </div>
+
+    <h2>Как запросить удаление — пошагово</h2>
+    <ol>
+      <li>Откройте эту страницу: <a href="https://runbonus.online/delete-account/">https://runbonus.online/delete-account/</a></li>
+      <li>Укажите <strong>номер телефона</strong>, на который зарегистрирован аккаунт RunBonus (в международном формате, например <code>+992XXXXXXXXX</code>).</li>
+      <li>По желанию добавьте имя и краткий комментарий.</li>
+      <li>Нажмите «Отправить запрос» — откроется письмо в вашей почте на адрес поддержки.</li>
+      <li>Отправьте письмо. Мы подтвердим запрос и удалим аккаунт.</li>
+    </ol>
+
+    <div class="box">
+      <strong>Альтернатива:</strong> напишите в поддержку через приложение RunBonus (раздел профиля)
+      или на сайт <a href="https://runbonus.online">https://runbonus.online</a> с темой
+      «Удаление аккаунта» и укажите номер телефона аккаунта.
+    </div>
+
+    <h2>Форма запроса</h2>
+    <form id="delete-form">
+      <label for="phone">Номер телефона аккаунта *</label>
+      <input id="phone" name="phone" type="tel" required placeholder="+992XXXXXXXXX" autocomplete="tel" />
+
+      <label for="name">Имя (необязательно)</label>
+      <input id="name" name="name" type="text" placeholder="Как к вам обращаться" />
+
+      <label for="note">Комментарий (необязательно)</label>
+      <textarea id="note" name="note" placeholder="Например: удалите аккаунт и все данные тренировок"></textarea>
+
+      <button type="submit">Отправить запрос</button>
+      <p class="hint">Откроется почтовый клиент с готовым письмом. Срок обработки обычно до 30 дней.</p>
+    </form>
+
+    <h2>Что будет удалено</h2>
+    <ul>
+      <li>аккаунт и номер телефона;</li>
+      <li>профиль (имя, город, email — если указаны);</li>
+      <li>история тренировок и GPS-маршруты;</li>
+      <li>прогресс по наградам и челленджам;</li>
+      <li>токены push-уведомлений;</li>
+      <li>данные корзины и связанные пользовательские настройки в приложении.</li>
+    </ul>
+
+    <h2>Что может быть сохранено и на какой срок</h2>
+    <ul>
+      <li><strong>Заказы и платежные документы</strong> (в т.ч. загруженные чеки) — до 3 лет или дольше, если этого требует закон о бухучёте/налогах;</li>
+      <li><strong>Обезличенная статистика</strong> — без привязки к личности, для аналитики сервиса;</li>
+      <li><strong>Записи, нужные для защиты от мошенничества и споров</strong> — на срок рассмотрения претензии.</li>
+    </ul>
+    <p>После удаления войти в тот же аккаунт будет нельзя. Новый аккаунт на тот же номер можно создать заново как новый пользователь.</p>
+
+    <h2>Срок выполнения</h2>
+    <p>Запрос обрабатывается в разумный срок, как правило <strong>не более 30 дней</strong> с момента подтверждения личности (номер телефона аккаунта).</p>
+
+    <p class="meta" style="margin-top:32px">
+      Также см. <a href="https://runbonus.online/privacy/">Политику конфиденциальности RunBonus</a>.
+    </p>
+  </main>
+  <script>
+    document.getElementById('delete-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var phone = document.getElementById('phone').value.trim();
+      var name = document.getElementById('name').value.trim();
+      var note = document.getElementById('note').value.trim();
+      if (!phone) return;
+      var subject = encodeURIComponent('RunBonus: запрос на удаление аккаунта');
+      var body = encodeURIComponent(
+        'Здравствуйте!\n\n' +
+        'Прошу удалить аккаунт в приложении RunBonus и связанные персональные данные.\n\n' +
+        'Номер телефона аккаунта: ' + phone + '\n' +
+        (name ? 'Имя: ' + name + '\n' : '') +
+        (note ? 'Комментарий: ' + note + '\n' : '') +
+        '\nPackage: com.runbonus.app\n' +
+        'Страница запроса: https://runbonus.online/delete-account/\n'
+      );
+      // Замените адрес на рабочую почту поддержки перед публикацией в проде при необходимости.
+      window.location.href = 'mailto:support@runbonus.online?subject=' + subject + '&body=' + body;
+    });
+  </script>
+</body>
+</html>
